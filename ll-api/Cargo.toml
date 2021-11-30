@@ -1,0 +1,16 @@
+[package]
+name = "ll-api"
+version = "0.1.0"
+edition = "2018"
+authors = ["TeyKey1"]
+repository = "https://github.com/probe-rs/hive-software"
+description = "PCA 9535 IO-Expander driver using embedded-hal"
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rppal = { version = "0.13.0", features = ["hal"] }
+shared-bus = {git = "https://github.com/TeyKey1/shared-bus.git", features = ["std"]}
+pca9535 = {git = "https://github.com/TeyKey1/pca9535.git", features = ["std"]}
+embedded-hal = "=1.0.0-alpha.5"
