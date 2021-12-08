@@ -1,10 +1,12 @@
 extern crate embedded_hal as hal;
 extern crate pca9535;
+extern crate retry;
 
+use expander_gpio::ExpanderGpio;
 use pca9535::expander::SyncExpander;
 use thiserror::Error;
 
-mod pins;
+mod expander_gpio;
 
 const EXPANDER_BASE_ADDRESS: u8 = 32;
 
@@ -16,28 +18,32 @@ pub enum Status {
 }
 
 pub enum Target {
-    Target0,
-    Target1,
-    Target2,
-    Target3,
+    Target0 = 0,
+    Target1 = 1,
+    Target2 = 2,
+    Target3 = 3,
 }
 
 pub enum Probe {
-    Probe0,
-    Probe1,
-    Probe2,
-    Probe3,
+    Probe0 = 0,
+    Probe1 = 1,
+    Probe2 = 2,
+    Probe3 = 3,
 }
 
 #[derive(Error, Debug)]
-pub enum StackShieldError<E> {
+pub enum StackShieldError<ERR>
+where
+    ERR: core::fmt::Debug,
+{
     #[error("Failed to control stack shield LED")]
-    LedError(E),
+    LedError(ERR),
     #[error("Failed to control stack shield GPIOs")]
-    GpioError {
-        #[from]
-        source: E,
-    },
+    GpioError(ERR),
+    #[error("Failed to control bus switches")]
+    BusSwitchError(ERR),
+    #[error("Failed to detect if daugherboard is present or not")]
+    DaughterboardDetectError(ERR),
 }
 
 struct StackShield<'a, T>
@@ -46,5 +52,5 @@ where
 {
     pub position: u8,
     pub status: Status,
-    pins: ExpanderPins<'a, T>,
+    pins: ExpanderGpio<'a, T>,
 }

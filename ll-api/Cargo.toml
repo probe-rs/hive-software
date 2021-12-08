@@ -11,3 +11,4 @@ readme = "README.md"
 pca9535 = {git = "https://github.com/TeyKey1/pca9535.git", features = ["std"]}
 embedded-hal = "=1.0.0-alpha.5"
 thiserror = "1.0"
+retry = "1.3"
