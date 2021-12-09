@@ -68,6 +68,17 @@ impl<'a, T: SyncExpander> LED<'a, T> {
                     .set_high()
                     .map_err(|err| StackShieldError::LedError(err))
             }
+            _ => {
+                self.blue
+                    .set_high()
+                    .map_err(|err| StackShieldError::LedError(err))?;
+                self.green
+                    .set_high()
+                    .map_err(|err| StackShieldError::LedError(err))?;
+                self.red
+                    .set_high()
+                    .map_err(|err| StackShieldError::LedError(err))
+            }
         }
     }
 

@@ -29,9 +29,9 @@ pub(crate) struct ExpanderGpio<'a, T>
 where
     T: SyncExpander,
 {
-    status_led: LED<'a, T>,
-    bus_switch: BusSwitch<'a, T>,
-    daughterboard_detect: DaughterboardDetect<'a, T>,
+    pub status_led: LED<'a, T>,
+    pub bus_switch: BusSwitch<'a, T>,
+    pub daughterboard_detect: DaughterboardDetect<'a, T>,
 }
 
 impl<'a, T: SyncExpander> ExpanderGpio<'a, T> {
@@ -40,8 +40,6 @@ impl<'a, T: SyncExpander> ExpanderGpio<'a, T> {
         expander: &'a T,
         position: u8,
     ) -> Result<Self, StackShieldError<<T as SyncExpander>::Error>> {
-        assert!(position > 8);
-
         let detect = ExpanderInputPin::new(expander, Bank0, 3)
             .map_err(|err| StackShieldError::GpioError(err))?;
 
