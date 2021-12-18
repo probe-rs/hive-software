@@ -57,10 +57,10 @@ impl<'a, T: SyncExpander> BusSwitch<'a, T> {
 
         self.sw_probe[probe as usize]
             .set_low()
-            .map_err(|err| StackShieldError::BusSwitchError(err))?;
+            .map_err(StackShieldError::BusSwitchError)?;
         self.sw_target[target as usize]
             .set_low()
-            .map_err(|err| StackShieldError::BusSwitchError(err))
+            .map_err(StackShieldError::BusSwitchError)
     }
 
     /// Disconnects all the bus switches on the target stack shield.
@@ -69,13 +69,11 @@ impl<'a, T: SyncExpander> BusSwitch<'a, T> {
     /// In case this function returns an error, disconnecting all bus switches has failed. In that case the operation should be retried until it is successful before any other bus switches on other target stack shields are connected in order to avoid short circuits and undefined behavior.
     pub fn disconnect_all(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
         for sw in &mut self.sw_target {
-            sw.set_high()
-                .map_err(|err| StackShieldError::BusSwitchError(err))?;
+            sw.set_high().map_err(StackShieldError::BusSwitchError)?;
         }
 
         for sw in &mut self.sw_probe {
-            sw.set_high()
-                .map_err(|err| StackShieldError::BusSwitchError(err))?;
+            sw.set_high().map_err(StackShieldError::BusSwitchError)?;
         }
 
         Ok(())

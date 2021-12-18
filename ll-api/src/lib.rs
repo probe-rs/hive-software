@@ -55,23 +55,16 @@ where
     T: SyncExpander,
 {
     pub expander: &'a T,
-    pub position: u8,
-    pub status: Status,
+    status: Status,
     pins: Option<ExpanderGpio<'a, T>>,
 }
 
 impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
     /// Creates a new instance of the struct.
     /// This function does not issue any i2c bus transaction to the respective IO expander! The state of the struct remains in [`Status::NotInitialized`] until the init_pins() function has been called successfully. Only then the shield is fully usable and functional.
-    ///
-    /// # Panics
-    /// If provided position is > 8 (as the maximum of allowed target stack shields per assembly is 8 with numbering from 0-7)
-    pub fn new(expander: &'a T, position: u8) -> Self {
-        assert!(position < 8);
-
+    pub fn new(expander: &'a T) -> Self {
         Self {
             expander,
-            position,
             status: Status::NotInitialized,
             pins: Option::None,
         }
@@ -79,18 +72,23 @@ impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
 
     /// Initializes all the pins of the IO Expander on the target stack shield and updates the status of the struct.
     pub fn init_pins(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
-        let mut gpio = ExpanderGpio::new(self.expander, self.position)?;
+        let mut gpio = ExpanderGpio::new(self.expander)?;
 
         let daughterboard = gpio.daughterboard_detect.is_connected()?;
         if daughterboard {
-            self.set_status(Status::Idle);
+            self.set_status(Status::Idle)?;
         } else {
-            self.set_status(Status::NoBoard);
+            self.set_status(Status::NoBoard)?;
         }
 
         self.pins = Some(gpio);
 
         Ok(())
+    }
+
+    /// Gets the status of the target stack shield
+    pub fn get_status(&self) -> Status {
+        self.status
     }
 
     /// Sets the status of the target stack shield
@@ -100,6 +98,32 @@ impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
     ) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
         self.status = status;
         self.get_gpio_and_try(|gpio| gpio.status_led.set_status(status))
+    }
+
+    /// Switches the status LED off
+    pub fn status_led_off(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
+        self.get_gpio_and_try(|gpio| gpio.status_led.off())
+    }
+
+    /// Checks if a daughterboard is connected
+    pub fn daughterboard_is_connected(
+        &mut self,
+    ) -> Result<bool, StackShieldError<<T as SyncExpander>::Error>> {
+        self.get_gpio_and_try(|gpio| gpio.daughterboard_detect.is_connected())
+    }
+
+    /// Connects provided probe to target
+    pub fn connect_probe_to_target(
+        &mut self,
+        probe: Probe,
+        target: Target,
+    ) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
+        self.get_gpio_and_try(|gpio| gpio.bus_switch.connect(probe, target))
+    }
+
+    /// Disconnects all targets and probes from target stack shield
+    pub fn disconnect_all(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
+        self.get_gpio_and_try(|gpio| gpio.bus_switch.disconnect_all())
     }
 
     /// Tries to get the [`ExpanderGpio`] struct and execute the provided closure. It automatically unwraps the Option and provides the gpio for use in the closure.

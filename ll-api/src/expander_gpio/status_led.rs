@@ -6,7 +6,7 @@ use crate::StackShieldError;
 use crate::Status;
 
 /// Abstraction struct for the status LED function
-pub(crate) struct LED<'a, T>
+pub(crate) struct Led<'a, T>
 where
     T: SyncExpander,
 {
@@ -15,7 +15,7 @@ where
     blue: ExpanderOutputPin<'a, T>,
 }
 
-impl<'a, T: SyncExpander> LED<'a, T> {
+impl<'a, T: SyncExpander> Led<'a, T> {
     /// Creates a new instance of the struct
     pub fn new(
         red: ExpanderOutputPin<'a, T>,
@@ -36,62 +36,32 @@ impl<'a, T: SyncExpander> LED<'a, T> {
     ) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
         match status {
             Status::Err => {
-                self.blue
-                    .set_high()
-                    .map_err(|err| StackShieldError::LedError(err))?;
-                self.green
-                    .set_high()
-                    .map_err(|err| StackShieldError::LedError(err))?;
-                self.red
-                    .set_low()
-                    .map_err(|err| StackShieldError::LedError(err))
+                self.blue.set_high().map_err(StackShieldError::LedError)?;
+                self.green.set_high().map_err(StackShieldError::LedError)?;
+                self.red.set_low().map_err(StackShieldError::LedError)
             }
             Status::Idle => {
-                self.blue
-                    .set_high()
-                    .map_err(|err| StackShieldError::LedError(err))?;
-                self.green
-                    .set_low()
-                    .map_err(|err| StackShieldError::LedError(err))?;
-                self.red
-                    .set_high()
-                    .map_err(|err| StackShieldError::LedError(err))
+                self.blue.set_high().map_err(StackShieldError::LedError)?;
+                self.green.set_low().map_err(StackShieldError::LedError)?;
+                self.red.set_high().map_err(StackShieldError::LedError)
             }
             Status::NoBoard => {
-                self.blue
-                    .set_low()
-                    .map_err(|err| StackShieldError::LedError(err))?;
-                self.green
-                    .set_high()
-                    .map_err(|err| StackShieldError::LedError(err))?;
-                self.red
-                    .set_high()
-                    .map_err(|err| StackShieldError::LedError(err))
+                self.blue.set_low().map_err(StackShieldError::LedError)?;
+                self.green.set_high().map_err(StackShieldError::LedError)?;
+                self.red.set_high().map_err(StackShieldError::LedError)
             }
             _ => {
-                self.blue
-                    .set_high()
-                    .map_err(|err| StackShieldError::LedError(err))?;
-                self.green
-                    .set_high()
-                    .map_err(|err| StackShieldError::LedError(err))?;
-                self.red
-                    .set_high()
-                    .map_err(|err| StackShieldError::LedError(err))
+                self.blue.set_high().map_err(StackShieldError::LedError)?;
+                self.green.set_high().map_err(StackShieldError::LedError)?;
+                self.red.set_high().map_err(StackShieldError::LedError)
             }
         }
     }
 
     /// Switches the status LED off
     pub fn off(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
-        self.blue
-            .set_low()
-            .map_err(|err| StackShieldError::LedError(err))?;
-        self.green
-            .set_low()
-            .map_err(|err| StackShieldError::LedError(err))?;
-        self.red
-            .set_low()
-            .map_err(|err| StackShieldError::LedError(err))
+        self.blue.set_low().map_err(StackShieldError::LedError)?;
+        self.green.set_low().map_err(StackShieldError::LedError)?;
+        self.red.set_low().map_err(StackShieldError::LedError)
     }
 }

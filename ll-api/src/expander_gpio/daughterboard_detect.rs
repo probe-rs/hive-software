@@ -22,6 +22,6 @@ impl<'a, T: SyncExpander> DaughterboardDetect<'a, T> {
     pub fn is_connected(&mut self) -> Result<bool, StackShieldError<<T as SyncExpander>::Error>> {
         self.input
             .is_high()
-            .map_err(|err| StackShieldError::DaughterboardDetectError(err))
+            .map_err(StackShieldError::DaughterboardDetectError)
     }
 }
