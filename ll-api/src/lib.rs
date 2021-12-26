@@ -72,16 +72,16 @@ impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
 
     /// Initializes all the pins of the IO Expander on the target stack shield and updates the status of the struct.
     pub fn init_pins(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
-        let mut gpio = ExpanderGpio::new(self.expander)?;
-
-        self.status = Status::NoBoard;
-
-        let daughterboard = gpio.daughterboard_detect.is_connected()?;
-        if daughterboard {
-            self.set_status(Status::Idle)?;
-        }
+        let gpio = ExpanderGpio::new(self.expander)?;
 
         self.pins = Some(gpio);
+
+        let daughterboard = self.daughterboard_is_connected()?;
+        if daughterboard {
+            self.set_status(Status::Idle)?;
+        } else {
+            self.set_status(Status::NoBoard)?;
+        }
 
         Ok(())
     }
