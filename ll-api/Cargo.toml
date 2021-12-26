@@ -8,7 +8,7 @@ description = "Low level API for controlling the Hive hardware"
 readme = "README.md"
 
 [dependencies]
-pca9535 = "0.0.1"
+pca9535 = {version="0.0.1", features=["std"]}
 embedded-hal = "=1.0.0-alpha.5"
 thiserror = "1.0"
 retry = "1.3"
