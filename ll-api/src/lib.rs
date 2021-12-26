@@ -74,11 +74,11 @@ impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
     pub fn init_pins(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
         let mut gpio = ExpanderGpio::new(self.expander)?;
 
+        self.status = Status::NoBoard;
+
         let daughterboard = gpio.daughterboard_detect.is_connected()?;
         if daughterboard {
             self.set_status(Status::Idle)?;
-        } else {
-            self.set_status(Status::NoBoard)?;
         }
 
         self.pins = Some(gpio);
