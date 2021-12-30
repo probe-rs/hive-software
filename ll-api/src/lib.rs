@@ -4,15 +4,29 @@ extern crate retry;
 
 use expander_gpio::ExpanderGpio;
 use pca9535::expander::SyncExpander;
+use rpi_gpio::TestChannelGpio;
+use rppal::gpio::Gpio;
 use thiserror::Error;
 
+use crate::rpi_gpio::gpio::TestInputPin;
+use crate::rpi_gpio::uart::UART_BYTES_READ;
+
 mod expander_gpio;
+mod rpi_gpio;
 
 #[derive(Debug, Clone, Copy)]
-pub enum Status {
+pub enum StackShieldStatus {
     Idle,
     Err,
     NoBoard,
+    NotInitialized,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum TestChannelStatus {
+    Idle,
+    Connected,
+    Err,
     NotInitialized,
 }
 
@@ -25,11 +39,11 @@ pub enum Target {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Probe {
-    Probe0 = 0,
-    Probe1 = 1,
-    Probe2 = 2,
-    Probe3 = 3,
+pub enum TestChannel {
+    Channel0 = 0,
+    Channel1 = 1,
+    Channel2 = 2,
+    Channel3 = 3,
 }
 
 #[derive(Error, Debug)]
@@ -39,7 +53,7 @@ where
 {
     #[error("Failed to control target stack shield LED")]
     LedError(ERR),
-    #[error("Failed to control target stack shield GPIOs")]
+    #[error("Failed to control target stack shield GPIO")]
     GpioError(ERR),
     #[error("Failed to control target stack shield bus switches")]
     BusSwitchError(ERR),
@@ -49,13 +63,27 @@ where
     NotInitialized,
 }
 
+#[derive(Error, Debug)]
+pub enum RpiTestChannelError {
+    #[error("Failed to initialize the Raspberry Pi UART")]
+    UartInitError(rppal::uart::Error),
+    #[error("Failed to initialize the Raspberry Pi GPIO")]
+    GpioInitError(rppal::gpio::Error),
+    #[error("Failed to control Raspberry Pi UART")]
+    UartError(rppal::uart::Error),
+    #[error("Failed to control Raspberry Pi GPIO")]
+    GpioError(rppal::gpio::Error),
+    #[error("Test channel not initialized")]
+    NotInitialized,
+}
+
 /// Representation of a physical target stack shield of Hive
 pub struct TargetStackShield<'a, T>
 where
     T: SyncExpander,
 {
     pub expander: &'a T,
-    status: Status,
+    status: StackShieldStatus,
     pins: Option<ExpanderGpio<'a, T>>,
 }
 
@@ -65,7 +93,7 @@ impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
     pub fn new(expander: &'a T) -> Self {
         Self {
             expander,
-            status: Status::NotInitialized,
+            status: StackShieldStatus::NotInitialized,
             pins: Option::None,
         }
     }
@@ -78,23 +106,23 @@ impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
 
         let daughterboard = self.daughterboard_is_connected()?;
         if daughterboard {
-            self.set_status(Status::Idle)?;
+            self.set_status(StackShieldStatus::Idle)?;
         } else {
-            self.set_status(Status::NoBoard)?;
+            self.set_status(StackShieldStatus::NoBoard)?;
         }
 
         Ok(())
     }
 
     /// Gets the status of the target stack shield
-    pub fn get_status(&self) -> Status {
+    pub fn get_status(&self) -> StackShieldStatus {
         self.status
     }
 
     /// Sets the status of the target stack shield
     pub fn set_status(
         &mut self,
-        status: Status,
+        status: StackShieldStatus,
     ) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
         self.status = status;
         self.get_gpio_and_try(|gpio| gpio.status_led.set_status(status))
@@ -112,16 +140,16 @@ impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
         self.get_gpio_and_try(|gpio| gpio.daughterboard_detect.is_connected())
     }
 
-    /// Connects provided probe to target
-    pub fn connect_probe_to_target(
+    /// Connects provided [`TestChannel`] to [`Target`]
+    pub fn connect_test_channel_to_target(
         &mut self,
-        probe: Probe,
+        channel: TestChannel,
         target: Target,
     ) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
-        self.get_gpio_and_try(|gpio| gpio.bus_switch.connect(probe, target))
+        self.get_gpio_and_try(|gpio| gpio.bus_switch.connect(channel, target))
     }
 
-    /// Disconnects all targets and probes from target stack shield
+    /// Disconnects all targets and test channels from target stack shield
     pub fn disconnect_all(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
         self.get_gpio_and_try(|gpio| gpio.bus_switch.disconnect_all())
     }
@@ -149,6 +177,99 @@ impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
             op(gpio)
         } else {
             Err(StackShieldError::NotInitialized)
+        }
+    }
+}
+
+/// Representation of a physical Raspberry Pi Testchannel
+pub struct RpiTestChannel {
+    channel: TestChannel,
+    status: TestChannelStatus,
+    pins: Option<TestChannelGpio>,
+}
+
+impl RpiTestChannel {
+    /// Creates a new instance of the struct.
+    /// This function does not initialize the hardware. The struct needs to be initialized by calling init_pins function before it is fully usable. If any functions are called which require initialization prior to initialization they will return a [`RpiTestChannelError::NotInitialized`]
+    pub fn new(channel: TestChannel) -> Self {
+        Self {
+            channel,
+            status: TestChannelStatus::NotInitialized,
+            pins: None,
+        }
+    }
+
+    /// Initializes all the required pins of the Raspberry Pi and updates the status of the struct.
+    pub fn init_pins(&mut self, rpi_gpio: &mut Gpio) -> Result<(), RpiTestChannelError> {
+        let gpio = TestChannelGpio::new(self.channel, rpi_gpio)?;
+
+        self.pins = Some(gpio);
+
+        self.status = TestChannelStatus::Idle;
+
+        Ok(())
+    }
+
+    /// Checks if provided [`TestInputPin`] is high.
+    pub fn test_input_is_high(&mut self, pin: TestInputPin) -> Result<bool, RpiTestChannelError> {
+        self.get_gpio_and_try(|gpio| Ok(gpio.gpio.input_is_high(pin)))
+    }
+
+    /// Sets the test output pin high
+    pub fn test_output_set_high(&mut self) -> Result<(), RpiTestChannelError> {
+        self.get_gpio_and_try(|gpio| {
+            gpio.gpio.output_set_high();
+            Ok(())
+        })
+    }
+
+    /// Sets the test output pin low.
+    pub fn test_output_set_low(&mut self) -> Result<(), RpiTestChannelError> {
+        self.get_gpio_and_try(|gpio| {
+            gpio.gpio.output_set_low();
+            Ok(())
+        })
+    }
+
+    /// Resets the test gpio to its default state.
+    pub fn test_gpio_reset(&mut self) -> Result<(), RpiTestChannelError> {
+        self.get_gpio_and_try(|gpio| {
+            gpio.gpio.reset();
+            Ok(())
+        })
+    }
+
+    /// Reads [`UART_BYTES_READ`] Bytes from test bus. This function blocks until it can read the specified amount of data or until a preset timeout runs out.
+    pub fn test_bus_read(&mut self) -> Result<[u8; UART_BYTES_READ as usize], RpiTestChannelError> {
+        self.get_gpio_and_try(|gpio| gpio.uart.read())
+    }
+
+    /// Writes the bytes in the provided data slice. Blocks until all Bytes have been sent to the output queue.
+    pub fn test_bus_write(&mut self, data: &[u8]) -> Result<(), RpiTestChannelError> {
+        self.get_gpio_and_try(|gpio| gpio.uart.write(data))
+    }
+
+    /// Tries to get the [`TestChannelGpio`] struct and execute the provided closure. It automatically unwraps the Option and provides the gpio for use in the closure.
+    ///
+    /// If the struct was not initialized this function returns a [RpiTestChannelError::NotInitialized]
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// //inside some impl function of RpiTestChannel struct
+    /// self.get_gpio_and_try(|gpio| gpio.gpio.input_is_high(TestInputPin::Pin0))
+    /// ```
+    fn get_gpio_and_try<
+        RetVal,
+        F: FnOnce(&mut TestChannelGpio) -> Result<RetVal, RpiTestChannelError>,
+    >(
+        &mut self,
+        op: F,
+    ) -> Result<RetVal, RpiTestChannelError> {
+        if let Some(ref mut gpio) = self.pins {
+            op(gpio)
+        } else {
+            Err(RpiTestChannelError::NotInitialized)
         }
     }
 }

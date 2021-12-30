@@ -3,7 +3,7 @@ use pca9535::expander::SyncExpander;
 use pca9535::ExpanderOutputPin;
 
 use crate::StackShieldError;
-use crate::Status;
+use crate::StackShieldStatus;
 
 /// Abstraction struct for the status LED function
 pub(crate) struct Led<'a, T>
@@ -32,20 +32,20 @@ impl<'a, T: SyncExpander> Led<'a, T> {
     /// - [`Status::NoBoard`] blue
     pub fn set_status(
         &mut self,
-        status: Status,
+        status: StackShieldStatus,
     ) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
         match status {
-            Status::Err => {
+            StackShieldStatus::Err => {
                 self.blue.set_high().map_err(StackShieldError::LedError)?;
                 self.green.set_high().map_err(StackShieldError::LedError)?;
                 self.red.set_low().map_err(StackShieldError::LedError)
             }
-            Status::Idle => {
+            StackShieldStatus::Idle => {
                 self.blue.set_high().map_err(StackShieldError::LedError)?;
                 self.green.set_low().map_err(StackShieldError::LedError)?;
                 self.red.set_high().map_err(StackShieldError::LedError)
             }
-            Status::NoBoard => {
+            StackShieldStatus::NoBoard => {
                 self.blue.set_low().map_err(StackShieldError::LedError)?;
                 self.green.set_high().map_err(StackShieldError::LedError)?;
                 self.red.set_high().map_err(StackShieldError::LedError)
