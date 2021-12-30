@@ -8,11 +8,12 @@ use rpi_gpio::TestChannelGpio;
 use rppal::gpio::Gpio;
 use thiserror::Error;
 
-use crate::rpi_gpio::gpio::TestInputPin;
 use crate::rpi_gpio::uart::UART_BYTES_READ;
 
 mod expander_gpio;
 mod rpi_gpio;
+
+pub use rpi_gpio::gpio::TestInputPin;
 
 #[derive(Debug, Clone, Copy)]
 pub enum StackShieldStatus {
