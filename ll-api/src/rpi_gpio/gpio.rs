@@ -30,23 +30,33 @@ pub(crate) struct TestGpio {
 impl TestGpio {
     /// Creates a new instance of the struct
     pub fn new(channel: TestChannel, rpi_gpio: &mut Gpio) -> Result<Self, RpiTestChannelError> {
+        let mut pin_0 = rpi_gpio
+            .get(BCM_TO_HIVE_PINS[channel as usize][0])
+            .map_err(RpiTestChannelError::GpioInitError)?
+            .into_input_pulldown();
+        let mut pin_1 = rpi_gpio
+            .get(BCM_TO_HIVE_PINS[channel as usize][1])
+            .map_err(RpiTestChannelError::GpioInitError)?
+            .into_input_pulldown();
+        let mut pin_2 = rpi_gpio
+            .get(BCM_TO_HIVE_PINS[channel as usize][2])
+            .map_err(RpiTestChannelError::GpioInitError)?
+            .into_input_pulldown();
+        let mut pin_3 = rpi_gpio
+            .get(BCM_TO_HIVE_PINS[channel as usize][3])
+            .map_err(RpiTestChannelError::GpioInitError)?
+            .into_output_low();
+
+        pin_0.set_reset_on_drop(false);
+        pin_1.set_reset_on_drop(false);
+        pin_2.set_reset_on_drop(false);
+        pin_3.set_reset_on_drop(false);
+
         Ok(Self {
-            pin_0: rpi_gpio
-                .get(BCM_TO_HIVE_PINS[channel as usize][0])
-                .map_err(RpiTestChannelError::GpioInitError)?
-                .into_input_pulldown(),
-            pin_1: rpi_gpio
-                .get(BCM_TO_HIVE_PINS[channel as usize][1])
-                .map_err(RpiTestChannelError::GpioInitError)?
-                .into_input_pulldown(),
-            pin_2: rpi_gpio
-                .get(BCM_TO_HIVE_PINS[channel as usize][2])
-                .map_err(RpiTestChannelError::GpioInitError)?
-                .into_input_pulldown(),
-            pin_3: rpi_gpio
-                .get(BCM_TO_HIVE_PINS[channel as usize][3])
-                .map_err(RpiTestChannelError::GpioInitError)?
-                .into_output_low(),
+            pin_0,
+            pin_1,
+            pin_2,
+            pin_3,
         })
     }
 
