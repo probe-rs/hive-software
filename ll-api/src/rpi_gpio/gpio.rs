@@ -33,15 +33,15 @@ impl TestGpio {
         let mut pin_0 = rpi_gpio
             .get(BCM_TO_HIVE_PINS[channel as usize][0])
             .map_err(RpiTestChannelError::GpioInitError)?
-            .into_input_pulldown();
+            .into_input_pullup();
         let mut pin_1 = rpi_gpio
             .get(BCM_TO_HIVE_PINS[channel as usize][1])
             .map_err(RpiTestChannelError::GpioInitError)?
-            .into_input_pulldown();
+            .into_input_pullup();
         let mut pin_2 = rpi_gpio
             .get(BCM_TO_HIVE_PINS[channel as usize][2])
             .map_err(RpiTestChannelError::GpioInitError)?
-            .into_input_pulldown();
+            .into_input_pullup();
         let mut pin_3 = rpi_gpio
             .get(BCM_TO_HIVE_PINS[channel as usize][3])
             .map_err(RpiTestChannelError::GpioInitError)?
