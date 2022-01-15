@@ -8,11 +8,10 @@ use rpi_gpio::TestChannelGpio;
 use rppal::gpio::Gpio;
 use thiserror::Error;
 
-use crate::rpi_gpio::uart::UART_BYTES_READ;
-
 mod expander_gpio;
 mod rpi_gpio;
 
+pub use crate::rpi_gpio::uart::UART_BYTES_READ;
 pub use rpi_gpio::gpio::TestInputPin;
 
 #[derive(Debug, Clone, Copy)]
@@ -90,7 +89,7 @@ where
 
 impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
     /// Creates a new instance of the struct.
-    /// This function does not issue any i2c bus transaction to the respective IO expander! The state of the struct remains in [`Status::NotInitialized`] until the init_pins() function has been called successfully. Only then the shield is fully usable and functional.
+    /// This function does not issue any i2c bus transaction to the respective IO expander! The state of the struct remains in [`StackShieldStatus::NotInitialized`] until the init_pins() function has been called successfully. Only then the shield is fully usable and functional.
     pub fn new(expander: &'a T) -> Self {
         Self {
             expander,
