@@ -2,6 +2,8 @@ extern crate embedded_hal as hal;
 extern crate pca9535;
 extern crate retry;
 
+use std::convert::TryFrom;
+
 use expander_gpio::ExpanderGpio;
 use pca9535::expander::SyncExpander;
 use rpi_gpio::TestChannelGpio;
@@ -38,12 +40,40 @@ pub enum Target {
     Target3 = 3,
 }
 
+impl TryFrom<u8> for Target {
+    type Error = ApiError;
+
+    fn try_from(v: u8) -> Result<Self, Self::Error> {
+        match v {
+            0 => Ok(Target::Target0),
+            1 => Ok(Target::Target1),
+            2 => Ok(Target::Target2),
+            3 => Ok(Target::Target3),
+            _ => Err(ApiError::ConversionError),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum TestChannel {
     Channel0 = 0,
     Channel1 = 1,
     Channel2 = 2,
     Channel3 = 3,
+}
+
+impl TryFrom<u8> for TestChannel {
+    type Error = ApiError;
+
+    fn try_from(v: u8) -> Result<Self, Self::Error> {
+        match v {
+            0 => Ok(TestChannel::Channel0),
+            1 => Ok(TestChannel::Channel1),
+            2 => Ok(TestChannel::Channel2),
+            3 => Ok(TestChannel::Channel3),
+            _ => Err(ApiError::ConversionError),
+        }
+    }
 }
 
 #[derive(Error, Debug)]
@@ -75,6 +105,12 @@ pub enum RpiTestChannelError {
     GpioError(rppal::gpio::Error),
     #[error("Test channel not initialized")]
     NotInitialized,
+}
+
+#[derive(Error, Debug)]
+pub enum ApiError {
+    #[error("Failed to convert provided value to enum")]
+    ConversionError,
 }
 
 /// Representation of a physical target stack shield of Hive
