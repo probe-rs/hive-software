@@ -81,13 +81,13 @@ pub enum StackShieldError<ERR>
 where
     ERR: core::fmt::Debug,
 {
-    #[error("Failed to control target stack shield LED")]
+    #[error("Failed to control target stack shield LED: {:?}", .0)]
     LedError(ERR),
-    #[error("Failed to control target stack shield GPIO")]
+    #[error("Failed to control target stack shield GPIO: {:?}", .0)]
     GpioError(ERR),
-    #[error("Failed to control target stack shield bus switches")]
+    #[error("Failed to control target stack shield bus switches: {:?}", .0)]
     BusSwitchError(ERR),
-    #[error("Failed to detect if daugherboard is present or not")]
+    #[error("Failed to detect if daugherboard is present or not: {:?}", .0)]
     DaughterboardDetectError(ERR),
     #[error("Target stack shield not initialized")]
     NotInitialized,
@@ -95,13 +95,13 @@ where
 
 #[derive(Error, Debug)]
 pub enum RpiTestChannelError {
-    #[error("Failed to initialize the Raspberry Pi UART")]
+    #[error("Failed to initialize the Raspberry Pi UART: {:?}", .0)]
     UartInitError(rppal::uart::Error),
-    #[error("Failed to initialize the Raspberry Pi GPIO")]
+    #[error("Failed to initialize the Raspberry Pi GPIO: {:?}", .0)]
     GpioInitError(rppal::gpio::Error),
-    #[error("Failed to control Raspberry Pi UART")]
+    #[error("Failed to control Raspberry Pi UART: {:?}", .0)]
     UartError(rppal::uart::Error),
-    #[error("Failed to control Raspberry Pi GPIO")]
+    #[error("Failed to control Raspberry Pi GPIO: {:?}", .0)]
     GpioError(rppal::gpio::Error),
     #[error("Test channel not initialized")]
     NotInitialized,
