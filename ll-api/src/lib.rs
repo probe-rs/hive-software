@@ -1,7 +1,3 @@
-extern crate embedded_hal as hal;
-extern crate pca9535;
-extern crate retry;
-
 use std::convert::TryFrom;
 
 use expander_gpio::ExpanderGpio;
@@ -81,28 +77,28 @@ pub enum StackShieldError<ERR>
 where
     ERR: core::fmt::Debug,
 {
-    #[error("Failed to control target stack shield LED: {:?}", .0)]
-    LedError(ERR),
-    #[error("Failed to control target stack shield GPIO: {:?}", .0)]
-    GpioError(ERR),
-    #[error("Failed to control target stack shield bus switches: {:?}", .0)]
-    BusSwitchError(ERR),
-    #[error("Failed to detect if daugherboard is present or not: {:?}", .0)]
-    DaughterboardDetectError(ERR),
+    #[error("Failed to control target stack shield LED")]
+    LedError { source: ERR },
+    #[error("Failed to control target stack shield GPIO")]
+    GpioError { source: ERR },
+    #[error("Failed to control target stack shield bus switches")]
+    BusSwitchError { source: ERR },
+    #[error("Failed to detect if daugherboard is present or not")]
+    DaughterboardDetectError { source: ERR },
     #[error("Target stack shield not initialized")]
     NotInitialized,
 }
 
 #[derive(Error, Debug)]
 pub enum RpiTestChannelError {
-    #[error("Failed to initialize the Raspberry Pi UART: {:?}", .0)]
-    UartInitError(rppal::uart::Error),
-    #[error("Failed to initialize the Raspberry Pi GPIO: {:?}", .0)]
-    GpioInitError(rppal::gpio::Error),
-    #[error("Failed to control Raspberry Pi UART: {:?}", .0)]
-    UartError(rppal::uart::Error),
-    #[error("Failed to control Raspberry Pi GPIO: {:?}", .0)]
-    GpioError(rppal::gpio::Error),
+    #[error("Failed to initialize the Raspberry Pi UART")]
+    UartInitError { source: rppal::uart::Error },
+    #[error("Failed to initialize the Raspberry Pi GPIO")]
+    GpioInitError { source: rppal::gpio::Error },
+    #[error("Failed to control Raspberry Pi UART")]
+    UartError { source: rppal::uart::Error },
+    #[error("Failed to control Raspberry Pi GPIO")]
+    GpioError { source: rppal::gpio::Error },
     #[error("Test channel not initialized")]
     NotInitialized,
 }

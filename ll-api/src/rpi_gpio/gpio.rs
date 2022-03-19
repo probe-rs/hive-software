@@ -1,5 +1,3 @@
-extern crate rppal;
-
 use crate::{RpiTestChannelError, TestChannel};
 use rppal::gpio::Gpio;
 use rppal::gpio::{InputPin, OutputPin};
@@ -32,19 +30,19 @@ impl TestGpio {
     pub fn new(channel: TestChannel, rpi_gpio: &mut Gpio) -> Result<Self, RpiTestChannelError> {
         let mut pin_0 = rpi_gpio
             .get(BCM_TO_HIVE_PINS[channel as usize][0])
-            .map_err(RpiTestChannelError::GpioInitError)?
+            .map_err(|err| RpiTestChannelError::GpioInitError { source: err })?
             .into_input_pullup();
         let mut pin_1 = rpi_gpio
             .get(BCM_TO_HIVE_PINS[channel as usize][1])
-            .map_err(RpiTestChannelError::GpioInitError)?
+            .map_err(|err| RpiTestChannelError::GpioInitError { source: err })?
             .into_input_pullup();
         let mut pin_2 = rpi_gpio
             .get(BCM_TO_HIVE_PINS[channel as usize][2])
-            .map_err(RpiTestChannelError::GpioInitError)?
+            .map_err(|err| RpiTestChannelError::GpioInitError { source: err })?
             .into_input_pullup();
         let mut pin_3 = rpi_gpio
             .get(BCM_TO_HIVE_PINS[channel as usize][3])
-            .map_err(RpiTestChannelError::GpioInitError)?
+            .map_err(|err| RpiTestChannelError::GpioInitError { source: err })?
             .into_output_low();
 
         pin_0.set_reset_on_drop(false);

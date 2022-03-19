@@ -1,4 +1,4 @@
-use hal::digital::blocking::OutputPin;
+use embedded_hal::digital::blocking::OutputPin;
 use pca9535::expander::SyncExpander;
 use pca9535::ExpanderOutputPin;
 use retry::{delay::Fixed, retry, Error};
@@ -57,10 +57,10 @@ impl<'a, T: SyncExpander> BusSwitch<'a, T> {
 
         self.sw_test_channel[channel as usize]
             .set_low()
-            .map_err(StackShieldError::BusSwitchError)?;
+            .map_err(|err| StackShieldError::BusSwitchError { source: err })?;
         self.sw_target[target as usize]
             .set_low()
-            .map_err(StackShieldError::BusSwitchError)
+            .map_err(|err| StackShieldError::BusSwitchError { source: err })
     }
 
     /// Disconnects all the bus switches on the target stack shield.
@@ -69,11 +69,13 @@ impl<'a, T: SyncExpander> BusSwitch<'a, T> {
     /// In case this function returns an error, disconnecting all bus switches has failed. In that case the operation should be retried until it is successful before any other bus switches on other target stack shields are connected in order to avoid short circuits and undefined behavior.
     pub fn disconnect_all(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
         for sw in &mut self.sw_target {
-            sw.set_high().map_err(StackShieldError::BusSwitchError)?;
+            sw.set_high()
+                .map_err(|err| StackShieldError::BusSwitchError { source: err })?;
         }
 
         for sw in &mut self.sw_test_channel {
-            sw.set_high().map_err(StackShieldError::BusSwitchError)?;
+            sw.set_high()
+                .map_err(|err| StackShieldError::BusSwitchError { source: err })?;
         }
 
         Ok(())

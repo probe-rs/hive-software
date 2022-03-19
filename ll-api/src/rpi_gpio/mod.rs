@@ -1,5 +1,3 @@
-extern crate rppal;
-
 use self::{gpio::TestGpio, uart::TestUart};
 use crate::{RpiTestChannelError, TestChannel};
 use rppal::gpio::Gpio;

@@ -1,5 +1,3 @@
-extern crate rppal;
-
 use std::path::Path;
 use std::time::Duration;
 
@@ -28,19 +26,19 @@ impl TestUart {
             8,
             1,
         )
-        .map_err(RpiTestChannelError::UartInitError)?;
+        .map_err(|err| RpiTestChannelError::UartInitError { source: err })?;
 
         uart.set_read_mode(
             UART_BYTES_READ,
             Duration::from_millis(UART_READ_TIMEOUT as u64),
         )
-        .map_err(RpiTestChannelError::UartInitError)?;
+        .map_err(|err| RpiTestChannelError::UartInitError { source: err })?;
 
         uart.set_write_mode(true)
-            .map_err(RpiTestChannelError::UartInitError)?;
+            .map_err(|err| RpiTestChannelError::UartInitError { source: err })?;
 
         uart.set_dtr(false)
-            .map_err(RpiTestChannelError::UartInitError)?;
+            .map_err(|err| RpiTestChannelError::UartInitError { source: err })?;
 
         Ok(Self { uart })
     }
@@ -50,7 +48,7 @@ impl TestUart {
         let mut buffer = [0; UART_BYTES_READ as usize];
         self.uart
             .read(&mut buffer)
-            .map_err(RpiTestChannelError::UartError)?;
+            .map_err(|err| RpiTestChannelError::UartError { source: err })?;
 
         Ok(buffer)
     }
@@ -59,7 +57,7 @@ impl TestUart {
     pub fn write(&mut self, data: &[u8]) -> Result<(), RpiTestChannelError> {
         self.uart
             .write(data)
-            .map_err(RpiTestChannelError::UartError)?;
+            .map_err(|err| RpiTestChannelError::UartError { source: err })?;
 
         Ok(())
     }

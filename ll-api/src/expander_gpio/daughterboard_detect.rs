@@ -1,4 +1,4 @@
-use hal::digital::blocking::InputPin;
+use embedded_hal::digital::blocking::InputPin;
 use pca9535::expander::SyncExpander;
 use pca9535::ExpanderInputPin;
 
@@ -22,6 +22,6 @@ impl<'a, T: SyncExpander> DaughterboardDetect<'a, T> {
     pub fn is_connected(&mut self) -> Result<bool, StackShieldError<<T as SyncExpander>::Error>> {
         self.input
             .is_high()
-            .map_err(StackShieldError::DaughterboardDetectError)
+            .map_err(|err| StackShieldError::DaughterboardDetectError { source: err })
     }
 }
