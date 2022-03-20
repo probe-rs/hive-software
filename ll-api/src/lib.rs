@@ -1,7 +1,8 @@
 use std::convert::TryFrom;
 
+use embedded_hal::i2c::blocking::{Write, WriteRead};
 use expander_gpio::ExpanderGpio;
-use pca9535::expander::SyncExpander;
+use pca9535::{expander::SyncExpander, ExpanderError};
 use rpi_gpio::TestChannelGpio;
 use rppal::gpio::Gpio;
 use thiserror::Error;
@@ -75,7 +76,7 @@ impl TryFrom<u8> for TestChannel {
 #[derive(Error, Debug)]
 pub enum StackShieldError<ERR>
 where
-    ERR: core::fmt::Debug,
+    ERR: std::error::Error,
 {
     #[error("Failed to control target stack shield LED")]
     LedError { source: ERR },
@@ -110,16 +111,22 @@ pub enum ApiError {
 }
 
 /// Representation of a physical target stack shield of Hive
-pub struct TargetStackShield<'a, T>
+pub struct TargetStackShield<'a, I2C, T>
 where
-    T: SyncExpander,
+    I2C: Write + WriteRead,
+    T: SyncExpander<I2C>,
 {
     pub expander: &'a T,
     status: StackShieldStatus,
-    pins: Option<ExpanderGpio<'a, T>>,
+    pins: Option<ExpanderGpio<'a, I2C, T>>,
 }
 
-impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
+impl<'a, I2C, T, E> TargetStackShield<'a, I2C, T>
+where
+    E: std::fmt::Debug,
+    I2C: Write<Error = E> + WriteRead<Error = E>,
+    T: SyncExpander<I2C>,
+{
     /// Creates a new instance of the struct.
     /// This function does not issue any i2c bus transaction to the respective IO expander! The state of the struct remains in [`StackShieldStatus::NotInitialized`] until the init_pins() function has been called successfully. Only then the shield is fully usable and functional.
     pub fn new(expander: &'a T) -> Self {
@@ -131,7 +138,7 @@ impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
     }
 
     /// Initializes all the pins of the IO Expander on the target stack shield and updates the status of the struct.
-    pub fn init_pins(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
+    pub fn init_pins(&mut self) -> Result<(), StackShieldError<ExpanderError<E>>> {
         let gpio = ExpanderGpio::new(self.expander)?;
 
         self.pins = Some(gpio);
@@ -155,34 +162,34 @@ impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
     pub fn set_status(
         &mut self,
         status: StackShieldStatus,
-    ) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
+    ) -> Result<(), StackShieldError<ExpanderError<E>>> {
         self.status = status;
         self.get_gpio_and_try(|gpio| gpio.status_led.set_status(status))
     }
 
     /// Switches the status LED off
-    pub fn status_led_off(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
+    pub fn status_led_off(&mut self) -> Result<(), StackShieldError<ExpanderError<E>>> {
         self.get_gpio_and_try(|gpio| gpio.status_led.off())
     }
 
     /// Checks if a daughterboard is connected
     pub fn daughterboard_is_connected(
         &mut self,
-    ) -> Result<bool, StackShieldError<<T as SyncExpander>::Error>> {
+    ) -> Result<bool, StackShieldError<ExpanderError<E>>> {
         self.get_gpio_and_try(|gpio| gpio.daughterboard_detect.is_connected())
     }
 
-    /// Connects provided [`TestChannel`] to [`Target`]
+    /// Connects provided [`TestChannel`] : SyncExpander [`Target`]
     pub fn connect_test_channel_to_target(
         &mut self,
         channel: TestChannel,
         target: Target,
-    ) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
+    ) -> Result<(), StackShieldError<ExpanderError<E>>> {
         self.get_gpio_and_try(|gpio| gpio.bus_switch.connect(channel, target))
     }
 
     /// Disconnects all targets and test channels from target stack shield
-    pub fn disconnect_all(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
+    pub fn disconnect_all(&mut self) -> Result<(), StackShieldError<ExpanderError<E>>> {
         self.get_gpio_and_try(|gpio| gpio.bus_switch.disconnect_all())
     }
 
@@ -198,13 +205,11 @@ impl<'a, T: SyncExpander> TargetStackShield<'a, T> {
     /// ```
     fn get_gpio_and_try<
         RetVal,
-        F: FnOnce(
-            &mut ExpanderGpio<'a, T>,
-        ) -> Result<RetVal, StackShieldError<<T as SyncExpander>::Error>>,
+        F: FnOnce(&mut ExpanderGpio<'a, I2C, T>) -> Result<RetVal, StackShieldError<ExpanderError<E>>>,
     >(
         &mut self,
         op: F,
-    ) -> Result<RetVal, StackShieldError<<T as SyncExpander>::Error>> {
+    ) -> Result<RetVal, StackShieldError<ExpanderError<E>>> {
         if let Some(ref mut gpio) = self.pins {
             op(gpio)
         } else {

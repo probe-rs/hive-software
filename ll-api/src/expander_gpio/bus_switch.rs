@@ -1,5 +1,7 @@
 use embedded_hal::digital::blocking::OutputPin;
+use embedded_hal::i2c::blocking::{Write, WriteRead};
 use pca9535::expander::SyncExpander;
+use pca9535::ExpanderError;
 use pca9535::ExpanderOutputPin;
 use retry::{delay::Fixed, retry, Error};
 
@@ -11,19 +13,25 @@ const FIXED_RETRY_DELAY_MS: u64 = 10;
 const RETRY_LIMIT: usize = 3;
 
 /// Abstraction struct for the bus switch function
-pub(crate) struct BusSwitch<'a, T>
+pub(crate) struct BusSwitch<'a, I2C, T>
 where
-    T: SyncExpander,
+    I2C: Write + WriteRead,
+    T: SyncExpander<I2C>,
 {
-    sw_target: [ExpanderOutputPin<'a, T>; 4],
-    sw_test_channel: [ExpanderOutputPin<'a, T>; 4],
+    sw_target: [ExpanderOutputPin<'a, I2C, T>; 4],
+    sw_test_channel: [ExpanderOutputPin<'a, I2C, T>; 4],
 }
 
-impl<'a, T: SyncExpander> BusSwitch<'a, T> {
+impl<'a, I2C, T, E> BusSwitch<'a, I2C, T>
+where
+    E: std::fmt::Debug,
+    I2C: Write<Error = E> + WriteRead<Error = E>,
+    T: SyncExpander<I2C>,
+{
     /// Creates a new instance of the struct
     pub fn new(
-        sw_target: [ExpanderOutputPin<'a, T>; 4],
-        sw_test_channel: [ExpanderOutputPin<'a, T>; 4],
+        sw_target: [ExpanderOutputPin<'a, I2C, T>; 4],
+        sw_test_channel: [ExpanderOutputPin<'a, I2C, T>; 4],
     ) -> Self {
         Self {
             sw_target,
@@ -43,7 +51,7 @@ impl<'a, T: SyncExpander> BusSwitch<'a, T> {
         &mut self,
         channel: TestChannel,
         target: Target,
-    ) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
+    ) -> Result<(), StackShieldError<ExpanderError<E>>> {
         retry(
             Fixed::from_millis(FIXED_RETRY_DELAY_MS).take(RETRY_LIMIT),
             || self.disconnect_all(),
@@ -67,7 +75,7 @@ impl<'a, T: SyncExpander> BusSwitch<'a, T> {
     ///
     /// # Error
     /// In case this function returns an error, disconnecting all bus switches has failed. In that case the operation should be retried until it is successful before any other bus switches on other target stack shields are connected in order to avoid short circuits and undefined behavior.
-    pub fn disconnect_all(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
+    pub fn disconnect_all(&mut self) -> Result<(), StackShieldError<ExpanderError<E>>> {
         for sw in &mut self.sw_target {
             sw.set_high()
                 .map_err(|err| StackShieldError::BusSwitchError { source: err })?;

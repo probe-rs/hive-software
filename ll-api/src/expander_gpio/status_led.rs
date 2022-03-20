@@ -1,26 +1,34 @@
 use embedded_hal::digital::blocking::OutputPin;
+use embedded_hal::i2c::blocking::{Write, WriteRead};
 use pca9535::expander::SyncExpander;
+use pca9535::ExpanderError;
 use pca9535::ExpanderOutputPin;
 
 use crate::StackShieldError;
 use crate::StackShieldStatus;
 
 /// Abstraction struct for the status LED function
-pub(crate) struct Led<'a, T>
+pub(crate) struct Led<'a, I2C, T>
 where
-    T: SyncExpander,
+    I2C: Write + WriteRead,
+    T: SyncExpander<I2C>,
 {
-    red: ExpanderOutputPin<'a, T>,
-    green: ExpanderOutputPin<'a, T>,
-    blue: ExpanderOutputPin<'a, T>,
+    red: ExpanderOutputPin<'a, I2C, T>,
+    green: ExpanderOutputPin<'a, I2C, T>,
+    blue: ExpanderOutputPin<'a, I2C, T>,
 }
 
-impl<'a, T: SyncExpander> Led<'a, T> {
+impl<'a, I2C, T, E> Led<'a, I2C, T>
+where
+    E: std::fmt::Debug,
+    I2C: Write<Error = E> + WriteRead<Error = E>,
+    T: SyncExpander<I2C>,
+{
     /// Creates a new instance of the struct
     pub fn new(
-        red: ExpanderOutputPin<'a, T>,
-        green: ExpanderOutputPin<'a, T>,
-        blue: ExpanderOutputPin<'a, T>,
+        red: ExpanderOutputPin<'a, I2C, T>,
+        green: ExpanderOutputPin<'a, I2C, T>,
+        blue: ExpanderOutputPin<'a, I2C, T>,
     ) -> Self {
         Self { red, green, blue }
     }
@@ -33,7 +41,7 @@ impl<'a, T: SyncExpander> Led<'a, T> {
     pub fn set_status(
         &mut self,
         status: StackShieldStatus,
-    ) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
+    ) -> Result<(), StackShieldError<ExpanderError<E>>> {
         match status {
             StackShieldStatus::Err => {
                 self.blue
@@ -83,7 +91,7 @@ impl<'a, T: SyncExpander> Led<'a, T> {
     }
 
     /// Switches the status LED off
-    pub fn off(&mut self) -> Result<(), StackShieldError<<T as SyncExpander>::Error>> {
+    pub fn off(&mut self) -> Result<(), StackShieldError<ExpanderError<E>>> {
         self.blue
             .set_low()
             .map_err(|err| StackShieldError::LedError { source: err })?;

@@ -7,9 +7,10 @@
 //!
 //! Each of those modules provides basic functions to interact with the hardware.
 
+use embedded_hal::i2c::blocking::{Write, WriteRead};
 use pca9535::{
     expander::SyncExpander,
-    ExpanderInputPin, ExpanderOutputPin,
+    ExpanderError, ExpanderInputPin, ExpanderOutputPin,
     GPIOBank::{Bank0, Bank1},
     PinState::High,
 };
@@ -25,18 +26,24 @@ use daughterboard_detect::DaughterboardDetect;
 use status_led::Led;
 
 /// This struct contains all the devices attached to the IO Expander
-pub(crate) struct ExpanderGpio<'a, T>
+pub(crate) struct ExpanderGpio<'a, I2C, T>
 where
-    T: SyncExpander,
+    I2C: Write + WriteRead,
+    T: SyncExpander<I2C>,
 {
-    pub status_led: Led<'a, T>,
-    pub bus_switch: BusSwitch<'a, T>,
-    pub daughterboard_detect: DaughterboardDetect<'a, T>,
+    pub status_led: Led<'a, I2C, T>,
+    pub bus_switch: BusSwitch<'a, I2C, T>,
+    pub daughterboard_detect: DaughterboardDetect<'a, I2C, T>,
 }
 
-impl<'a, T: SyncExpander> ExpanderGpio<'a, T> {
+impl<'a, I2C, T, E> ExpanderGpio<'a, I2C, T>
+where
+    E: std::fmt::Debug,
+    I2C: Write<Error = E> + WriteRead<Error = E>,
+    T: SyncExpander<I2C>,
+{
     /// Creates a new instance of the struct. It configures the IO Expander to the required settings. All GPIO pins are initialized into the default mode (eg. All bus switches disconnected, status LED off, daughterboard detect configured as input pin)
-    pub fn new(expander: &'a T) -> Result<Self, StackShieldError<<T as SyncExpander>::Error>> {
+    pub fn new(expander: &'a T) -> Result<Self, StackShieldError<ExpanderError<E>>> {
         let detect = ExpanderInputPin::new(expander, Bank0, 3)
             .map_err(|err| StackShieldError::GpioError { source: err })?;
 
