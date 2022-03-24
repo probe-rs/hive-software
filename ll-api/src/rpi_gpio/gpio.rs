@@ -18,6 +18,7 @@ pub enum TestInputPin {
 }
 
 /// Contains all the gpio Inputs and Outputs per [`TestChannel`]
+#[derive(Debug)]
 pub(crate) struct TestGpio {
     pin_0: InputPin,
     pin_1: InputPin,

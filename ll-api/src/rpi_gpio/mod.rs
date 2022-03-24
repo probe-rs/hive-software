@@ -6,6 +6,7 @@ pub mod gpio;
 pub mod uart;
 
 /// This struct contains all the devices per [`TestChannel`]
+#[derive(Debug)]
 pub(crate) struct TestChannelGpio {
     pub gpio: TestGpio,
     pub uart: TestUart,

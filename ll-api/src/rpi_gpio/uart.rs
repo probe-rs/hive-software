@@ -12,6 +12,7 @@ pub const UART_BYTES_READ: u8 = 1; // How many Bytes are read when calling uart 
 const UART_READ_TIMEOUT: u8 = 200; // How many ms read function blocks at max
 
 /// Contains the UART bus per [`TestChannel`]
+#[derive(Debug)]
 pub(crate) struct TestUart {
     uart: Uart,
 }

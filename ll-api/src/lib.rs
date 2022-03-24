@@ -116,7 +116,7 @@ where
     I2C: Write + WriteRead,
     T: SyncExpander<I2C>,
 {
-    pub expander: &'a T,
+    expander: &'a T,
     status: StackShieldStatus,
     pins: Option<ExpanderGpio<'a, I2C, T>>,
 }
@@ -219,6 +219,7 @@ where
 }
 
 /// Representation of a physical Raspberry Pi Testchannel
+#[derive(Debug)]
 pub struct RpiTestChannel {
     channel: TestChannel,
     status: TestChannelStatus,
