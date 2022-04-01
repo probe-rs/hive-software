@@ -1,0 +1,20 @@
+[package]
+name = "controller"
+version = "0.1.0"
+edition = "2021"
+authors = ["TeyKey1"]
+repository = "https://github.com/probe-rs/hive-software"
+description = "Testrack hardware control routines and functions"
+readme = "README.md"
+
+[features]
+runner = []
+
+[dependencies]
+ll-api = {path = "../ll-api/"}
+pca9535 = { version = "1.0", features = ["std"]}
+embedded-hal = "=1.0.0-alpha.5"
+rppal = {version = "0.13", features = ["hal"]}
+shared-bus = { git = "https://github.com/TeyKey1/shared-bus.git", features = ["std"], rev = "046dc03" }
+probe-rs = "0.12"
+log = "0.4"
