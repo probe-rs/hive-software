@@ -1,0 +1,9 @@
+error: Failed to parse supplied macro attribute keys.
+
+         = help: The following attributes and datatypes are allowed in this context: 'order = usize', 'should_panic = bool'
+         = note: example: #[hive_test(order = 1, should_panic = true)]
+
+ --> tests/macro/should_fail/attribute_keys.rs:1:25
+  |
+1 | #[hive_macro::hive_test(wrong_key = 1)]
+  |                         ^^^^^^^^^

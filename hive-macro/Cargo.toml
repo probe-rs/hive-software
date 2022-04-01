@@ -1,0 +1,24 @@
+[package]
+name = "hive-macro"
+version = "0.1.0"
+edition = "2021"
+authors = ["TeyKey1"]
+repository = "https://github.com/probe-rs/hive-software"
+description = "Hive macros"
+readme = "README.md"
+
+[dependencies]
+proc-macro2 = "1.0"
+syn = "1.0"
+proc-macro-error = "1.0"
+darling = "0.13"
+quote = "1.0"
+inventory = "0.2"
+
+[dev-dependencies]
+trybuild = "1.0"
+hive-test = {path = "../hive-test/"}
+probe-rs = "0.12"
+
+[lib]
+proc-macro = true

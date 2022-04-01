@@ -1,0 +1,9 @@
+error: Failed to parse macro attributes
+
+         = help: Attributes should be written in 'key = value' pairs, separated by comma.
+         = note: example: #[hive_test(order = 1, should_panic = true)]
+
+ --> tests/macro/should_fail/attribute_syntax.rs:1:25
+  |
+1 | #[hive_macro::hive_test(; = 1)]
+  |                         ^

@@ -1,0 +1,9 @@
+error: Incorrect amount of function arguments
+
+         = help: Hive testfunctions should have 2 arguments but 3 were supplied.
+         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, probe: &mut Probe);
+
+ --> tests/macro/should_fail/function_argument_amount.rs:2:9
+  |
+2 | fn test(arg1: u8, arg2: u8, arg3: u8) {}
+  |         ^^^^
