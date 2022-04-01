@@ -1,0 +1,14 @@
+[package]
+name = "hive-test"
+version = "0.1.0"
+edition = "2021"
+authors = ["TeyKey1"]
+repository = "https://github.com/probe-rs/hive-software"
+description = "Types, reexports and macros used for Hive testfunctions"
+readme = "README.md"
+
+[dependencies]
+hive-macro = {path = "../hive-macro/"}
+controller = {path = "../controller/", features = ["runner"]}
+inventory = "0.2"
+probe-rs = "0.12"
