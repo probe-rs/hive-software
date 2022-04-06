@@ -10,8 +10,6 @@ pub type ShareableI2c = I2cProxy<'static, Mutex<I2c>>;
 pub type HiveIoExpander =
     IoExpander<ShareableI2c, Pca9535Immediate<ShareableI2c>, Mutex<Pca9535Immediate<ShareableI2c>>>;
 
-/// Common functionalities used in test runner and monitor
 pub mod common;
-/// Functionalities used only in test runner
 #[cfg(feature = "runner")]
 pub mod runner;

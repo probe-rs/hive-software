@@ -12,9 +12,11 @@ runner = []
 
 [dependencies]
 ll-api = {path = "../ll-api/"}
+comm-types = {path = "../comm-types/", features=["hardware"]}
 pca9535 = { version = "1.0", features = ["std"]}
 embedded-hal = "=1.0.0-alpha.5"
 rppal = {version = "0.13", features = ["hal"]}
 shared-bus = { git = "https://github.com/TeyKey1/shared-bus.git", features = ["std"], rev = "046dc03" }
 probe-rs = "0.12"
 log = "0.4"
+retry = "1.3"

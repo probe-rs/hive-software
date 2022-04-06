@@ -1,3 +1,5 @@
+//! Functionalities used only in test runner
+
 use ll_api::{RpiTestChannel, RpiTestChannelError, TestInputPin, UART_BYTES_READ};
 
 /// Provides all user facing functions inside the testfunctions

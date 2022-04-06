@@ -1,5 +1,6 @@
-use std::{error::Error, sync::Mutex};
+use std::{cell::RefCell, error::Error, sync::Mutex};
 
+use comm_types::hardware::TargetState;
 use embedded_hal::i2c::blocking::WriteRead;
 use ll_api::TargetStackShield as Shield;
 use pca9535::Register;
@@ -8,10 +9,8 @@ use shared_bus::BusManagerStd;
 
 use crate::{HiveIoExpander, ShareableI2c, PCA9535_BASE_ADDR};
 
-use super::TargetState;
-
 pub struct TargetStackShield {
-    inner: Shield<'static, ShareableI2c, HiveIoExpander>,
+    pub inner: RefCell<Shield<'static, ShareableI2c, HiveIoExpander>>,
     position: u8,
     targets: Option<[TargetState; 4]>,
 }
@@ -29,7 +28,9 @@ impl TargetStackShield {
 
         for detected_addr in detected_tss.iter().filter_map(|tss| tss.as_ref()) {
             let tss = Self {
-                inner: Shield::new(&io_expander[(*detected_addr - PCA9535_BASE_ADDR) as usize]),
+                inner: RefCell::new(Shield::new(
+                    &io_expander[(*detected_addr - PCA9535_BASE_ADDR) as usize],
+                )),
                 position: *detected_addr - PCA9535_BASE_ADDR,
                 targets: None,
             };
@@ -39,8 +40,9 @@ impl TargetStackShield {
 
         let mut i = 0;
         while i < created.len() {
-            let mut tss = created[i].lock().unwrap();
-            match tss.inner.init_pins() {
+            let tss = created[i].lock().unwrap();
+            let mut inner = tss.inner.borrow_mut();
+            match inner.init_pins() {
                 Ok(_) => i += 1,
                 Err(err) => {
                     if let Some(source) = err.source() {
@@ -57,6 +59,7 @@ impl TargetStackShield {
                             err
                         );
                     }
+                    drop(inner);
                     drop(tss); // unlock mutex
 
                     created.remove(i);
@@ -67,7 +70,18 @@ impl TargetStackShield {
         created
     }
 
-    pub fn set_targets(&mut self) {}
+    /// Sets the currently connected target states
+    pub fn set_targets(&mut self, targets: Option<[TargetState; 4]>) {
+        self.targets = targets;
+    }
+
+    pub fn get_position(&self) -> u8 {
+        self.position
+    }
+
+    pub fn get_targets(&self) -> &Option<[TargetState; 4]> {
+        &self.targets
+    }
 
     /// Detects all connected TSS by trying to read an IO-Expander register on each possible i2c address
     fn detect_connected_tss(mut i2c: ShareableI2c) -> Vec<Option<u8>> {
