@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 
+use comm_types::hardware::StackShieldStatus;
 use embedded_hal::i2c::blocking::{Write, WriteRead};
 use expander_gpio::ExpanderGpio;
 use pca9535::{expander::SyncExpander, ExpanderError};
@@ -12,14 +13,6 @@ mod rpi_gpio;
 
 pub use crate::rpi_gpio::uart::UART_BYTES_READ;
 pub use rpi_gpio::gpio::TestInputPin;
-
-#[derive(Debug, Clone, Copy)]
-pub enum StackShieldStatus {
-    Idle,
-    Err,
-    NoBoard,
-    NotInitialized,
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum TestChannelStatus {
