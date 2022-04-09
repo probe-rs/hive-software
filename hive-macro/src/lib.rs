@@ -89,14 +89,8 @@ pub fn hive_test(attr: TokenStream, item: TokenStream) -> TokenStream {
         ),
     };
 
-    let order = match args.order {
-        Some(x) => x,
-        None => 0,
-    };
-    let panics = match args.should_panic {
-        Some(x) => x,
-        None => false,
-    };
+    let order = args.order.unwrap_or(0);
+    let panics = args.should_panic.unwrap_or(false);
 
     // parse testfunction
     let input = match syn::parse_macro_input::parse::<ItemFn>(item) {
@@ -171,7 +165,7 @@ pub fn hive_test(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// Checks the provided function argument identifiers against the given identifiers in [`TESTFUNCTION_ARGUMENT_IDENT`]
 fn check_fn_arg_ident(pos: usize, input: &PatType) {
     if let Pat::Ident(ref path) = *input.pat {
-        if path.ident.to_string() == TESTFUNCTION_ARGUMENT_IDENT[pos] {
+        if path.ident == TESTFUNCTION_ARGUMENT_IDENT[pos] {
             return;
         }
     }
@@ -193,7 +187,7 @@ fn check_fn_arg_type(pos: usize, input: &PatType) {
             );
         }
 
-        if let None = reference.mutability {
+        if reference.mutability.is_none() {
             abort!(
                 reference.span(), "Function arguments should be mutable";
                 help = "All arguments in a Hive testfunction are mutable references.";
