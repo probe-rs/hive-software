@@ -1,6 +1,7 @@
 pub use controller::runner::TestChannelHandle;
 pub use hive_macro::hive_test;
-pub use probe_rs::Probe;
+pub use inventory;
+use probe_rs_test::Probe;
 
 #[allow(dead_code)]
 pub struct HiveTestFunction {

@@ -11,4 +11,4 @@ readme = "README.md"
 hive-macro = {path = "../hive-macro/"}
 controller = {path = "../controller/", features = ["runner"]}
 inventory = "0.2"
-probe-rs = "0.12"
+probe-rs-test = {package = "probe-rs", path = "../probe-rs-testcandidate/probe-rs/probe-rs/"}
