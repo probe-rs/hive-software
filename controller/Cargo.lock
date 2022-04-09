@@ -3,6 +3,12 @@
 version = 3
 
 [[package]]
+name = "antidote"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34fde25430d87a9388dadbe6e34d7f72a462c8b43ac8d309b42b0a8505d7e2a5"
+
+[[package]]
 name = "anyhow"
 version = "1.0.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -82,12 +88,14 @@ dependencies = [
 name = "controller"
 version = "0.1.0"
 dependencies = [
+ "antidote",
  "comm-types",
  "embedded-hal 1.0.0-alpha.5",
  "ll-api",
  "log",
  "pca9535",
- "probe-rs",
+ "probe-rs 0.12.0",
+ "probe-rs 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "retry",
  "rppal",
  "shared-bus",
@@ -330,6 +338,36 @@ checksum = "eb9f9e6e233e5c4a35559a617bf40a4ec447db2e84c20b55a6f83167b7e57872"
 [[package]]
 name = "probe-rs"
 version = "0.12.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "bincode",
+ "bitfield",
+ "bitvec",
+ "enum-primitive-derive",
+ "gimli",
+ "hidapi",
+ "ihex",
+ "jaylink",
+ "jep106",
+ "log",
+ "num-traits",
+ "object",
+ "once_cell",
+ "probe-rs-target 0.12.0",
+ "rusb",
+ "scroll",
+ "serde",
+ "serde_yaml",
+ "static_assertions",
+ "svg",
+ "thiserror",
+ "thousands",
+]
+
+[[package]]
+name = "probe-rs"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "232e7f2912aba17bef48f84f9d90bfc9e6c1d8c90959fcf1451ccb3a68819ee7"
 dependencies = [
@@ -348,7 +386,7 @@ dependencies = [
  "num-traits",
  "object",
  "once_cell",
- "probe-rs-target",
+ "probe-rs-target 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusb",
  "scroll",
  "serde",
@@ -357,6 +395,15 @@ dependencies = [
  "svg",
  "thiserror",
  "thousands",
+]
+
+[[package]]
+name = "probe-rs-target"
+version = "0.12.0"
+dependencies = [
+ "base64",
+ "jep106",
+ "serde",
 ]
 
 [[package]]

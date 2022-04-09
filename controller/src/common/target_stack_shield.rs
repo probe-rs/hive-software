@@ -70,9 +70,33 @@ impl TargetStackShield {
         created
     }
 
-    /// Sets the currently connected target states
-    pub fn set_targets(&mut self, targets: Option<[TargetState; 4]>) {
-        self.targets = targets;
+    /// Sets the currently connected target states, if a daughterboard is connected
+    pub fn set_targets(&mut self, targets: [TargetState; 4]) {
+        let is_connected = match self.inner.borrow_mut().daughterboard_is_connected() {
+            Ok(connected) => connected,
+            Err(err) => {
+                if let Some(source) = err.source() {
+                    log::warn!(
+                        "Failed to determine if a daughterboard is connected to tss {}: {}\nCaused by:\n{}",
+                        self.position,
+                        err,
+                        source
+                    );
+                } else {
+                    log::warn!(
+                        "Failed to determine if a daughterboard is connected to tss {}: {}",
+                        self.position,
+                        err
+                    );
+                }
+
+                false
+            }
+        };
+
+        if is_connected {
+            self.targets = Some(targets);
+        }
     }
 
     pub fn get_position(&self) -> u8 {

@@ -1,12 +1,18 @@
 use std::{
     error::Error,
-    sync::Mutex, 
+    sync::Mutex,  
 };
 
 use comm_types::hardware::TargetState;
 use ll_api::{RpiTestChannel, Target, TestChannel};
-use probe_rs::Probe;
 use retry::{delay::Fixed, retry};
+use antidote::Mutex as PoisonFreeMutex;
+
+// Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
+#[cfg(not(feature = "runner"))]
+use probe_rs::Probe;
+#[cfg(feature = "runner")]
+use probe_rs_test::Probe;
 
 use super::TargetStackShield;
 
@@ -17,8 +23,8 @@ const CONNECT_RETRY_LIMIT: usize = 3;
 #[derive(Debug)]
 pub struct CombinedTestChannel {
     channel: TestChannel,
-    rpi: RpiTestChannel,
-    probe: Option<Probe>,
+    rpi: PoisonFreeMutex<RpiTestChannel>,
+    probe: PoisonFreeMutex<Option<Probe>>,
 }
 
 impl CombinedTestChannel {
@@ -26,41 +32,49 @@ impl CombinedTestChannel {
         [
             Mutex::new(CombinedTestChannel {
                 channel: TestChannel::Channel0,
-                rpi: RpiTestChannel::new(TestChannel::Channel0),
-                probe: None,
+                rpi: PoisonFreeMutex::new(RpiTestChannel::new(TestChannel::Channel0)),
+                probe: PoisonFreeMutex::new(None),
             }),
             Mutex::new(CombinedTestChannel {
                 channel: TestChannel::Channel1,
-                rpi: RpiTestChannel::new(TestChannel::Channel1),
-                probe: None,
+                rpi: PoisonFreeMutex::new(RpiTestChannel::new(TestChannel::Channel1)),
+                probe: PoisonFreeMutex::new(None),
             }),
             Mutex::new(CombinedTestChannel {
                 channel: TestChannel::Channel2,
-                rpi: RpiTestChannel::new(TestChannel::Channel2),
-                probe: None,
+                rpi: PoisonFreeMutex::new(RpiTestChannel::new(TestChannel::Channel2)),
+                probe: PoisonFreeMutex::new(None),
             }),
             Mutex::new(CombinedTestChannel {
                 channel: TestChannel::Channel3,
-                rpi: RpiTestChannel::new(TestChannel::Channel3),
-                probe: None,
+                rpi: PoisonFreeMutex::new(RpiTestChannel::new(TestChannel::Channel3)),
+                probe: PoisonFreeMutex::new(None),
             }),
         ]
     }
 
     /// Check if testchannel has a probe attached and is ready to be used during testing
     pub fn is_ready(&self) -> bool {
-        self.probe.is_some()
+        self.probe.lock().is_some()
     }
 
     pub fn get_channel(&self) -> TestChannel {
         self.channel
     }
 
+    pub fn get_probe(&self) -> &PoisonFreeMutex<Option<Probe>>{
+        &self.probe
+    }
+
+    pub fn get_rpi(&self) -> &PoisonFreeMutex<RpiTestChannel> {
+        &self.rpi
+    }
+
     /// Reset the test channel to defaults for use in next test
     pub fn reset(&mut self) -> Result<(), Box<dyn Error>> {
-        self.rpi.test_gpio_reset()?;
+        self.rpi.lock().test_gpio_reset()?;
 
-        if let Some(ref mut probe) = self.probe {
+        if let Some(ref mut probe) = *self.probe.lock() {
             probe.detach()?;
         }
 
@@ -69,20 +83,19 @@ impl CombinedTestChannel {
 
     /// Binds the provided probe to the testchannel
     pub fn bind_probe(&mut self, probe: Probe) {
-        self.probe = Some(probe);
+        *self.probe.lock() = Some(probe);
     }
 
     /// Loops through all available TSS and connects the testchannel to each available target, while executing the provided function on each connection.
-    pub fn connect_all_available_and_execute<F>(&mut self, tss: &Vec<Mutex<TargetStackShield>>, mut function: F) where F: FnMut(&String, u8) {
+    pub fn connect_all_available_and_execute<F>(&mut self, tss: &[Mutex<TargetStackShield>], mut function: F) where F: FnMut(&mut Self, &String, u8) {
         let mut unprocessed_tss_queue: Vec<&Mutex<TargetStackShield>> = tss.iter().collect();
 
-        while unprocessed_tss_queue.len() != 0 {
+        while !unprocessed_tss_queue.is_empty() {
             match unprocessed_tss_queue[0].try_lock() {
                 Ok(tss) => {
-                    // do magic
                     if let Some(targets) = tss.get_targets() {
                         for (pos, target) in targets.iter().enumerate() {
-                            if let TargetState::Known(target_name) = target {
+                            if let TargetState::Known(ref target_name) = target {
                                 match retry(
                                     Fixed::from_millis(FIXED_RETRY_DELAY_MS)
                                         .take(CONNECT_RETRY_LIMIT),
@@ -93,7 +106,7 @@ impl CombinedTestChannel {
                                         )
                                     },
                                 ){
-                                    Ok(_) => function(target_name, tss.get_position()),
+                                    Ok(_) => function(self, target_name, tss.get_position()),
                                     Err(err) => match err {
                                         retry::Error::Operation { error, ..} => {
                                             log::error!(
