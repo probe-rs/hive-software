@@ -1,0 +1,18 @@
+[package]
+name = "monitor"
+version = "0.1.0"
+edition = "2021"
+authors = ["TeyKey1"]
+repository = "https://github.com/probe-rs/hive-software"
+description = "Hive monitor which handles all external communication, prepares the test environment and starts the test runner."
+readme = "README.md"
+
+[dependencies]
+comm-types = {path = "../comm-types/", features = ["cbor", "ipc"]}
+simple-clap-logger = {git = "https://github.com/TeyKey1/simple-clap-logger.git", rev = "6371878"}
+log = "0.4"
+tokio = {version  = "1.17", features = ["rt", "sync", "fs"]}
+axum = "0.5"
+hyper = "0.14"
+futures = "0.3"
+ciborium = "0.2"
