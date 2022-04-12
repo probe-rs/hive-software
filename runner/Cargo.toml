@@ -9,8 +9,9 @@ readme = "README.md"
 
 [dependencies]
 controller = {path = "../controller/", features = ["runner"]}
-comm-types = {path = "../comm-types/"}
+comm-types = {path = "../comm-types/", features = ["cbor"]}
 hive-test = {path = "../hive-test/"}
+ll-api = {path = "../ll-api/"}
 simple-clap-logger = {git = "https://github.com/TeyKey1/simple-clap-logger.git", rev = "6371878"}
 log = "0.4"
 rppal = { version = "0.13.0", features = ["hal"] }
@@ -18,7 +19,12 @@ shared-bus = {git = "https://github.com/TeyKey1/shared-bus.git", rev = "046dc03"
 lazy_static = "1.4"
 inventory = "0.2"
 tokio = {version  = "1.17", features = ["rt", "sync"]}
+axum = "0.5"
+tower = "0.4"
+hyper = {version = "0.14", features = ["client"]}
 hurdles = "1.0"
+antidote = "1.0"
+ciborium = "0.2"
 
 # probe-rs version which is being tested
 probe-rs-test = { package = "probe-rs", path = "../probe-rs-testcandidate/probe-rs/probe-rs/" }

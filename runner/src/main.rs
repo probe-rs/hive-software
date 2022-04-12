@@ -6,6 +6,7 @@ use controller::common::{
 use controller::HiveIoExpander;
 use hurdles::Barrier;
 use lazy_static::lazy_static;
+use ll_api::TestChannel;
 use log::Level;
 use rppal::i2c::I2c;
 use shared_bus::BusManager;
@@ -16,7 +17,7 @@ use tokio::sync::mpsc::Receiver;
 use probe_rs_test::Probe;
 
 use std::sync::Mutex;
-use std::{panic, thread};
+use std::thread;
 
 use crate::comm::Message;
 
@@ -36,7 +37,7 @@ lazy_static! {
 }
 
 fn main() {
-    Logger::init_with_level(Level::Trace);
+    Logger::init_with_level(Level::Info);
 
     initialize_statics();
     initialize_probe_data();
@@ -44,7 +45,7 @@ fn main() {
 
     let mut testing_threads = vec![];
 
-    let rt = Builder::new_current_thread().build().unwrap();
+    let rt = Builder::new_current_thread().enable_io().build().unwrap();
     let (comm_sender, comm_receive): (_, Receiver<Message>) = tokio::sync::mpsc::channel(30);
     let comm_tread = thread::spawn(move || {
         rt.block_on(async {
@@ -83,7 +84,7 @@ fn main() {
 
     // Disable panic printing, once all testchannels are ready to run the testfunctions
     panic_hook_sync.wait();
-    let standard_hook = test::disable_panic_print();
+    //let standard_hook = test::disable_panic_print();
     panic_hook_sync.wait();
 
     // drop mpsc sender instance owned by main thread to quit the communications loop once all testfunctions have finished
@@ -96,7 +97,7 @@ fn main() {
     log::debug!("Joined all testing threads");
 
     // Reenable panic printing
-    panic::set_hook(standard_hook);
+    //panic::set_hook(standard_hook);
 
     // Wait for communications to finish
     comm_tread.join().unwrap();
@@ -141,11 +142,19 @@ fn initialize_probe_data() {
         found_probes
     );
 
-    let mut testchannel_0 = TESTCHANNELS[0].lock().unwrap();
+    let testchannel_0 = TESTCHANNELS[0].lock().unwrap();
     testchannel_0.bind_probe(found_probes[0].open().unwrap());
 
-    let mut testchannel_1 = TESTCHANNELS[1].lock().unwrap();
+    let testchannel_1 = TESTCHANNELS[1].lock().unwrap();
     testchannel_1.bind_probe(found_probes[1].open().unwrap());
+}
+
+/// Handles the reinitialization of a probe on the provided testchannel.
+fn reinitialize_probe(channel: TestChannel) -> Probe {
+    let found_probes = Probe::list_all();
+
+    // TODO open and return correct probe based on data received by monitor
+    todo!()
 }
 
 /// returns the amount of testchannels which are ready for testing (A testchannel is considered ready once a probe has been bound to it)
