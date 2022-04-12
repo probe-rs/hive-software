@@ -9,6 +9,11 @@ readme = "README.md"
 
 [features]
 hardware = []
+cbor = []
+ipc = ["hardware"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
+ciborium = "0.2"
+http = "0.2"
+axum = "0.5"
