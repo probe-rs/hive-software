@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt::Display};
 
 use comm_types::hardware::StackShieldStatus;
 use embedded_hal::i2c::blocking::{Write, WriteRead};
@@ -62,6 +62,17 @@ impl TryFrom<u8> for TestChannel {
             2 => Ok(TestChannel::Channel2),
             3 => Ok(TestChannel::Channel3),
             _ => Err(ApiError::ConversionError),
+        }
+    }
+}
+
+impl Display for TestChannel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TestChannel::Channel0 => write!(f, "testchannel 0"),
+            TestChannel::Channel1 => write!(f, "testchannel 1"),
+            TestChannel::Channel2 => write!(f, "testchannel 2"),
+            TestChannel::Channel3 => write!(f, "testchannel 3"),
         }
     }
 }
