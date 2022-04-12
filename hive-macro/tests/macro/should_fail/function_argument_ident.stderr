@@ -1,7 +1,7 @@
 error: Wrong function argument name
 
          = help: For better readability Hive testfunctions should have the same argument names as shown in the example below.
-         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, probe: &mut Probe);
+         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session);
 
  --> tests/macro/should_fail/function_argument_ident.rs:2:18
   |

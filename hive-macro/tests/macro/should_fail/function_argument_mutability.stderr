@@ -1,7 +1,7 @@
 error: Function arguments should be mutable
 
          = help: All arguments in a Hive testfunction are mutable references.
-         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, probe: &mut Probe);
+         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session);
 
  --> tests/macro/should_fail/function_argument_mutability.rs:2:32
   |

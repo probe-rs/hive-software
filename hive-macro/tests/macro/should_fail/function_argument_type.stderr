@@ -1,7 +1,7 @@
 error: Wrong function argument type
 
          = help: Only the argument types listed in the example below are valid types to use in a Hive testfunction.
-         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, probe: &mut Probe);
+         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session);
 
  --> tests/macro/should_fail/function_argument_type.rs:2:37
   |

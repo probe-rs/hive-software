@@ -1,7 +1,7 @@
 error: Failed to parse testfunction
 
          = help: This macro can only be applied to a Hive testfunction, see the example below.
-         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, probe: &mut Probe);
+         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session);
 
  --> tests/macro/should_fail/function_syntax.rs:2:1
   |

@@ -22,11 +22,11 @@ struct TestOptions {
 const ATTRIBUTE_EXAMPLE: &str = "#[hive_test(order = 1, should_panic = true)]";
 const ATTRIBUTE_KEYS: &str = "'order = usize', 'should_panic = bool'";
 const FUNCTION_EXAMPLE: &str =
-    "fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, probe: &mut Probe);";
+    "fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session);";
 
 const TESTFUNCTION_ARGUMENT_LENGTH: usize = 2;
-const TESTFUNCTION_ARGUMENT_IDENT: [&str; 2] = ["test_channel", "probe"];
-const TESTFUNCTION_ARGUMENT_TYPE: [&str; 2] = ["TestChannelHandle", "Probe"];
+const TESTFUNCTION_ARGUMENT_IDENT: [&str; 2] = ["test_channel", "session"];
+const TESTFUNCTION_ARGUMENT_TYPE: [&str; 2] = ["TestChannelHandle", "Session"];
 
 /// The macro to annotate a Hive testfunction
 ///
@@ -45,9 +45,9 @@ const TESTFUNCTION_ARGUMENT_TYPE: [&str; 2] = ["TestChannelHandle", "Probe"];
 /// Basic usage:
 /// ```rust
 /// #[hive_test]
-///fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, probe: &mut Probe) {
+///fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
 ///    let _channel = test_channel;
-///    let _probe = probe;
+///    let _session = session;
 ///
 ///    // Doing important test
 ///    let mut i = 0;
@@ -59,9 +59,9 @@ const TESTFUNCTION_ARGUMENT_TYPE: [&str; 2] = ["TestChannelHandle", "Probe"];
 /// Advanced usage with attributes:
 ///```rust
 /// #[hive_test(order = 100, should_panic = true)]
-///fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, probe: &mut Probe) {
+///fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
 ///    let _channel = test_channel;
-///    let _probe = probe;
+///    let _session = session;
 ///
 ///    // Intentional panic
 ///    panic!();
