@@ -2,6 +2,7 @@ use std::{
     error::Error,
     sync::Mutex,  
 };
+use std::mem;
 
 use comm_types::hardware::TargetState;
 use ll_api::{RpiTestChannel, Target, TestChannel};
@@ -53,6 +54,11 @@ impl CombinedTestChannel {
         ]
     }
 
+    /// Binds the provided probe to the testchannel
+    pub fn bind_probe(&self, probe: Probe) {
+        *self.probe.lock() = Some(probe);
+    }
+
     /// Check if testchannel has a probe attached and is ready to be used during testing
     pub fn is_ready(&self) -> bool {
         self.probe.lock().is_some()
@@ -66,12 +72,21 @@ impl CombinedTestChannel {
         &self.probe
     }
 
+    /// Returns a owned instance of the [`Probe`] which is currently held by this struct. The probe field of this struct is replaced with [`Option::None`], until [`Probe`] ownership is returned to this struct by calling [`Self::bind_probe()`].
+    /// 
+    /// # Panics
+    /// If the current probe field of the struct is [Option::None]
+    pub fn take_probe_owned(&self) -> Probe{
+        let mut probe = self.probe.lock();
+        mem::take(&mut *probe).expect("Tried to take owned instance of Probe struct but found None, make sure to call bind_probe before taking the Probe out of the struct.")
+    }
+
     pub fn get_rpi(&self) -> &PoisonFreeMutex<RpiTestChannel> {
         &self.rpi
     }
 
     /// Reset the test channel to defaults for use in next test
-    pub fn reset(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn reset(&self) -> Result<(), Box<dyn Error>> {
         self.rpi.lock().test_gpio_reset()?;
 
         if let Some(ref mut probe) = *self.probe.lock() {
@@ -79,11 +94,6 @@ impl CombinedTestChannel {
         }
 
         Ok(())
-    }
-
-    /// Binds the provided probe to the testchannel
-    pub fn bind_probe(&mut self, probe: Probe) {
-        *self.probe.lock() = Some(probe);
     }
 
     /// Loops through all available TSS and connects the testchannel to each available target, while executing the provided function on each connection.
