@@ -1,5 +1,6 @@
 //! IPC request handlers
-use comm_types::cbor::CborValue;
+use ciborium::cbor;
+use comm_types::{cbor::CborValue, ipc::IpcMessage};
 
 use super::extractors::Cbor;
 
@@ -15,10 +16,17 @@ pub(crate) async fn target_handler() -> CborValue {
 
 pub(crate) async fn runner_log_handler(Cbor(message): Cbor) -> CborValue {
     log::info!("Received {:#?} on runner log handler.", message);
-    todo!()
+    todo!();
+
+    CborValue(cbor!(IpcMessage::Empty).unwrap())
 }
 
 pub(crate) async fn test_result_handler(Cbor(message): Cbor) -> CborValue {
     log::info!("Received {:#?} on test result handler.", message);
-    todo!()
+    if let IpcMessage::TestResults(results) = message {
+        log::info!("Received test results on result handler: {:#?}", results);
+    }
+    todo!();
+
+    CborValue(cbor!(IpcMessage::Empty).unwrap())
 }

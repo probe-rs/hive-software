@@ -52,6 +52,7 @@ impl connect_info::Connected<&UnixStream> for IpcConnectionInfo {
     }
 }
 
+/// Starts the IPC server and listens for incoming connections
 pub(crate) async fn ipc_server() {
     let socket_path = Path::new(SOCKET_PATH);
 
