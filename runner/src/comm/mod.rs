@@ -3,16 +3,17 @@ use std::path::Path;
 use std::task::{Context, Poll};
 use std::{io, pin::Pin};
 
-use axum::body::Body;
-use axum::http::{Method, Request, Uri};
-use ciborium::de::from_reader;
-use ciborium::value::Value;
-use comm_types::cbor::CBOR_MIME;
+use axum::http::Uri;
+use comm_types::results::TestResults;
 use hyper::client::connect::{Connected, Connection};
-use hyper::header;
+use hyper::{Body, Client};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::{net::UnixStream, sync::mpsc::Receiver};
 
+mod requests;
+mod retry;
+
+/// The location of the socketfile used for communication between runner and monitor
 const SOCKET_PATH: &str = "/tmp/hive/monitor/ipc_sock";
 
 /// Messages which are passed between the [`std::thread`] used for testing, and the tokio runtime
@@ -23,6 +24,7 @@ pub(crate) enum Message {
     TestResult(String),
 }
 
+/// Struct representing the IPC connection
 struct IpcConnection {
     stream: UnixStream,
 }
@@ -83,28 +85,11 @@ pub(crate) async fn ipc(mut receiver: Receiver<Message>) {
             })
         });
 
-        let client = hyper::Client::builder().build(connector);
+        let client: Client<_, Body> = hyper::Client::builder().build(connector);
 
-        let request = Request::builder()
-            .method(Method::GET)
-            .header(header::CONTENT_TYPE, CBOR_MIME)
-            .uri("https://monitor.sock/data/probe")
-            .body(Body::empty())
+        retry::try_request(client, requests::post_test_results(TestResults {}))
+            .await
             .unwrap();
-
-        let response = client.request(request).await.unwrap();
-
-        if response.status().is_success() {
-            let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
-            let body: Value = from_reader(body.as_ref()).unwrap();
-            log::info!("Received from monitor: {:?}", body);
-        } else {
-            log::error!(
-                "Received error response with status: {} and body {:?}",
-                response.status(),
-                response.body()
-            );
-        }
     });
 
     ipc_handler.await.unwrap();

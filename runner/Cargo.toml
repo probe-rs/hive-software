@@ -9,7 +9,7 @@ readme = "README.md"
 
 [dependencies]
 controller = {path = "../controller/", features = ["runner"]}
-comm-types = {path = "../comm-types/", features = ["cbor"]}
+comm-types = {path = "../comm-types/", features = ["cbor", "ipc"]}
 hive-test = {path = "../hive-test/"}
 ll-api = {path = "../ll-api/"}
 simple-clap-logger = {git = "https://github.com/TeyKey1/simple-clap-logger.git", rev = "6371878"}
@@ -25,6 +25,7 @@ hyper = {version = "0.14", features = ["client"]}
 hurdles = "1.0"
 antidote = "1.0"
 ciborium = "0.2"
+tokio-retry = "0.3"
 
 # probe-rs version which is being tested
 probe-rs-test = { package = "probe-rs", path = "../probe-rs-testcandidate/probe-rs/probe-rs/" }

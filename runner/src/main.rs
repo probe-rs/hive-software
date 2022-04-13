@@ -45,7 +45,7 @@ fn main() {
 
     let mut testing_threads = vec![];
 
-    let rt = Builder::new_current_thread().enable_io().build().unwrap();
+    let rt = Builder::new_current_thread().enable_all().build().unwrap();
     let (comm_sender, comm_receive): (_, Receiver<Message>) = tokio::sync::mpsc::channel(30);
     let comm_tread = thread::spawn(move || {
         rt.block_on(async {
