@@ -173,7 +173,9 @@ dependencies = [
  "axum",
  "ciborium",
  "http",
+ "hyper",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
