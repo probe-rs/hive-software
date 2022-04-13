@@ -12,3 +12,6 @@ pub mod cbor;
 
 #[cfg(feature = "ipc")]
 pub mod ipc;
+
+#[cfg(feature = "results")]
+pub mod results;
