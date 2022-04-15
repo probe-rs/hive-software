@@ -11,9 +11,9 @@ use antidote::Mutex as PoisonFreeMutex;
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
 #[cfg(not(feature = "runner"))]
-use probe_rs::Probe;
+use probe_rs::{Probe, DebugProbeInfo};
 #[cfg(feature = "runner")]
-use probe_rs_test::Probe;
+use probe_rs_test::{Probe, DebugProbeInfo};
 
 use super::TargetStackShield;
 
@@ -26,6 +26,7 @@ pub struct CombinedTestChannel {
     channel: TestChannel,
     rpi: PoisonFreeMutex<RpiTestChannel>,
     probe: PoisonFreeMutex<Option<Probe>>,
+    probe_info: PoisonFreeMutex<Option<DebugProbeInfo>>
 }
 
 impl CombinedTestChannel {
@@ -35,28 +36,37 @@ impl CombinedTestChannel {
                 channel: TestChannel::Channel0,
                 rpi: PoisonFreeMutex::new(RpiTestChannel::new(TestChannel::Channel0)),
                 probe: PoisonFreeMutex::new(None),
+                probe_info: PoisonFreeMutex::new(None),
             }),
             Mutex::new(CombinedTestChannel {
                 channel: TestChannel::Channel1,
                 rpi: PoisonFreeMutex::new(RpiTestChannel::new(TestChannel::Channel1)),
                 probe: PoisonFreeMutex::new(None),
+                probe_info: PoisonFreeMutex::new(None),
             }),
             Mutex::new(CombinedTestChannel {
                 channel: TestChannel::Channel2,
                 rpi: PoisonFreeMutex::new(RpiTestChannel::new(TestChannel::Channel2)),
                 probe: PoisonFreeMutex::new(None),
+                probe_info: PoisonFreeMutex::new(None),
             }),
             Mutex::new(CombinedTestChannel {
                 channel: TestChannel::Channel3,
                 rpi: PoisonFreeMutex::new(RpiTestChannel::new(TestChannel::Channel3)),
                 probe: PoisonFreeMutex::new(None),
+                probe_info: PoisonFreeMutex::new(None),
             }),
         ]
     }
 
     /// Binds the provided probe to the testchannel
-    pub fn bind_probe(&self, probe: Probe) {
+    pub fn bind_probe(&self, probe: Probe, probe_info: DebugProbeInfo) {
         *self.probe.lock() = Some(probe);
+        *self.probe_info.lock() = Some(probe_info);
+    }
+
+    pub fn get_probe_info(&self) -> &PoisonFreeMutex<Option<DebugProbeInfo>> {
+        &self.probe_info
     }
 
     /// Check if testchannel has a probe attached and is ready to be used during testing
@@ -72,13 +82,18 @@ impl CombinedTestChannel {
         &self.probe
     }
 
-    /// Returns a owned instance of the [`Probe`] which is currently held by this struct. The probe field of this struct is replaced with [`Option::None`], until [`Probe`] ownership is returned to this struct by calling [`Self::bind_probe()`].
+    /// Returns a owned instance of the [`Probe`] which is currently held by this struct. The probe field of this struct is replaced with [`Option::None`], until [`Probe`] ownership is returned to this struct by calling [`Self::return_probe()`].
     /// 
     /// # Panics
     /// If the current probe field of the struct is [Option::None]
     pub fn take_probe_owned(&self) -> Probe{
         let mut probe = self.probe.lock();
         mem::take(&mut *probe).expect("Tried to take owned instance of Probe struct but found None, make sure to call bind_probe before taking the Probe out of the struct.")
+    }
+
+    /// Used to return the owned [`Probe`] to the struct after it has been taken with [`Self::take_probe_owned()`]
+    pub fn return_probe(&self, probe: Probe) {
+        *self.probe.lock() = Some(probe);
     }
 
     pub fn get_rpi(&self) -> &PoisonFreeMutex<RpiTestChannel> {
