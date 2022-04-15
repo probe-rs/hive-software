@@ -5,6 +5,7 @@ use std::{io, pin::Pin};
 
 use axum::http::Uri;
 use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
+use comm_types::results::TestResult;
 use hyper::client::connect::{Connected, Connection};
 use hyper::{Body, Client};
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -23,8 +24,7 @@ const SOCKET_PATH: &str = "/tmp/hive/monitor/ipc_sock";
 #[derive(Debug)]
 pub(crate) enum Message {
     InitError(InitError),
-    Message(String),
-    TestResult(String),
+    TestResult(TestResult),
 }
 
 /// Struct representing the IPC connection

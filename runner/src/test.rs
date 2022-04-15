@@ -4,6 +4,7 @@ use std::error::Error;
 use std::panic::{self, PanicInfo};
 
 use antidote::Mutex as PoisonFreeMutex;
+use comm_types::results::{TestResult, TestStatus};
 use controller::common::CombinedTestChannel;
 use controller::runner::TestChannelHandle;
 use hive_test::HiveTestFunction;
@@ -17,23 +18,43 @@ pub(crate) fn run_tests(
     tss_pos: u8,
     comm_sender: &Sender<Message>,
 ) {
-    comm_sender
-        .blocking_send(Message::Message(format!(
-            "Testing target {}, on tss {} with {}",
-            target_name,
-            tss_pos,
-            test_channel.get_channel()
-        )))
-        .unwrap();
+    log::trace!(
+        "Testing target {}, on tss {} with {}",
+        target_name,
+        tss_pos,
+        test_channel.get_channel()
+    );
+
+    let probe_info_lock = test_channel.get_probe_info().lock();
+    let probe_info = probe_info_lock.as_ref().unwrap();
+    let probe_name = probe_info.identifier.clone();
+    let probe_sn = match probe_info.serial_number.clone() {
+        Some(number) => number,
+        None => "None".to_string(),
+    };
 
     // Check if Testchannel is ready, it might not be anymore in case probe reinitialization failed.
     if !test_channel.is_ready() {
-        todo!("send message to comm thread to inform about all skipped tests due to failed probe reinitialization");
+        for test in inventory::iter::<HiveTestFunction> {
+            let result = TestResult {
+                status: TestStatus::SKIPPED(
+                    "Failed to reinitialize the debug probe for this testrun".to_string(),
+                ),
+                should_panic: test.should_panic,
+                test_name: test.name.to_string(),
+                target_name: target_name.to_string(),
+                probe_name: probe_name.clone(),
+                probe_sn: probe_sn.clone(),
+            };
+
+            comm_sender
+                .blocking_send(Message::TestResult(result))
+                .unwrap()
+        }
         return;
     }
 
     let probe = test_channel.take_probe_owned();
-    let probe_name = probe.get_name();
     match probe.attach(target_name) {
         Ok(session) => {
             let session = PoisonFreeMutex::new(session);
@@ -45,22 +66,47 @@ pub(crate) fn run_tests(
                         &mut session.lock(),
                     );
                 }) {
-                    Ok(_) => comm_sender
-                        .blocking_send(Message::TestResult(
-                            "finished test successfully".to_string(),
-                        ))
-                        .unwrap(),
-                    Err(err) => {
-                        let cause = match err.downcast::<String>() {
-                            Ok(err) => *err,
-                            Err(_) => "unknown".to_string(),
+                    Ok(_) => {
+                        let status = match test.should_panic {
+                            true => TestStatus::FAILED("Test function did not panic.".to_string()),
+                            false => TestStatus::PASSED,
+                        };
+
+                        let result = TestResult {
+                            status,
+                            should_panic: test.should_panic,
+                            test_name: test.name.to_string(),
+                            target_name: target_name.to_string(),
+                            probe_name: probe_name.clone(),
+                            probe_sn: probe_sn.clone(),
                         };
 
                         comm_sender
-                            .blocking_send(Message::TestResult(format!(
-                                "test failed. Caused by: {:?}",
-                                cause,
-                            )))
+                            .blocking_send(Message::TestResult(result))
+                            .unwrap()
+                    }
+                    Err(err) => {
+                        let cause = match err.downcast::<String>() {
+                            Ok(err) => *err,
+                            Err(_) => "Unknown".to_string(),
+                        };
+
+                        let status = match test.should_panic {
+                            true => TestStatus::PASSED,
+                            false => TestStatus::FAILED(cause),
+                        };
+
+                        let result = TestResult {
+                            status,
+                            should_panic: test.should_panic,
+                            test_name: test.name.to_string(),
+                            target_name: target_name.to_string(),
+                            probe_name: probe_name.clone(),
+                            probe_sn: probe_sn.clone(),
+                        };
+
+                        comm_sender
+                            .blocking_send(Message::TestResult(result))
                             .unwrap();
                     }
                 };

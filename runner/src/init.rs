@@ -11,8 +11,6 @@ pub(crate) enum InitError {
     ProbeInitDesync,
     #[error("The target hardware which was detected by the runner does not match with the data provided by the monitor")]
     TargetInitDesync,
-    #[error("Failed to reinitialize the probe during testing")]
-    ProbeReinitError,
 }
 
 pub(crate) fn initialize_statics() {
