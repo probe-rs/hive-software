@@ -10,7 +10,7 @@ use hive_test::HiveTestFunction;
 use tokio::sync::mpsc::Sender;
 
 use crate::comm::Message;
-use crate::test;
+use crate::init;
 
 pub(crate) fn run_tests(
     test_channel: &mut CombinedTestChannel,
@@ -74,7 +74,7 @@ pub(crate) fn run_tests(
     }
 
     // reinitialize probe, and transfer ownership back to test_channel
-    test_channel.bind_probe(super::reinitialize_probe(test_channel.get_channel()));
+    test_channel.bind_probe(init::reinitialize_probe(test_channel.get_channel()).expect("TODO"));
 }
 
 /// Disables the printing of panics in this program, returns the previously used panic hook

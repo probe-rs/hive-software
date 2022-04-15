@@ -1,4 +1,4 @@
-use comm_types::hardware::TargetState;
+use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
 use controller::common::{
     create_expanders, create_shareable_testchannels, create_shareable_tss, CombinedTestChannel,
     TargetStackShield,
@@ -6,15 +6,13 @@ use controller::common::{
 use controller::HiveIoExpander;
 use hurdles::Barrier;
 use lazy_static::lazy_static;
-use ll_api::TestChannel;
 use log::Level;
 use rppal::i2c::I2c;
 use shared_bus::BusManager;
 use simple_clap_logger::Logger;
 use tokio::runtime::Builder;
 use tokio::sync::mpsc::Receiver;
-
-use probe_rs_test::Probe;
+use tokio::sync::oneshot;
 
 use std::sync::Mutex;
 use std::thread;
@@ -23,6 +21,7 @@ use crate::comm::Message;
 
 mod comm;
 mod hive_tests;
+mod init;
 mod test;
 
 lazy_static! {
@@ -39,19 +38,38 @@ lazy_static! {
 fn main() {
     Logger::init_with_level(Level::Info);
 
-    initialize_statics();
-    initialize_probe_data();
-    initialize_target_data();
+    init::initialize_statics();
 
     let mut testing_threads = vec![];
 
     let rt = Builder::new_current_thread().enable_all().build().unwrap();
-    let (comm_sender, comm_receive): (_, Receiver<Message>) = tokio::sync::mpsc::channel(30);
+    let (comm_sender, comm_receiver): (_, Receiver<Message>) = tokio::sync::mpsc::channel(30);
+    let (init_data_sender, init_data_receiver) = oneshot::channel();
     let comm_tread = thread::spawn(move || {
         rt.block_on(async {
-            comm::ipc(comm_receive).await;
+            comm::ipc(comm_receiver, init_data_sender).await;
         });
     });
+
+    // Wait until the init data was received from monitor
+    let (probe_data, target_data) = match init_data_receiver.blocking_recv() {
+        Ok(data) => data,
+        Err(err) => {
+            // Terminate the process, as the init data task failed
+            todo!("graceful shutdown of runner")
+        }
+    };
+
+    match init_hardware_from_monitor_data(target_data, probe_data) {
+        Ok(_) => (),
+        Err(err) => {
+            comm_sender
+                .clone()
+                .blocking_send(comm::Message::InitError(err))
+                .unwrap();
+            todo!("graceful shutdown of runner")
+        }
+    }
 
     let mut panic_hook_sync = Barrier::new(get_available_channel_count() + 1);
 
@@ -104,60 +122,15 @@ fn main() {
     log::debug!("Joined comm thread");
 }
 
-fn initialize_statics() {
-    lazy_static::initialize(&SHARED_I2C);
-    lazy_static::initialize(&EXPANDERS);
-    lazy_static::initialize(&TSS);
-    lazy_static::initialize(&TESTCHANNELS);
+fn init_hardware_from_monitor_data(
+    target_data: HiveTargetData,
+    probe_data: HiveProbeData,
+) -> Result<(), init::InitError> {
+    init::initialize_target_data(target_data)?;
+    init::initialize_probe_data(probe_data)
 }
 
-fn initialize_target_data() {
-    let target_pos_0 = [
-        TargetState::Known("Neat Target 0".to_string()),
-        TargetState::NotConnected,
-        TargetState::Known("Neat Target 2".to_string()),
-        TargetState::NotConnected,
-    ];
-
-    let target_pos_2 = [
-        TargetState::NotConnected,
-        TargetState::Known("Other Target 1".to_string()),
-        TargetState::Known("Other Target 2".to_string()),
-        TargetState::NotConnected,
-    ];
-
-    let mut tss_0 = TSS[0].lock().unwrap();
-    tss_0.set_targets(target_pos_0);
-
-    let mut tss_2 = TSS[2].lock().unwrap();
-    tss_2.set_targets(target_pos_2);
-}
-
-fn initialize_probe_data() {
-    let found_probes = Probe::list_all();
-
-    log::debug!(
-        "Found {} attached probes:\n{:#?}",
-        found_probes.len(),
-        found_probes
-    );
-
-    let testchannel_0 = TESTCHANNELS[0].lock().unwrap();
-    testchannel_0.bind_probe(found_probes[0].open().unwrap());
-
-    let testchannel_1 = TESTCHANNELS[1].lock().unwrap();
-    testchannel_1.bind_probe(found_probes[1].open().unwrap());
-}
-
-/// Handles the reinitialization of a probe on the provided testchannel.
-fn reinitialize_probe(channel: TestChannel) -> Probe {
-    let found_probes = Probe::list_all();
-
-    // TODO open and return correct probe based on data received by monitor
-    todo!()
-}
-
-/// returns the amount of testchannels which are ready for testing (A testchannel is considered ready once a probe has been bound to it)
+/// Returns the amount of testchannels which are ready for testing (A testchannel is considered ready once a probe has been bound to it)
 fn get_available_channel_count() -> usize {
     let mut available_channels = 0;
 
@@ -169,4 +142,30 @@ fn get_available_channel_count() -> usize {
     }
 
     available_channels
+}
+
+/// Detects if a Daugtherboard is present on each connected TSS, is true if present.
+///
+/// # Failure
+/// In case the function fails to determine if a daughterboard is present on a TSS or not, it assumes that none is present.
+/// Detect failures usually occur if the received TSS data from the monitor is desynced from the actual hardware configuration, or due to hardware errors.
+/// If the false value is wrongly assumed by this function it will later cause a desync error which in turn forces the monitor to resync the hardware configuration and rerun the tests on the runner.
+fn detect_connected_daughterboards() -> Vec<bool> {
+    let mut detected = vec![];
+    for tss in TSS.iter() {
+        let mut tss = tss.lock().unwrap();
+
+        match tss.inner.get_mut().daughterboard_is_connected() {
+            Ok(is_connected) => detected.push(is_connected),
+            Err(err) => {
+                log::warn!(
+                    "Failed to detect daughterboard on TSS {}, assuming none is connected. \n\nCaused by: {}",
+                    tss.get_position(),
+                    err
+                );
+                detected.push(false);
+            }
+        }
+    }
+    detected
 }

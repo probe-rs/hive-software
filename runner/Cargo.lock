@@ -1143,6 +1143,7 @@ dependencies = [
  "rppal",
  "shared-bus",
  "simple-clap-logger",
+ "thiserror",
  "tokio",
  "tokio-retry",
  "tower",

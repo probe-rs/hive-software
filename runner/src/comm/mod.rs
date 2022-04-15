@@ -4,11 +4,14 @@ use std::task::{Context, Poll};
 use std::{io, pin::Pin};
 
 use axum::http::Uri;
-use comm_types::results::TestResults;
+use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
 use hyper::client::connect::{Connected, Connection};
 use hyper::{Body, Client};
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::sync::oneshot::Sender;
 use tokio::{net::UnixStream, sync::mpsc::Receiver};
+
+use crate::init::InitError;
 
 mod requests;
 mod retry;
@@ -19,7 +22,7 @@ const SOCKET_PATH: &str = "/tmp/hive/monitor/ipc_sock";
 /// Messages which are passed between the [`std::thread`] used for testing, and the tokio runtime
 #[derive(Debug)]
 pub(crate) enum Message {
-    //Error(String),
+    InitError(InitError),
     Message(String),
     TestResult(String),
 }
@@ -67,7 +70,10 @@ impl Connection for IpcConnection {
 }
 
 /// This function is the async entrypoint of tokio. All ipc from and to the monitor application are done here
-pub(crate) async fn ipc(mut receiver: Receiver<Message>) {
+pub(crate) async fn ipc(
+    mut receiver: Receiver<Message>,
+    init_data_sender: Sender<(HiveProbeData, HiveTargetData)>,
+) {
     let socket_path = Path::new(SOCKET_PATH);
 
     let mpsc_handler = tokio::spawn(async move {
@@ -87,9 +93,38 @@ pub(crate) async fn ipc(mut receiver: Receiver<Message>) {
 
         let client: Client<_, Body> = hyper::Client::builder().build(connector);
 
-        retry::try_request(client, requests::post_test_results(TestResults {}))
+        let client_copy = client.clone();
+
+        let initialization = tokio::spawn(async move {
+            let probes = retry::try_request(client_copy.clone(), requests::get_probes())
+                .await
+                .unwrap();
+
+            let targets = retry::try_request(client_copy.clone(), requests::get_targets())
+                .await
+                .unwrap();
+
+            let probe_data;
+            if let IpcMessage::ProbeInitData(data) = probes {
+                probe_data = data;
+            } else {
+                panic!("Received wrong IpcMessage enum variant from the monitor!")
+            }
+
+            let target_data;
+            if let IpcMessage::TargetInitData(data) = targets {
+                target_data = data;
+            } else {
+                panic!("Received wrong IpcMessage enum variant from the monitor!")
+            }
+
+            // Notify main thread with init data, so it can start with testing
+            init_data_sender.send((probe_data, target_data)).expect("Failed to send init data to main thread. Is the receiver still in scope and the thread still running?");
+        });
+
+        initialization
             .await
-            .unwrap();
+            .expect("Failed to get initialization data from monitor");
     });
 
     ipc_handler.await.unwrap();
