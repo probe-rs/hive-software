@@ -1,6 +1,5 @@
 //! Handles all initialization required to run the tests
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
-use ll_api::TestChannel;
 use probe_rs_test::Probe;
 use thiserror::Error;
 
@@ -82,13 +81,16 @@ pub(crate) fn initialize_probe_data(data: HiveProbeData) -> Result<(), InitError
                 && found_probes[found_probes_idx].hid_interface == Some(probe_info.usb_port)
             {
                 let tss = TESTCHANNELS[channel_idx].lock().unwrap();
-                let probe = found_probes
-                    .remove(found_probes_idx)
+
+                let probe_info = found_probes.remove(found_probes_idx);
+                let probe = probe_info
                     .open()
                     .expect("TODO either skip probe for test run or panic");
-                tss.bind_probe(probe);
+
+                tss.bind_probe(probe, probe_info);
+                break;
             } else {
-                found_probes_idx -= 1;
+                found_probes_idx += 1;
             }
         }
     }
@@ -100,12 +102,4 @@ pub(crate) fn initialize_probe_data(data: HiveProbeData) -> Result<(), InitError
     }
 
     Ok(())
-}
-
-/// Handles the reinitialization of a probe on the provided testchannel.
-pub(crate) fn reinitialize_probe(channel: TestChannel) -> Result<Probe, InitError> {
-    let found_probes = Probe::list_all();
-
-    // TODO open and return correct probe based on data received by monitor
-    todo!()
 }

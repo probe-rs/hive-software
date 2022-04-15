@@ -1,4 +1,4 @@
-use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
+use comm_types::ipc::{HiveProbeData, HiveTargetData};
 use controller::common::{
     create_expanders, create_shareable_testchannels, create_shareable_tss, CombinedTestChannel,
     TargetStackShield,
@@ -11,11 +11,11 @@ use rppal::i2c::I2c;
 use shared_bus::BusManager;
 use simple_clap_logger::Logger;
 use tokio::runtime::Builder;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::oneshot;
 
 use std::sync::Mutex;
-use std::thread;
+use std::thread::{self, JoinHandle};
 
 use crate::comm::Message;
 
@@ -54,20 +54,31 @@ fn main() {
     // Wait until the init data was received from monitor
     let (probe_data, target_data) = match init_data_receiver.blocking_recv() {
         Ok(data) => data,
-        Err(err) => {
-            // Terminate the process, as the init data task failed
-            todo!("graceful shutdown of runner")
+        Err(_) => {
+            log::error!(
+                "The oneshot sender in the async comm-thread has been dropped, shutting down. This is either caused by a panic in the comm-thread or an error in the code.",
+            );
+
+            shutdown_on_init(comm_tread, comm_sender);
+            unreachable!();
         }
     };
 
     match init_hardware_from_monitor_data(target_data, probe_data) {
         Ok(_) => (),
         Err(err) => {
+            log::error!(
+                "Failed to initialize the hardware data: {} Shutting down...",
+                err
+            );
+
             comm_sender
                 .clone()
                 .blocking_send(comm::Message::InitError(err))
                 .unwrap();
-            todo!("graceful shutdown of runner")
+
+            shutdown_on_init(comm_tread, comm_sender);
+            unreachable!();
         }
     }
 
@@ -168,4 +179,11 @@ fn detect_connected_daughterboards() -> Vec<bool> {
         }
     }
     detected
+}
+
+/// Handles the shutdown procedure, if the runner needs to shutdown during the init phase (before any tests were ran)
+fn shutdown_on_init(comm_thread_handle: JoinHandle<()>, comm_sender: Sender<Message>) {
+    drop(comm_sender);
+    let _ = comm_thread_handle.join();
+    std::process::exit(1);
 }

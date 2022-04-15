@@ -10,7 +10,6 @@ use hive_test::HiveTestFunction;
 use tokio::sync::mpsc::Sender;
 
 use crate::comm::Message;
-use crate::init;
 
 pub(crate) fn run_tests(
     test_channel: &mut CombinedTestChannel,
@@ -26,6 +25,12 @@ pub(crate) fn run_tests(
             test_channel.get_channel()
         )))
         .unwrap();
+
+    // Check if Testchannel is ready, it might not be anymore in case probe reinitialization failed.
+    if !test_channel.is_ready() {
+        todo!("send message to comm thread to inform about all skipped tests due to failed probe reinitialization");
+        return;
+    }
 
     let probe = test_channel.take_probe_owned();
     let probe_name = probe.get_name();
@@ -74,7 +79,22 @@ pub(crate) fn run_tests(
     }
 
     // reinitialize probe, and transfer ownership back to test_channel
-    test_channel.bind_probe(init::reinitialize_probe(test_channel.get_channel()).expect("TODO"));
+    match test_channel
+        .get_probe_info()
+        .lock()
+        .as_ref()
+        .unwrap()
+        .open()
+    {
+        Ok(probe) => test_channel.return_probe(probe),
+        Err(err) => {
+            log::warn!(
+                "Failed to reinitialize the debug probe connected to {}: {}. Skipping the remaining tests on this Testchannel.",
+                test_channel.get_channel(),
+                err
+            )
+        }
+    }
 }
 
 /// Disables the printing of panics in this program, returns the previously used panic hook
