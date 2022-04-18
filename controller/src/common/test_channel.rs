@@ -118,6 +118,8 @@ impl CombinedTestChannel {
         while !unprocessed_tss_queue.is_empty() {
             match unprocessed_tss_queue[0].try_lock() {
                 Ok(tss) => {
+                    log::trace!("{}: locked tss {}.", self.get_channel(), tss.get_position());
+
                     if let Some(targets) = tss.get_targets() {
                         for (pos, target) in targets.iter().enumerate() {
                             if let TargetState::Known(ref target_name) = target {
