@@ -22,3 +22,4 @@ shared-bus = {git = "https://github.com/TeyKey1/shared-bus.git", rev = "046dc03"
 rppal = { version = "0.13.0", features = ["hal"] }
 sled = "0.34"
 serde = "1.0"
+probe-rs = "0.12"

@@ -713,6 +713,7 @@ dependencies = [
  "hyper",
  "lazy_static",
  "log",
+ "probe-rs 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rppal",
  "serde",
  "shared-bus",

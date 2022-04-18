@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use comm_types::hardware::TargetState;
-use comm_types::ipc::HiveTargetData;
+use comm_types::hardware::{ProbeInfo, TargetState};
+use comm_types::ipc::{HiveProbeData, HiveTargetData};
 use controller::common::{
     create_expanders, create_shareable_testchannels, create_shareable_tss, CombinedTestChannel,
     TargetStackShield,
@@ -10,6 +10,7 @@ use controller::common::{
 use controller::HiveIoExpander;
 use lazy_static::lazy_static;
 use log::Level;
+use probe_rs::Probe;
 use rppal::i2c::I2c;
 use shared_bus::BusManager;
 use simple_clap_logger::Logger;
@@ -100,5 +101,30 @@ fn dummy_init_config_data(db: Arc<HiveDb>) {
 
     db.config_tree
         .c_insert(keys::config::TARGETS, &target_data)
+        .unwrap();
+
+    let probes = Probe::list_all();
+
+    let probe_data: HiveProbeData = [
+        Some(ProbeInfo {
+            identifier: probes[0].identifier.clone(),
+            vendor_id: probes[0].vendor_id,
+            product_id: probes[0].product_id,
+            serial_number: probes[0].serial_number.clone(),
+            hid_interface: probes[0].hid_interface,
+        }),
+        Some(ProbeInfo {
+            identifier: probes[1].identifier.clone(),
+            vendor_id: probes[1].vendor_id,
+            product_id: probes[1].product_id,
+            serial_number: probes[1].serial_number.clone(),
+            hid_interface: probes[1].hid_interface,
+        }),
+        None,
+        None,
+    ];
+
+    db.config_tree
+        .c_insert(keys::config::PROBES, &probe_data)
         .unwrap();
 }
