@@ -28,7 +28,7 @@ pub(crate) fn initialize_target_data(data: HiveTargetData) -> Result<(), InitErr
         .iter()
         .enumerate()
         .filter(|(idx, data)| {
-            if data.is_some() && detected_daughterboards[*idx] {
+            if data.is_some() == detected_daughterboards[*idx] {
                 return false;
             }
             true
@@ -56,7 +56,6 @@ pub(crate) fn initialize_target_data(data: HiveTargetData) -> Result<(), InitErr
 /// Initializes Testchannels with the debug probes and checks for data desyncs between the currently detected probe hardware and the data from the monitor
 pub(crate) fn initialize_probe_data(data: HiveProbeData) -> Result<(), InitError> {
     let mut found_probes = Probe::list_all();
-    let found_probes_len = found_probes.len();
 
     log::debug!(
         "Found {} attached probes:\n{:#?}",
@@ -76,7 +75,7 @@ pub(crate) fn initialize_probe_data(data: HiveProbeData) -> Result<(), InitError
                 && found_probes[found_probes_idx].vendor_id == probe_info.vendor_id
                 && found_probes[found_probes_idx].product_id == probe_info.product_id
                 && found_probes[found_probes_idx].serial_number == probe_info.serial_number
-                && found_probes[found_probes_idx].hid_interface == Some(probe_info.usb_port)
+                && found_probes[found_probes_idx].hid_interface == probe_info.hid_interface
             {
                 let tss = TESTCHANNELS[channel_idx].lock().unwrap();
 
@@ -94,7 +93,7 @@ pub(crate) fn initialize_probe_data(data: HiveProbeData) -> Result<(), InitError
     }
 
     // Check for data desync
-    if !found_probes.is_empty() || data.len() != found_probes_len {
+    if !found_probes.is_empty() {
         log::error!("Encountered data desync during probe data initialization.\nData received from monitor:\n{:#?}\nProbes detected by runner, which are not found in monitor data:\n{:#?}", data, found_probes);
         return Err(InitError::ProbeInitDesync);
     }

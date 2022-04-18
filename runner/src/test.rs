@@ -113,25 +113,17 @@ pub(crate) fn run_tests(
             }
         }
         Err(err) => {
-            log::debug!(
-                "Failed to attach {} with probe {} to target {}, skipping...",
-                test_channel.get_channel(),
-                probe_name,
-                target_name
-            );
-
-            log::error!("{} source: {:?}", err, err.source());
+            match err {
+                probe_rs_test::Error::ChipNotFound(err) => log::warn!("Could not find a valid chip specification for target {}. This target might not be supported by probe-rs.\nCaused by: {}\nskipping...", target_name, err),
+                _ => log::error!("{} source: {:?}\nskipping...", err, err.source()),
+            }
         }
     }
 
+    log::trace!("Reinitializing probe complete");
+
     // reinitialize probe, and transfer ownership back to test_channel
-    match test_channel
-        .get_probe_info()
-        .lock()
-        .as_ref()
-        .unwrap()
-        .open()
-    {
+    match probe_info.open() {
         Ok(probe) => test_channel.return_probe(probe),
         Err(err) => {
             log::warn!(
@@ -141,6 +133,8 @@ pub(crate) fn run_tests(
             )
         }
     }
+
+    log::trace!("Reinitialization complete");
 }
 
 /// Disables the printing of panics in this program, returns the previously used panic hook

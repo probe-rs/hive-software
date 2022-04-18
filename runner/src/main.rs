@@ -37,7 +37,8 @@ lazy_static! {
 }
 
 fn main() {
-    Logger::init_with_level(Level::Info);
+    Logger::init_with_level(Level::Trace);
+    log::info!("starting the runner");
 
     init::initialize_statics();
 
@@ -48,11 +49,14 @@ fn main() {
     let (init_data_sender, init_data_receiver) = oneshot::channel();
     let notify_results_ready = Arc::new(Notify::new());
     let notify_results_ready_copy = notify_results_ready.clone();
-    let comm_tread = thread::spawn(move || {
-        rt.block_on(async {
-            comm::ipc(comm_receiver, init_data_sender, notify_results_ready_copy).await;
-        });
-    });
+    let comm_tread = thread::Builder::new()
+        .name("comm thread".to_owned())
+        .spawn(move || {
+            rt.block_on(async {
+                comm::ipc(comm_receiver, init_data_sender, notify_results_ready_copy).await;
+            });
+        })
+        .unwrap();
 
     // Wait until the init data was received from monitor
     let (probe_data, target_data) = match init_data_receiver.blocking_recv() {
@@ -68,7 +72,7 @@ fn main() {
     };
 
     match init_hardware_from_monitor_data(target_data, probe_data) {
-        Ok(_) => (),
+        Ok(_) => log::debug!("Successfully initialized hardware from monitor data."),
         Err(err) => {
             log::error!(
                 "Failed to initialize the hardware data: {} Shutting down...",
@@ -87,7 +91,7 @@ fn main() {
 
     let mut panic_hook_sync = Barrier::new(get_available_channel_count() + 1);
 
-    for test_channel in TESTCHANNELS.iter() {
+    for (idx, test_channel) in TESTCHANNELS.iter().enumerate() {
         let channel = test_channel.lock().unwrap();
 
         let mut panic_hook_sync = panic_hook_sync.clone();
@@ -96,21 +100,28 @@ fn main() {
             drop(channel);
             let comm_sender = comm_sender.clone();
 
-            testing_threads.push(thread::spawn(move || {
-                let mut channel = test_channel.lock().unwrap();
-                let sender = comm_sender;
+            testing_threads.push(
+                thread::Builder::new()
+                    .name(format!("testing thread {}", idx).to_owned())
+                    .spawn(move || {
+                        log::trace!("Created testing thread {}", idx);
 
-                // wait for all threads to be ready for running the testfunctions, once the panic hook has been set by the main thread
-                panic_hook_sync.wait();
-                panic_hook_sync.wait();
+                        let mut channel = test_channel.lock().unwrap();
+                        let sender = comm_sender;
 
-                channel.connect_all_available_and_execute(
-                    &TSS,
-                    |test_channel, target_name, tss_pos| {
-                        test::run_tests(test_channel, target_name, tss_pos, &sender);
-                    },
-                );
-            }));
+                        // wait for all threads to be ready for running the testfunctions, once the panic hook has been set by the main thread
+                        panic_hook_sync.wait();
+                        panic_hook_sync.wait();
+
+                        channel.connect_all_available_and_execute(
+                            &TSS,
+                            |test_channel, target_name, tss_pos| {
+                                test::run_tests(test_channel, target_name, tss_pos, &sender);
+                            },
+                        );
+                    })
+                    .unwrap(),
+            );
         }
     }
 
@@ -166,20 +177,21 @@ fn get_available_channel_count() -> usize {
 /// In case the function fails to determine if a daughterboard is present on a TSS or not, it assumes that none is present.
 /// Detect failures usually occur if the received TSS data from the monitor is desynced from the actual hardware configuration, or due to hardware errors.
 /// If the false value is wrongly assumed by this function it will later cause a desync error which in turn forces the monitor to resync the hardware configuration and rerun the tests on the runner.
-fn detect_connected_daughterboards() -> Vec<bool> {
-    let mut detected = vec![];
+fn detect_connected_daughterboards() -> [bool; 8] {
+    let mut detected = [false; 8];
     for tss in TSS.iter() {
         let mut tss = tss.lock().unwrap();
 
         match tss.inner.get_mut().daughterboard_is_connected() {
-            Ok(is_connected) => detected.push(is_connected),
+            Ok(is_connected) => {
+                detected[tss.get_position() as usize] = is_connected;
+            }
             Err(err) => {
                 log::warn!(
                     "Failed to detect daughterboard on TSS {}, assuming none is connected. \n\nCaused by: {}",
                     tss.get_position(),
                     err
                 );
-                detected.push(false);
             }
         }
     }
@@ -190,5 +202,6 @@ fn detect_connected_daughterboards() -> Vec<bool> {
 fn shutdown_on_init(comm_thread_handle: JoinHandle<()>, comm_sender: Sender<Message>) {
     drop(comm_sender);
     let _ = comm_thread_handle.join();
+    todo!("exit comm thread");
     std::process::exit(1);
 }
