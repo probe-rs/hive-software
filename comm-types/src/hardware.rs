@@ -34,5 +34,5 @@ pub struct ProbeInfo {
     pub vendor_id: u16,
     pub product_id: u16,
     pub serial_number: Option<String>,
-    pub usb_port: u8,
+    pub hid_interface: Option<u8>,
 }
