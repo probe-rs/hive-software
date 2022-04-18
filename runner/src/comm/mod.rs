@@ -1,5 +1,7 @@
 //! Handles all ipc communications
+use std::mem;
 use std::path::Path;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::{io, pin::Pin};
 
@@ -8,8 +10,10 @@ use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
 use comm_types::results::TestResult;
 use hyper::client::connect::{Connected, Connection};
 use hyper::{Body, Client};
+use lazy_static::lazy_static;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::oneshot::Sender;
+use tokio::sync::{Mutex, Notify};
 use tokio::{net::UnixStream, sync::mpsc::Receiver};
 
 use crate::init::InitError;
@@ -19,6 +23,10 @@ mod retry;
 
 /// The location of the socketfile used for communication between runner and monitor
 const SOCKET_PATH: &str = "/tmp/hive/monitor/ipc_sock";
+
+lazy_static! {
+    static ref TEST_RESULTS: Mutex<Vec<TestResult>> = Mutex::new(vec![]);
+}
 
 /// Messages which are passed between the [`std::thread`] used for testing, and the tokio runtime
 #[derive(Debug)]
@@ -73,12 +81,19 @@ impl Connection for IpcConnection {
 pub(crate) async fn ipc(
     mut receiver: Receiver<Message>,
     init_data_sender: Sender<(HiveProbeData, HiveTargetData)>,
+    notify_results_ready: Arc<Notify>,
 ) {
     let socket_path = Path::new(SOCKET_PATH);
 
     let mpsc_handler = tokio::spawn(async move {
         while let Some(msg) = receiver.recv().await {
-            println!("{:?}", msg);
+            match msg {
+                Message::InitError(_) => todo!(),
+                Message::TestResult(result) => {
+                    let mut results = TEST_RESULTS.lock().await;
+                    results.push(result);
+                }
+            }
         }
     });
 
@@ -122,9 +137,26 @@ pub(crate) async fn ipc(
             init_data_sender.send((probe_data, target_data)).expect("Failed to send init data to main thread. Is the receiver still in scope and the thread still running?");
         });
 
+        let client_copy = client.clone();
+
+        let result_waiter = tokio::spawn(async move {
+            notify_results_ready.notified().await;
+            let mut results = TEST_RESULTS.lock().await;
+            retry::try_request(
+                client_copy,
+                requests::post_test_results(mem::take(&mut *results)),
+            )
+            .await
+            .unwrap();
+        });
+
         initialization
             .await
             .expect("Failed to get initialization data from monitor");
+
+        result_waiter
+            .await
+            .expect("Failed to send test results to monitor");
     });
 
     ipc_handler.await.unwrap();

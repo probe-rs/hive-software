@@ -13,8 +13,9 @@ use simple_clap_logger::Logger;
 use tokio::runtime::Builder;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::oneshot;
+use tokio::sync::Notify;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use crate::comm::Message;
@@ -45,9 +46,11 @@ fn main() {
     let rt = Builder::new_current_thread().enable_all().build().unwrap();
     let (comm_sender, comm_receiver): (_, Receiver<Message>) = tokio::sync::mpsc::channel(30);
     let (init_data_sender, init_data_receiver) = oneshot::channel();
+    let notify_results_ready = Arc::new(Notify::new());
+    let notify_results_ready_copy = notify_results_ready.clone();
     let comm_tread = thread::spawn(move || {
         rt.block_on(async {
-            comm::ipc(comm_receiver, init_data_sender).await;
+            comm::ipc(comm_receiver, init_data_sender, notify_results_ready_copy).await;
         });
     });
 
@@ -127,6 +130,8 @@ fn main() {
 
     // Reenable panic printing
     //panic::set_hook(standard_hook);
+
+    notify_results_ready.notify_one();
 
     // Wait for communications to finish
     comm_tread.join().unwrap();
