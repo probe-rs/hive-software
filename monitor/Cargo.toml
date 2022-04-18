@@ -9,6 +9,7 @@ readme = "README.md"
 
 [dependencies]
 comm-types = {path = "../comm-types/", features = ["cbor", "ipc"]}
+controller = {path = "../controller/"}
 simple-clap-logger = {git = "https://github.com/TeyKey1/simple-clap-logger.git", rev = "6371878"}
 log = "0.4"
 tokio = {version  = "1.17", features = ["rt", "sync", "fs"]}
@@ -16,3 +17,8 @@ axum = "0.5"
 hyper = "0.14"
 futures = "0.3"
 ciborium = "0.2"
+lazy_static = "1.4"
+shared-bus = {git = "https://github.com/TeyKey1/shared-bus.git", rev = "046dc03"}
+rppal = { version = "0.13.0", features = ["hal"] }
+sled = "0.34"
+serde = "1.0"

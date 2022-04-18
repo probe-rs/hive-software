@@ -6,12 +6,15 @@ use std::task::Poll;
 
 use axum::extract::{connect_info, extractor_middleware};
 use axum::routing::{get, post};
-use axum::{BoxError, Router, Server};
+use axum::{BoxError, Extension, Router, Server};
 use futures::ready;
 use hyper::server::accept::Accept;
 use tokio::net::unix::UCred;
 use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
 
+use crate::database::HiveDb;
+
+mod error;
 mod extractors;
 mod handlers;
 mod middleware;
@@ -53,7 +56,7 @@ impl connect_info::Connected<&UnixStream> for IpcConnectionInfo {
 }
 
 /// Starts the IPC server and listens for incoming connections
-pub(crate) async fn ipc_server() {
+pub(crate) async fn ipc_server(db: Arc<HiveDb>) {
     let socket_path = Path::new(SOCKET_PATH);
 
     init_socket_file(socket_path).await;
@@ -66,7 +69,8 @@ pub(crate) async fn ipc_server() {
             .route("/data/target", get(handlers::target_handler))
             .route("/runner/log", post(handlers::runner_log_handler))
             .route("/runner/results", post(handlers::test_result_handler))
-            .layer(extractor_middleware::<middleware::CheckContentType>());
+            .layer(extractor_middleware::<middleware::CheckContentType>())
+            .layer(Extension(db));
 
         Server::builder(IpcStreamListener { listener })
             .serve(route.into_make_service_with_connect_info::<IpcConnectionInfo>())
