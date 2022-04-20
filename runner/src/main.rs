@@ -17,6 +17,7 @@ use tokio::sync::Notify;
 
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
+use std::time::Duration;
 
 use crate::comm::Message;
 
@@ -66,7 +67,7 @@ fn main() {
                 "The oneshot sender in the async comm-thread has been dropped, shutting down. This is either caused by a panic in the comm-thread or an error in the code.",
             );
 
-            shutdown_on_init(comm_tread, comm_sender);
+            shutdown_on_init(comm_sender);
             unreachable!();
         }
     };
@@ -84,7 +85,7 @@ fn main() {
                 .blocking_send(comm::Message::InitError(err))
                 .unwrap();
 
-            shutdown_on_init(comm_tread, comm_sender);
+            shutdown_on_init(comm_sender);
             unreachable!();
         }
     }
@@ -199,9 +200,9 @@ fn detect_connected_daughterboards() -> [bool; 8] {
 }
 
 /// Handles the shutdown procedure, if the runner needs to shutdown during the init phase (before any tests were ran)
-fn shutdown_on_init(comm_thread_handle: JoinHandle<()>, comm_sender: Sender<Message>) {
+fn shutdown_on_init(comm_sender: Sender<Message>) {
     drop(comm_sender);
-    let _ = comm_thread_handle.join();
-    todo!("exit comm thread");
+    // Timeout before shutting down comm thread
+    thread::sleep(Duration::from_secs(2));
     std::process::exit(1);
 }

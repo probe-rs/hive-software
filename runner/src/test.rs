@@ -12,7 +12,7 @@ use lazy_static::lazy_static;
 use tokio::sync::mpsc::Sender;
 
 lazy_static! {
-    static ref TEST_FUNCTIONS: Vec<&'static HiveTestFunction> = {
+    pub(crate) static ref TEST_FUNCTIONS: Vec<&'static HiveTestFunction> = {
         let mut tests: Vec<&HiveTestFunction> = vec![];
         // We order the tests according to the order field
         for test in inventory::iter::<HiveTestFunction> {

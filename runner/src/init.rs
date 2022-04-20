@@ -3,7 +3,9 @@ use comm_types::ipc::{HiveProbeData, HiveTargetData};
 use probe_rs_test::Probe;
 use thiserror::Error;
 
-use crate::{detect_connected_daughterboards, EXPANDERS, SHARED_I2C, TESTCHANNELS, TSS};
+use crate::{
+    detect_connected_daughterboards, test::TEST_FUNCTIONS, EXPANDERS, SHARED_I2C, TESTCHANNELS, TSS,
+};
 
 #[derive(Debug, Error)]
 pub(crate) enum InitError {
@@ -18,6 +20,7 @@ pub(crate) fn initialize_statics() {
     lazy_static::initialize(&EXPANDERS);
     lazy_static::initialize(&TSS);
     lazy_static::initialize(&TESTCHANNELS);
+    lazy_static::initialize(&TEST_FUNCTIONS);
 }
 
 /// Initializes TSS with target data and checks for data desyncs between the currently detected hardware and the data from the monitor
