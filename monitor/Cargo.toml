@@ -23,3 +23,6 @@ rppal = { version = "0.13.0", features = ["hal"] }
 sled = "0.34"
 serde = "1.0"
 probe-rs = "0.12"
+
+# Only used for dummy functions
+colored = "2.0"

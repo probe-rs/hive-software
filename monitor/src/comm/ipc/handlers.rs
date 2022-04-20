@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use axum::Extension;
 use ciborium::cbor;
+use colored::Colorize;
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
+use comm_types::results::TestResult;
 use comm_types::{cbor::CborValue, ipc::IpcMessage};
 
 use crate::database::{keys, CborDb, HiveDb};
@@ -43,10 +45,69 @@ pub(crate) async fn runner_log_handler(Cbor(message): Cbor) -> CborValue {
 }
 
 pub(crate) async fn test_result_handler(Cbor(message): Cbor) -> Result<CborValue, ServerError> {
-    log::info!("Received {:#?} on test result handler.", message);
-    if let IpcMessage::TestResults(results) = message {
-        log::info!("Received test results on result handler: {:#?}", results);
-        todo!();
+    if let IpcMessage::TestResults(mut results) = message {
+        /*log::info!("Received test results on result handler: {:#?}", results);
+        todo!();*/
+
+        // dummy implementation which pretty prints the test results
+        let mut ordered: Vec<Vec<TestResult>> = vec![];
+
+        while !results.is_empty() {
+            let mut new_group = true;
+
+            for group in ordered.iter_mut() {
+                if group[0].probe_name == results[0].probe_name
+                    && group[0].probe_sn == results[0].probe_sn
+                    && group[0].target_name == results[0].target_name
+                {
+                    group.push(results.remove(0));
+                    new_group = false;
+                    break;
+                }
+            }
+
+            if new_group {
+                ordered.push(vec![results.remove(0)]);
+            }
+        }
+
+        println!("{}", "Test results:".bold());
+        for group in ordered {
+            println!(
+                "{} {} {} ({})",
+                group[0].target_name,
+                "<-->".blue().bold(),
+                group[0].probe_name,
+                group[0].probe_sn
+            );
+
+            for result in group.iter() {
+                let result_text = match &result.status {
+                    comm_types::results::TestStatus::PASSED => {
+                        format!("{}", "passed".green().bold())
+                    }
+                    comm_types::results::TestStatus::FAILED(cause) => {
+                        format!("{}\n\n\tCaused by: {}\n", "failed".red().bold(), cause)
+                    }
+                    comm_types::results::TestStatus::SKIPPED(cause) => {
+                        println!("\t all tests -> {} ({})", "skipped".yellow().bold(), cause);
+                        break;
+                    }
+                };
+
+                let should_panic_text = match result.should_panic {
+                    true => "(Should Panic)",
+                    false => "",
+                };
+
+                println!(
+                    "\t{} {} -> {}",
+                    result.test_name,
+                    should_panic_text.italic(),
+                    result_text
+                );
+            }
+        }
     } else {
         return Err(ServerError::WrongMessageType);
     }
