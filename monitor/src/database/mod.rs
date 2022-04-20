@@ -10,7 +10,7 @@ pub(crate) mod keys;
 
 const FLUSH_INTERVAL_MS: u64 = 60_000;
 const CACHE_CAPACITY: u64 = 52_428_800; // 50MB
-const DB_PATH: &str = "data/";
+const DB_PATH: &str = "data/db/";
 
 pub(crate) struct HiveDb {
     db: Db,
