@@ -11,7 +11,7 @@ pub struct Testrack {
 }
 
 /// Represents the state of a single MCU target on a daughterboard
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TargetState {
     Known(String),
     Unknown,
@@ -28,7 +28,7 @@ pub enum StackShieldStatus {
 }
 
 /// Information on a probe attached to Hive
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ProbeInfo {
     pub identifier: String,
     pub vendor_id: u16,
