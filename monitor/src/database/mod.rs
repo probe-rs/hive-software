@@ -46,6 +46,31 @@ impl HiveDb {
             credentials_tree,
         }
     }
+
+    /// Function to open a temporary DB for testing purposes, does not appear in non test builds.
+    #[cfg(test)]
+    #[allow(dead_code)]
+    pub fn open_test() -> Self {
+        let db = Config::default()
+            .temporary(true)
+            .cache_capacity(CACHE_CAPACITY)
+            .mode(Mode::HighThroughput)
+            .flush_every_ms(Some(FLUSH_INTERVAL_MS))
+            .open()
+            .expect("Failed to open the database");
+        let config_tree = db
+            .open_tree("config")
+            .expect("Failed to open or create the config DB tree");
+        let credentials_tree = db
+            .open_tree("credentials")
+            .expect("Failed to open or create the credentials DB tree");
+
+        Self {
+            db,
+            config_tree,
+            credentials_tree,
+        }
+    }
 }
 
 impl Drop for HiveDb {
