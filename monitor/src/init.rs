@@ -7,6 +7,7 @@ use comm_types::hardware::{ProbeInfo, TargetState};
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
 use probe_rs::Probe;
 
+use crate::binaries;
 use crate::binaries::testprogram::{TestProgram, TESTPROGRAM_PATH};
 use crate::database::{keys, CborDb, HiveDb};
 use crate::{EXPANDERS, SHARED_I2C, TESTCHANNELS, TSS};
@@ -122,6 +123,9 @@ pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
                     idx += 1;
                 }
             }
+
+            // Sync binaries after testprograms have been checked and cleaned
+            binaries::sync_binaries(db);
         }
         None => {
             // As this might be the first run of the monitor the default testprogram has to be registered in the DB first
@@ -130,16 +134,19 @@ pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
             {
                 panic!("Could not find the default testprogram. The installation might be corrupted, please reinstall the program.");
             } else {
+                let mut testprograms = vec![];
+
+                testprograms.push(TestProgram {
+                    name: "Default".to_owned(),
+                    path: Path::new(&format!("{}{}", TESTPROGRAM_PATH, "default/")).to_path_buf(),
+                });
+
                 db.config_tree
-                    .c_insert(
-                        keys::config::TESTPROGRAMS,
-                        &Vec::new().push(TestProgram {
-                            name: "Default".to_owned(),
-                            path: Path::new(&format!("{}{}", TESTPROGRAM_PATH, "default/"))
-                                .to_path_buf(),
-                        }),
-                    )
+                    .c_insert(keys::config::TESTPROGRAMS, &testprograms)
                     .unwrap();
+
+                // Sync binaries after testprograms have been checked and cleaned
+                binaries::sync_binaries(db);
             }
         }
     }
