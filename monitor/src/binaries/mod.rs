@@ -1,133 +1,249 @@
 //! This module manages all testbinaries which can be flashed onto the targets
 //!
-//! Generally the user provides a assembly file containing the testprogram, which works for ARM cores as well as one which works for RISC-V.
+//! Generally the user provides an assembly file containing the testprogram, which works for ARM cores as well as one which works for RISC-V.
 //! The testprogram can include all sorts of things required by the tests but the tests have to be written specifically to fit the testprogram functionality.
 //!
 //! As various targets have different flash and ram address spaces the final linking is done by the monitor depending on which targets are currently attached to the Hive Testrack.
 //! The final binaries are then flashed onto the connected targets by the monitor before each test run.
-use std::process::Command;
+use std::sync::mpsc;
+use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
+use std::sync::RwLock;
+use std::thread;
 
-use thiserror::Error;
-
-use self::address::Memory;
 use crate::database::{keys, CborDb, HiveDb};
+use crate::{TESTCHANNELS, TSS};
+use comm_types::hardware::TargetInfo;
+use comm_types::hardware::TargetState;
+use comm_types::ipc::HiveTargetData;
+use controller::common::CombinedTestChannel;
+use probe_rs::flashing::Format;
+use probe_rs::flashing::{download_file_with_options, DownloadOptions};
 use testprogram::TestProgram;
 
 mod address;
+mod build;
+mod hive_defines;
 pub(crate) mod testprogram;
-
-#[derive(Debug, Error)]
-enum BuildError {
-    #[error("Failed to assemble the testprogram: {0}")]
-    AssemblyError(String),
-    #[error("Failed to link the testprogram: {0}")]
-    LinkingError(String),
-}
 
 /// Builds binaries out of the currently available Testprograms. Automatically builds multiple binaries with different flash/ram start addresses according to the needs of the currently connected targets.
 ///
 /// # Panics
 /// If the target or testprogram configuration data in the DB has not been initialized.
 pub(crate) fn sync_binaries(db: Arc<HiveDb>) {
-    let testprograms: Vec<TestProgram> = db.config_tree.c_get(keys::config::TESTPROGRAMS).unwrap().expect("Testprogram data not found in DB, syncing binaries can only be done once the DB config data has been initialized.");
+    let active_testprogram: TestProgram = db
+        .config_tree
+        .c_get(keys::config::ACTIVE_TESTPROGRAM)
+        .unwrap().expect("Failed to get active testprogram in DB. The DB needs to be initialized before this function can be called");
 
-    let addresses = address::get_target_address_ranges(db.clone());
+    let addresses = address::get_and_init_target_address_ranges();
 
-    insert_hive_defines();
+    hive_defines::insert_hive_defines(&active_testprogram);
 
-    for testprogram in testprograms.iter() {
-        for address in addresses.arm.iter() {
-            build_binary_arm(testprogram, address);
+    for address in addresses.arm.iter() {
+        match build::assemble_and_link_arm(&active_testprogram, address) {
+            Ok(_) => (),
+            Err(err) => {
+                log::error!("Failed to assemble and link active ARM testbinary '{}' with memory addresses: {:#?}\n Caused by: {}", active_testprogram.name, address, err);
+                todo!()
+            }
+        }
+    }
+
+    for address in addresses.riscv.iter() {
+        match build::assemble_and_link_riscv(&active_testprogram, address) {
+            Ok(_) => (),
+            Err(err) => {
+                log::error!("Failed to assemble and link active RISCV testbinary '{}' with memory addresses: {:#?}\n Caused by: {}", active_testprogram.name, address, err);
+                todo!()
+            }
         }
     }
 }
 
-/// Inserts the newest hive_defines.S file into all available testprograms
-fn insert_hive_defines() {
-    todo!();
+#[derive(Debug)]
+struct FlashStatus {
+    tss_pos: u8,
+    target_name: String,
+    result: Result<(), String>,
 }
 
-/// Builds and saves an ARM binary of a testprogram with the provided options
-fn build_binary_arm(testprogram: &TestProgram, arm_address: &Memory) -> Result<(), BuildError> {
-    let working_dir = testprogram.path.to_owned().join("arm/");
+/// Tries to flash the testbinaries onto all available targets.
+pub(crate) fn flash_testbinaries(db: Arc<HiveDb>) {
+    let active_testprogram: Arc<TestProgram> = Arc::new(db.config_tree.c_get(keys::config::ACTIVE_TESTPROGRAM).unwrap().expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known"));
 
-    // -g Generate debug info, -mthumb assemble thumb code
-    let assemble = Command::new("arm-none-eabi-as")
-        .args(["-g", "main.S", "-o", "main.o", "-mthumb"])
-        .current_dir(working_dir.clone())
-        .spawn()
-        .expect("Failed to run the ARM assembly process");
+    // A buffersize of 0 enforces that the RwLock flash_results vector does not slowly get out of sync due to read locks.
+    // This could lead to situations where a thread checks the FlashStatus on an already invalid flash_results vector thus causing unwanted flashes of already successfully flashed targets.
+    // The sync channel forces the sender to block, until the data has been received.
+    let (result_sender, result_receiver) = mpsc::sync_channel::<FlashStatus>(0);
 
-    let assemble_status = assemble.wait_with_output().unwrap();
+    // As we don't know if some probes will work for flashing certain targets, we just try out every available probe until we reach a successful flash or a definitive failure. The logic used here is very similar to the test runner logic.
+    let mut flashing_threads = vec![];
+    let flash_results = Arc::new(RwLock::new(vec![]));
 
-    if !assemble_status.status.success() {
-        if !assemble_status.stderr.is_empty() {
-            let cause = String::from_utf8(assemble_status.stderr)
-                .expect("Failed to parse stderr from ARM assembler to string");
+    for (idx, test_channel) in TESTCHANNELS.iter().enumerate() {
+        let channel = test_channel.lock().unwrap();
 
-            log::error!(
-                "Failed to assemble the testprogram '{}' for ARM cores: {}",
-                testprogram.name,
-                cause,
+        if channel.is_ready() {
+            drop(channel);
+            let result_sender = result_sender.clone();
+            let active_testprogram = active_testprogram.clone();
+            let flash_results = flash_results.clone();
+
+            flashing_threads.push(
+                thread::Builder::new()
+                    .name(format!("flashing thread {}", idx).to_owned())
+                    .spawn(move || {
+                        let mut channel = test_channel.lock().unwrap();
+                        let sender = result_sender;
+
+                        channel.connect_all_available_and_execute(
+                            &TSS,
+                            |test_channel, target_info, tss_pos| {
+                                flash_target(
+                                    test_channel,
+                                    target_info,
+                                    tss_pos,
+                                    &sender,
+                                    &*active_testprogram,
+                                    &flash_results,
+                                );
+                            },
+                        );
+                    })
+                    .unwrap(),
             );
-
-            return Err(BuildError::AssemblyError(cause));
-        } else {
-            let cause = String::from_utf8(assemble_status.stdout)
-                .expect("Failed to parse stdout from ARM assembler to string");
-
-            log::error!(
-                "Failed to assemble the testprogram '{}' for ARM cores: {}",
-                testprogram.name,
-                cause,
-            );
-
-            return Err(BuildError::AssemblyError(cause));
         }
     }
 
-    let link = Command::new("arm-none-eabi-ld")
-        .args([
-            "-b",
-            "elf32-littlearm",
-            "main.o",
-            "-o",
-            "main.elf",
-            &format!("{}{}", "-Ttext=", arm_address.nvm.start),
-            &format!("{}{}", "-Tdata=", arm_address.ram.start),
-        ])
-        .current_dir(working_dir)
-        .spawn()
-        .expect("Failed to run the ARM linking process");
+    // Drop local owned sender, so the while loop exits once all senders in the flashing thread have been dropped
+    drop(result_sender);
 
-    let link_status = link.wait_with_output().unwrap();
+    while let Ok(received) = result_receiver.recv() {
+        let mut flash_results = flash_results.write().unwrap();
+        flash_results.push(received);
+    }
 
-    if !link_status.status.success() {
-        if !link_status.stderr.is_empty() {
-            let cause = String::from_utf8(link_status.stderr)
-                .expect("Failed to parse stderr from ARM linker to string");
+    for thread in flashing_threads {
+        thread.join().unwrap();
+    }
 
-            log::error!(
-                "Failed to link the testprogram '{}' for ARM cores: {}",
-                testprogram.name,
-                cause,
-            );
+    // Update target data with the results TODO: update statics
+    let mut target_data: HiveTargetData = db
+        .config_tree
+        .c_get(keys::config::TARGETS)
+        .unwrap()
+        .unwrap();
 
-            return Err(BuildError::LinkingError(cause));
-        } else {
-            let cause = String::from_utf8(link_status.stdout)
-                .expect("Failed to parse stdout from ARM linker to string");
+    for (idx, tss) in target_data.iter_mut().enumerate() {
+        if tss.is_some() {
+            for target in tss.as_mut().unwrap() {
+                if let TargetState::Known(target_info) = target {
+                    let flash_results = flash_results.read().unwrap();
 
-            log::error!(
-                "Failed to link the testprogram '{}' for ARM cores: {}",
-                testprogram.name,
-                cause,
-            );
-
-            return Err(BuildError::LinkingError(cause));
+                    if flash_results
+                        .iter()
+                        .filter(|result| {
+                            result.tss_pos as usize == idx
+                                && result.target_name == target_info.name
+                                && result.result.is_ok()
+                        })
+                        .count()
+                        != 0
+                    {
+                        target_info.status = Ok(());
+                    } else {
+                        target_info.status =
+                            Err("Failed to flash testbinary prior to testing".to_owned());
+                    }
+                }
+            }
         }
     }
 
-    Ok(())
+    db.config_tree
+        .c_insert::<HiveTargetData>(keys::config::TARGETS, &target_data)
+        .unwrap();
+
+    log::info!(
+        "Following results were pushed by the flashing threads: {:#?}",
+        flash_results
+    );
+}
+
+fn flash_target(
+    test_channel: &mut CombinedTestChannel,
+    target_info: &TargetInfo,
+    tss_pos: u8,
+    result_sender: &SyncSender<FlashStatus>,
+    testprogram: &TestProgram,
+    flash_results: &Arc<RwLock<Vec<FlashStatus>>>,
+) {
+    // Check if Testchannel is ready, it might not be anymore in case probe reinitialization failed.
+    if !test_channel.is_ready() || target_info.memory_address.is_none() {
+        return;
+    }
+
+    // Check if this target was already flashed successfully
+    let flash_results = flash_results.read().unwrap();
+    if flash_results
+        .iter()
+        .filter(|result| {
+            result.tss_pos == tss_pos
+                && result.target_name == target_info.name
+                && result.result.is_ok()
+        })
+        .count()
+        != 0
+    {
+        return;
+    }
+    drop(flash_results); // Return lock
+
+    let probe_info_lock = test_channel.get_probe_info().lock();
+    let probe_info = probe_info_lock.as_ref().unwrap();
+
+    match test_channel.take_probe_owned().attach(&target_info.name) {
+        Ok(mut session) => {
+            let mut download_options = DownloadOptions::default();
+            download_options.do_chip_erase = true;
+
+            match download_file_with_options(
+                &mut session,
+                testprogram.get_elf_path_arm(&target_info.memory_address.as_ref().unwrap()),
+                Format::Elf,
+                download_options,
+            ) {
+                Ok(_) => result_sender.send(FlashStatus {
+                    tss_pos,
+                    target_name: target_info.name.clone(),
+                    result: Ok(()),
+                }).expect("Failed to send results to main thread, the receiver might have been dropped unexpectedly."),
+                Err(err) => result_sender.send(FlashStatus {
+                    tss_pos,
+                    target_name: target_info.name.clone(),
+                    result: Err(err.to_string()),
+                }).expect("Failed to send results to main thread, the receiver might have been dropped unexpectedly."),
+            }
+        }
+        Err(err) => {
+            result_sender.send(FlashStatus {
+                tss_pos,
+                target_name: target_info.name.clone(),
+                result: Err(err.to_string()),
+            }).expect("Failed to send results to main thread, the receiver might have been dropped unexpectedly.");
+        }
+    }
+
+    // reinitialize probe, and transfer ownership back to test_channel
+    match probe_info.open() {
+        Ok(probe) => test_channel.return_probe(probe),
+        Err(err) => {
+            log::warn!(
+                "Failed to reinitialize the debug probe connected to {}: {}. Skipping the remaining flash attempts on this Testchannel.",
+                test_channel.get_channel(),
+                err
+            )
+        }
+    }
 }

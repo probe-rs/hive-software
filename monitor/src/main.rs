@@ -39,7 +39,10 @@ fn main() {
     let comm_db = db.clone();
 
     init::dummy_init_config_data(db.clone());
+    init::init_hardware_from_db_data(db.clone()).expect("TODO, stop initialization and enter 'NOT READY' state which shoudld tell the user to provide the initialization in the backend UI");
     init::init_testprograms(db.clone());
+
+    binaries::flash_testbinaries(db.clone());
 
     let rt = Builder::new_current_thread().enable_io().build().unwrap();
     let comm_tread = thread::spawn(move || {
@@ -48,8 +51,22 @@ fn main() {
         });
     });
 
+    dummy_unlock_probes();
+    log::info!("Dropped the debug probes... runner can now be started.");
+
     // Drop DB so all buffered changes are written to memory once all Arc instances of the db have been dropped
     drop(db);
 
     comm_tread.join().unwrap();
+}
+
+// Current dummy implementation of unlocking the debug probes, so the runner can take over control. Only used for testing/demo purposes
+fn dummy_unlock_probes() {
+    for testchannel in TESTCHANNELS.iter() {
+        let testchannel = testchannel.lock().unwrap();
+
+        if testchannel.is_ready() {
+            testchannel.take_probe_owned(); // We just drop the probe to make it available to the runner
+        }
+    }
 }

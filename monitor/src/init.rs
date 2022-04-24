@@ -3,8 +3,9 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
-use comm_types::hardware::{ProbeInfo, TargetState};
+use comm_types::hardware::{ProbeInfo, TargetInfo, TargetState};
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
+use controller::common::init;
 use probe_rs::Probe;
 
 use crate::binaries;
@@ -24,32 +25,90 @@ pub(crate) fn dummy_init_config_data(db: Arc<HiveDb>) {
     let target_data: HiveTargetData = [
         // atsamd daughterboard
         Some([
-            TargetState::Known("ATSAMD10C13A-SS".to_owned()),
-            TargetState::Known("ATSAMD09D14A-M".to_owned()),
-            TargetState::Known("ATSAMD51J18A-A".to_owned()),
-            TargetState::Known("ATSAMD21E16L-AFT".to_owned()),
+            TargetState::Known(TargetInfo {
+                name: "ATSAMD10C13A".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
+            TargetState::Known(TargetInfo {
+                name: "ATSAMD09D14A-M".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
+            TargetState::Known(TargetInfo {
+                name: "ATSAMD51J18A".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
+            TargetState::Known(TargetInfo {
+                name: "ATSAMD21E16L".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
         ]),
-        None,
+        // rsicv/esp daughterboard
+        Some([
+            TargetState::Unknown,
+            TargetState::Unknown,
+            TargetState::Known(TargetInfo {
+                name: "FE310-G002".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
+            TargetState::Unknown,
+        ]),
         // lpc daughterboard
         Some([
             TargetState::NotConnected,
-            TargetState::Known("LPC1114FDH28_102_5".to_owned()),
+            TargetState::Known(TargetInfo {
+                name: "LPC1114FDH28_102_5".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
             TargetState::NotConnected,
-            TargetState::Known("LPC1313FBD48_01,15".to_owned()),
+            TargetState::Known(TargetInfo {
+                name: "LPC1313FBD48_01,15".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
         ]),
         // nrf daughterboard
         Some([
-            TargetState::Known("nRF5340".to_owned()),
-            TargetState::Known("nRF52832-QFAB-T".to_owned()),
-            TargetState::Known("nRF52840".to_owned()),
-            TargetState::Known("NRF51822-QFAC-R7".to_owned()),
+            TargetState::Known(TargetInfo {
+                name: "nRF5340_xxAA".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
+            TargetState::Known(TargetInfo {
+                name: "nRF52832_xxAB".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
+            TargetState::Known(TargetInfo {
+                name: "nRF52840_xxAA".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
+            TargetState::Known(TargetInfo {
+                name: "NRF51822_xxAC".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
         ]),
         None,
         // stm32 daughterboard
         Some([
-            TargetState::Known("STM32G031F4P6".to_owned()),
+            TargetState::Known(TargetInfo {
+                name: "STM32G031F4Px".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
             TargetState::NotConnected,
-            TargetState::Known("STM32L151C8TxA".to_owned()),
+            TargetState::Known(TargetInfo {
+                name: "STM32L151C8xxA".to_owned(),
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            }),
             TargetState::NotConnected,
         ]),
         None,
@@ -91,6 +150,7 @@ pub(crate) fn dummy_init_config_data(db: Arc<HiveDb>) {
 /// # Panics
 /// In case the default test program is not (or only partially) found on the disk. This might indicate a corrupted monitor install.
 pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
+    log::debug!("Initializing testprograms");
     match db
         .config_tree
         .c_get::<Vec<TestProgram>>(keys::config::TESTPROGRAMS)
@@ -135,11 +195,16 @@ pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
                 panic!("Could not find the default testprogram. The installation might be corrupted, please reinstall the program.");
             } else {
                 let mut testprograms = vec![];
-
-                testprograms.push(TestProgram {
+                let default_testprogram = TestProgram {
                     name: "Default".to_owned(),
                     path: Path::new(&format!("{}{}", TESTPROGRAM_PATH, "default/")).to_path_buf(),
-                });
+                };
+
+                db.config_tree
+                    .c_insert(keys::config::ACTIVE_TESTPROGRAM, &default_testprogram)
+                    .unwrap();
+
+                testprograms.push(default_testprogram);
 
                 db.config_tree
                     .c_insert(keys::config::TESTPROGRAMS, &testprograms)
@@ -150,4 +215,16 @@ pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
             }
         }
     }
+}
+
+/// Initializes the TSS and TESTCHANNELS statics according to the data provided by the DB. This function fails if the data in the DB is not in sync with the detected hardware.
+///
+/// # Panics
+/// If the data in the DB has not been initialized.
+pub(crate) fn init_hardware_from_db_data(db: Arc<HiveDb>) -> Result<(), init::InitError> {
+    let target_data = db.config_tree.c_get(keys::config::TARGETS).unwrap().expect("Failed to get the target data in the DB. This function can only be called once the target data has been initialized in the DB.");
+    let probe_data = db.config_tree.c_get(keys::config::PROBES).unwrap().expect("Failed to get the probe data in the DB. This function can only be called once the probe data has been initialized in the DB.");
+
+    init::initialize_target_data(&TSS, target_data)?;
+    init::initialize_probe_data(&TESTCHANNELS, probe_data)
 }

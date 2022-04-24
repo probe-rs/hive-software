@@ -1,101 +1,97 @@
 //! Handlers to find all ram/flash address ranges which need to be provided for the building of the binaries
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 
-use comm_types::{hardware::TargetState, ipc::HiveTargetData};
+use comm_types::hardware::{Memory, TargetState};
 use probe_rs::{
     config::{self, MemoryRegion},
     Architecture, Target,
 };
 
-use crate::database::{keys, CborDb, HiveDb};
+use crate::TSS;
 
 pub(crate) struct BaseAddressRanges {
     pub arm: Vec<Memory>,
     pub riscv: Vec<Memory>,
 }
 
-#[derive(PartialEq)]
-pub struct Memory {
-    pub ram: Range<u32>,
-    pub nvm: Range<u32>,
-}
-
-/// Returns all required address ranges for the currently connected targets.
-pub(crate) fn get_target_address_ranges(db: Arc<HiveDb>) -> BaseAddressRanges {
-    let target_data: HiveTargetData = db.config_tree.c_get(keys::config::TARGETS).unwrap().expect("Target data not found in DB, getting target address ranges can only be done once the DB config data has been initialized.");
-
-    let mut targets = vec![];
-
+/// Returns all required address ranges for the currently connected targets. And updates the TargetInfo of each individual target to the correct range
+pub(crate) fn get_and_init_target_address_ranges() -> BaseAddressRanges {
     let mut addresses = BaseAddressRanges {
         arm: vec![],
         riscv: vec![],
     };
 
-    // Get the name of all available targets
-    for data in target_data {
-        if data.is_some() {
-            for target_state in data.unwrap() {
-                if let TargetState::Known(name) = target_state {
-                    targets.push(name);
-                }
-            }
+    for tss in TSS.iter() {
+        let mut tss = tss.lock().unwrap();
+
+        if tss.get_targets().is_none() {
+            // No daughterboard connected
+            continue;
         }
-    }
 
-    // Get all required flash/ram starting addresses
-    for target_name in targets.iter() {
-        let target = match config::get_target_by_name(target_name) {
-            Ok(target) => target,
-            Err(err) => {
-                log::warn!("Could not find target '{}' in the probe-rs registry. Failed to determine flash/ram addresses for this target: {}", target_name, err);
-                continue;
-            }
-        };
+        let targets = tss.get_targets().as_ref().unwrap().clone();
 
-        let nvm_address_space = match get_nvm_address(target.clone()) {
-            Ok(address_space) => address_space,
-            Err(_) => {
-                log::warn!(
-                    "Failed to determine the NVM address space to use for target '{}'.",
-                    target_name
-                );
-                continue;
-            }
-        };
+        for idx in 0..targets.len() {
+            if let TargetState::Known(target_info) = &targets[idx] {
+                let target = match config::get_target_by_name(&target_info.name) {
+                    Ok(target) => target,
+                    Err(err) => {
+                        log::warn!("Could not find target '{}' in the probe-rs registry. Failed to determine flash/ram addresses for this target: {}", target_info.name, err);
+                        continue;
+                    }
+                };
 
-        let ram_address_space = match get_ram_address(target.clone()) {
-            Ok(address_space) => address_space,
-            Err(_) => {
-                log::warn!(
-                    "Failed to determine the RAM address space to use for target '{}'.",
-                    target_name
-                );
-                continue;
-            }
-        };
+                let nvm_address_space = match get_nvm_address(target.clone()) {
+                    Ok(address_space) => address_space,
+                    Err(_) => {
+                        log::warn!(
+                            "Failed to determine the NVM address space to use for target '{}'.",
+                            target_info.name
+                        );
+                        continue;
+                    }
+                };
 
-        let new_address = Memory {
-            ram: ram_address_space,
-            nvm: nvm_address_space,
-        };
+                let ram_address_space = match get_ram_address(target.clone()) {
+                    Ok(address_space) => address_space,
+                    Err(_) => {
+                        log::warn!(
+                            "Failed to determine the RAM address space to use for target '{}'.",
+                            target_info.name
+                        );
+                        continue;
+                    }
+                };
 
-        if target.architecture() == Architecture::Arm {
-            if addresses
-                .arm
-                .iter()
-                .find(|address_range| **address_range == new_address)
-                .is_none()
-            {
-                addresses.arm.push(new_address);
-            }
-        } else if target.architecture() == Architecture::Riscv {
-            if addresses
-                .riscv
-                .iter()
-                .find(|address_range| **address_range == new_address)
-                .is_none()
-            {
-                addresses.riscv.push(new_address);
+                let new_address = Memory {
+                    ram: ram_address_space,
+                    nvm: nvm_address_space,
+                };
+
+                let mut new_target_info = target_info.clone();
+                new_target_info.memory_address = Some(new_address.clone());
+                new_target_info.status = Ok(());
+                tss.set_target_info(idx, new_target_info);
+
+                if target.architecture() == Architecture::Arm {
+                    if addresses
+                        .arm
+                        .iter()
+                        .find(|address_range| **address_range == new_address)
+                        .is_none()
+                    {
+                        addresses.arm.push(new_address);
+                    }
+                } else if target.architecture() == Architecture::Riscv {
+                    if addresses
+                        .riscv
+                        .iter()
+                        .find(|address_range| **address_range == new_address)
+                        .is_none()
+                    {
+                        addresses.riscv.push(new_address);
+                    }
+                }
             }
         }
     }

@@ -215,6 +215,7 @@ dependencies = [
  "retry",
  "rppal",
  "shared-bus",
+ "thiserror",
 ]
 
 [[package]]
@@ -724,6 +725,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tower",
+ "uid",
 ]
 
 [[package]]
@@ -1410,6 +1412,12 @@ name = "try-lock"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
+
+[[package]]
+name = "uid"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "281a11e4180ee68f8c06a7bf82d1be3c496e0debcadcc4576cc0b56132201edf"
 
 [[package]]
 name = "unicode-xid"

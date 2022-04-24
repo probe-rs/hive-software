@@ -5,6 +5,7 @@ pub(crate) mod config {
     pub(crate) const TARGETS: &str = "targets";
     pub(crate) const PROBES: &str = "probes";
     pub(crate) const TESTPROGRAMS: &str = "testprograms";
+    pub(crate) const ACTIVE_TESTPROGRAM: &str = "active_testprogram";
 }
 
 pub(crate) mod credentials {
