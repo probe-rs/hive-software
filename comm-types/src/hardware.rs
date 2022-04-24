@@ -1,4 +1,6 @@
 //! Contains all Hive hardware shared types
+use std::ops::Range;
+
 use serde::{Deserialize, Serialize};
 
 /// Holds all information on a testrack instance which needs to be accessible to multiple applications
@@ -13,9 +15,22 @@ pub struct Testrack {
 /// Represents the state of a single MCU target on a daughterboard
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TargetState {
-    Known(String),
+    Known(TargetInfo),
     Unknown,
     NotConnected,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TargetInfo {
+    pub name: String,
+    pub memory_address: Option<Memory>,
+    pub status: Result<(), String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Memory {
+    pub ram: Range<u32>,
+    pub nvm: Range<u32>,
 }
 
 /// Represents the status of a single target stack shield
