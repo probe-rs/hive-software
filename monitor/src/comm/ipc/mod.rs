@@ -108,7 +108,7 @@ mod tests {
     use axum::body::Body;
     use axum::http::{header, Method, Request, StatusCode};
     use ciborium::de::from_reader;
-    use comm_types::hardware::{ProbeInfo, TargetState};
+    use comm_types::hardware::{ProbeInfo, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
     use lazy_static::lazy_static;
     use tower::ServiceExt;
@@ -147,29 +147,77 @@ mod tests {
         ];
         static ref TARGET_DATA: HiveTargetData = [
             Some([
-                TargetState::Known("ATSAMD10C13A-SS".to_owned()),
-                TargetState::Known("ATSAMD09D14A-M".to_owned()),
-                TargetState::Known("ATSAMD51J18A-A".to_owned()),
-                TargetState::Known("ATSAMD21E16L-AFT".to_owned()),
+                TargetState::Known(TargetInfo{
+                    name: "ATSAMD10C13A-SS".to_owned(),
+                    memory_address: None,
+                    status: Err("Not initialized".to_owned()),
+                }),
+                TargetState::Known(TargetInfo{
+                    name: "ATSAMD09D14A-M".to_owned(),
+                    memory_address: None,
+                    status: Err("Not initialized".to_owned()),
+                }),
+                TargetState::Known(TargetInfo{
+                    name: "ATSAMD51J18A-A".to_owned(),
+                    memory_address: None,
+                    status: Err("Not initialized".to_owned()),
+                }),
+                TargetState::Known(TargetInfo{
+                    name: "ATSAMD21E16L-AFT".to_owned(),
+                    memory_address: None,
+                    status: Err("Not initialized".to_owned()),
+                }),
             ]),
             None,
             Some([
                 TargetState::NotConnected,
-                TargetState::Known("LPC1114FDH28_102_5".to_owned()),
+                TargetState::Known(TargetInfo{
+                    name: "LPC1114FDH28_102_5".to_owned(),
+                    memory_address: None,
+                    status: Err("Not initialized".to_owned()),
+                }),
                 TargetState::NotConnected,
-                TargetState::Known("LPC1313FBD48_01,15".to_owned()),
+                TargetState::Known(TargetInfo{
+                    name: "LPC1313FBD48_01,15".to_owned(),
+                    memory_address: None,
+                    status: Err("Not initialized".to_owned()),
+                }),
             ]),
             Some([
-                TargetState::Known("nRF5340".to_owned()),
-                TargetState::Known("nRF52832-QFAB-T".to_owned()),
-                TargetState::Known("nRF52840".to_owned()),
-                TargetState::Known("NRF51822-QFAC-R7".to_owned()),
+                TargetState::Known(TargetInfo{
+                    name: "nRF5340".to_owned(),
+                    memory_address: None,
+                    status: Err("Not initialized".to_owned()),
+                }),
+                TargetState::Known(TargetInfo{
+                    name: "nRF52832-QFAB-T".to_owned(),
+                    memory_address: None,
+                    status: Err("Not initialized".to_owned()),
+                }),
+                TargetState::Known(TargetInfo{
+                    name: "nRF52840".to_owned(),
+                    memory_address: None,
+                    status: Err("Not initialized".to_owned()),
+                }),
+                TargetState::Known(TargetInfo{
+                    name: "NRF51822-QFAC-R7".to_owned(),
+                    memory_address: None,
+                    status: Err("Not initialized".to_owned()),
+                }),
             ]),
             None,
             Some([
-                TargetState::Known("STM32G031F4P6".to_owned()),
+                TargetState::Known(TargetInfo{
+                    name: "STM32G031F4P6".to_owned(),
+                    memory_address: None,
+                    status: Err("Not initialized".to_owned()),
+                }),
                 TargetState::NotConnected,
-                TargetState::Known("STM32L151C8TxA".to_owned()),
+                TargetState::Known(TargetInfo{
+                    name: "STM32L151C8TxA".to_owned(),
+                    memory_address: None,
+                    status: Err("Not initialized".to_owned()),
+                }),
                 TargetState::NotConnected,
             ]),
             None,

@@ -1,3 +1,4 @@
+//! Communications handler
 use std::sync::Arc;
 
 use crate::database::HiveDb;
