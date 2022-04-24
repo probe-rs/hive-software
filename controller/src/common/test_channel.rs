@@ -4,7 +4,7 @@ use std::{
 };
 use std::mem;
 
-use comm_types::hardware::TargetState;
+use comm_types::hardware::{TargetState, TargetInfo};
 use ll_api::{RpiTestChannel, Target, TestChannel};
 use retry::{delay::Fixed, retry};
 use antidote::Mutex as PoisonFreeMutex;
@@ -112,7 +112,7 @@ impl CombinedTestChannel {
     }
 
     /// Loops through all available TSS and connects the testchannel to each available target, while executing the provided function on each connection.
-    pub fn connect_all_available_and_execute<F>(&mut self, tss: &[Mutex<TargetStackShield>], mut function: F) where F: FnMut(&mut Self, &String, u8) {
+    pub fn connect_all_available_and_execute<F>(&mut self, tss: &[Mutex<TargetStackShield>], mut function: F) where F: FnMut(&mut Self, &TargetInfo, u8) {
         let mut unprocessed_tss_queue: Vec<&Mutex<TargetStackShield>> = tss.iter().collect();
 
         while !unprocessed_tss_queue.is_empty() {
@@ -122,7 +122,7 @@ impl CombinedTestChannel {
 
                     if let Some(targets) = tss.get_targets() {
                         for (pos, target) in targets.iter().enumerate() {
-                            if let TargetState::Known(ref target_name) = target {
+                            if let TargetState::Known(ref target_info) = target {
                                 match retry(
                                     Fixed::from_millis(FIXED_RETRY_DELAY_MS)
                                         .take(CONNECT_RETRY_LIMIT),
@@ -133,7 +133,7 @@ impl CombinedTestChannel {
                                         )
                                     },
                                 ){
-                                    Ok(_) => function(self, target_name, tss.get_position()),
+                                    Ok(_) => function(self, target_info, tss.get_position()),
                                     Err(err) => match err {
                                         retry::Error::Operation { error, ..} => {
                                             log::error!(

@@ -9,6 +9,7 @@ use shared_bus::BusManagerStd;
 
 use crate::{HiveIoExpander, PCA9535_BASE_ADDR};
 
+pub mod init;
 mod target_stack_shield;
 mod test_channel;
 
@@ -41,4 +42,30 @@ pub fn create_shareable_tss(
 /// Creates and returns all testchannels which are able to be shared across threads
 pub fn create_shareable_testchannels() -> [Mutex<CombinedTestChannel>; 4] {
     CombinedTestChannel::new()
+}
+
+/// Detects if a Daugtherboard is present on each connected TSS, is true if present.
+///
+/// # Failure
+/// In case the function fails to determine if a daughterboard is present on a TSS or not, it assumes that none is present.
+/// If the false value is wrongly assumed by this function it will later cause a desync error in the initialization functions, which in turn forces the application to resync the hardware configuration.
+fn detect_connected_daughterboards(tss: &Vec<Mutex<TargetStackShield>>) -> [bool; 8] {
+    let mut detected = [false; 8];
+    for tss in tss.iter() {
+        let mut tss = tss.lock().unwrap();
+
+        match tss.inner.get_mut().daughterboard_is_connected() {
+            Ok(is_connected) => {
+                detected[tss.get_position() as usize] = is_connected;
+            }
+            Err(err) => {
+                log::warn!(
+                    "Failed to detect daughterboard on TSS {}, assuming none is connected. \n\nCaused by: {}",
+                    tss.get_position(),
+                    err
+                );
+            }
+        }
+    }
+    detected
 }

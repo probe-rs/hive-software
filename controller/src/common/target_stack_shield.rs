@@ -1,6 +1,6 @@
 use std::{cell::RefCell, error::Error, sync::Mutex};
 
-use comm_types::hardware::TargetState;
+use comm_types::hardware::{TargetInfo, TargetState};
 use embedded_hal::i2c::blocking::WriteRead;
 use ll_api::TargetStackShield as Shield;
 use pca9535::Register;
@@ -96,6 +96,23 @@ impl TargetStackShield {
 
         if is_connected {
             self.targets = Some(targets);
+        }
+    }
+
+    /// Sets the target info of given target index.
+    ///
+    /// # Panics
+    /// If there is no daughterboard connected or if the current target state is not [`TargetState::Known`]
+    pub fn set_target_info(&mut self, pos: usize, info: TargetInfo) {
+        let mut is_known = false;
+        if let TargetState::Known(_) = &self.targets.as_ref().unwrap()[pos] {
+            is_known = true;
+        }
+
+        if is_known {
+            self.targets.as_mut().unwrap()[pos] = TargetState::Known(info);
+        } else {
+            panic!("The target state on pos {} is not TargetState::Known, cannot set TargetInfo on an unknown target", pos);
         }
     }
 
