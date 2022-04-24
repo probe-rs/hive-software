@@ -193,6 +193,7 @@ dependencies = [
  "retry",
  "rppal",
  "shared-bus",
+ "thiserror",
 ]
 
 [[package]]
