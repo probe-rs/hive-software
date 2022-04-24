@@ -4,6 +4,7 @@ use std::error::Error;
 use std::panic::{self, PanicInfo};
 
 use antidote::Mutex as PoisonFreeMutex;
+use comm_types::hardware::TargetInfo;
 use comm_types::results::{TestResult, TestStatus};
 use controller::common::CombinedTestChannel;
 use controller::runner::TestChannelHandle;
@@ -29,13 +30,13 @@ use crate::comm::Message;
 
 pub(crate) fn run_tests(
     test_channel: &mut CombinedTestChannel,
-    target_name: &str,
+    target_info: &TargetInfo,
     tss_pos: u8,
     comm_sender: &Sender<Message>,
 ) {
     log::trace!(
         "Testing target {}, on tss {} with {}",
-        target_name,
+        target_info.name,
         tss_pos,
         test_channel.get_channel()
     );
@@ -52,7 +53,7 @@ pub(crate) fn run_tests(
     if !test_channel.is_ready() {
         skip_tests(
             comm_sender.clone(),
-            target_name,
+            &target_info.name,
             &probe_name,
             &probe_sn,
             "Failed to reinitialize the debug probe for this testrun",
@@ -60,8 +61,20 @@ pub(crate) fn run_tests(
         return;
     }
 
+    // Check if the target status is not OK, which means that no tests can be performed
+    if target_info.status.is_err() {
+        skip_tests(
+            comm_sender.clone(),
+            &target_info.name,
+            &probe_name,
+            &probe_sn,
+            target_info.status.as_ref().unwrap_err(),
+        );
+        return;
+    }
+
     let probe = test_channel.take_probe_owned();
-    match probe.attach(target_name) {
+    match probe.attach(&target_info.name) {
         Ok(session) => {
             let session = PoisonFreeMutex::new(session);
 
@@ -82,7 +95,7 @@ pub(crate) fn run_tests(
                             status,
                             should_panic: test.should_panic,
                             test_name: test.name.to_owned(),
-                            target_name: target_name.to_owned(),
+                            target_name: target_info.name.to_owned(),
                             probe_name: probe_name.clone(),
                             probe_sn: probe_sn.clone(),
                         };
@@ -106,7 +119,7 @@ pub(crate) fn run_tests(
                             status,
                             should_panic: test.should_panic,
                             test_name: test.name.to_owned(),
-                            target_name: target_name.to_owned(),
+                            target_name: target_info.name.to_owned(),
                             probe_name: probe_name.clone(),
                             probe_sn: probe_sn.clone(),
                         };
@@ -121,14 +134,14 @@ pub(crate) fn run_tests(
         Err(err) => {
             let reason = match err {
                 probe_rs_test::Error::ChipNotFound(err) => {
-                    log::warn!("Could not find a valid chip specification for target {}. This target might not be supported by probe-rs.\nCaused by: {}\nskipping...", target_name, err);
-                    format!("Unknown target {}", target_name)
+                    log::warn!("Could not find a valid chip specification for target {}. This target might not be supported by probe-rs.\nCaused by: {}\nskipping...", target_info.name, err);
+                    format!("Unknown target {}", target_info.name)
                 }
                 probe_rs_test::Error::Probe(err) => {
                     log::warn!(
                         "Probe {} failed to connect to target {}: {}\nCaused by: {:?}\nskipping...",
                         probe_name,
-                        target_name,
+                        target_info.name,
                         err,
                         err.source()
                     );
@@ -137,7 +150,7 @@ pub(crate) fn run_tests(
                 _ => {
                     log::error!(
                         "Error at testing target {} with probe {}: {} source: {:?}\nskipping...",
-                        target_name,
+                        target_info.name,
                         probe_name,
                         err,
                         err.source()
@@ -148,7 +161,7 @@ pub(crate) fn run_tests(
 
             skip_tests(
                 comm_sender.clone(),
-                target_name,
+                &target_info.name,
                 &probe_name,
                 &probe_sn,
                 &reason,

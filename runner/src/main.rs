@@ -1,4 +1,5 @@
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
+use controller::common::init;
 use controller::common::{
     create_expanders, create_shareable_testchannels, create_shareable_tss, CombinedTestChannel,
     TargetStackShield,
@@ -10,20 +11,20 @@ use log::Level;
 use rppal::i2c::I2c;
 use shared_bus::BusManager;
 use simple_clap_logger::Logger;
+use test::TEST_FUNCTIONS;
 use tokio::runtime::Builder;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::oneshot;
 use tokio::sync::Notify;
 
 use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
+use std::thread;
 use std::time::Duration;
 
 use crate::comm::Message;
 
 mod comm;
 mod hive_tests;
-mod init;
 mod test;
 
 lazy_static! {
@@ -41,7 +42,7 @@ fn main() {
     Logger::init_with_level(Level::Info);
     log::info!("starting the runner");
 
-    init::initialize_statics();
+    initialize_statics();
 
     let mut testing_threads = vec![];
 
@@ -116,8 +117,8 @@ fn main() {
 
                         channel.connect_all_available_and_execute(
                             &TSS,
-                            |test_channel, target_name, tss_pos| {
-                                test::run_tests(test_channel, target_name, tss_pos, &sender);
+                            |test_channel, target_info, tss_pos| {
+                                test::run_tests(test_channel, target_info, tss_pos, &sender);
                             },
                         );
                     })
@@ -154,8 +155,16 @@ fn init_hardware_from_monitor_data(
     target_data: HiveTargetData,
     probe_data: HiveProbeData,
 ) -> Result<(), init::InitError> {
-    init::initialize_target_data(target_data)?;
-    init::initialize_probe_data(probe_data)
+    init::initialize_target_data(&TSS, target_data)?;
+    init::initialize_probe_data(&TESTCHANNELS, probe_data)
+}
+
+pub(crate) fn initialize_statics() {
+    lazy_static::initialize(&SHARED_I2C);
+    lazy_static::initialize(&EXPANDERS);
+    lazy_static::initialize(&TSS);
+    lazy_static::initialize(&TESTCHANNELS);
+    lazy_static::initialize(&TEST_FUNCTIONS);
 }
 
 /// Returns the amount of testchannels which are ready for testing (A testchannel is considered ready once a probe has been bound to it)
@@ -170,33 +179,6 @@ fn get_available_channel_count() -> usize {
     }
 
     available_channels
-}
-
-/// Detects if a Daugtherboard is present on each connected TSS, is true if present.
-///
-/// # Failure
-/// In case the function fails to determine if a daughterboard is present on a TSS or not, it assumes that none is present.
-/// Detect failures usually occur if the received TSS data from the monitor is desynced from the actual hardware configuration, or due to hardware errors.
-/// If the false value is wrongly assumed by this function it will later cause a desync error which in turn forces the monitor to resync the hardware configuration and rerun the tests on the runner.
-fn detect_connected_daughterboards() -> [bool; 8] {
-    let mut detected = [false; 8];
-    for tss in TSS.iter() {
-        let mut tss = tss.lock().unwrap();
-
-        match tss.inner.get_mut().daughterboard_is_connected() {
-            Ok(is_connected) => {
-                detected[tss.get_position() as usize] = is_connected;
-            }
-            Err(err) => {
-                log::warn!(
-                    "Failed to detect daughterboard on TSS {}, assuming none is connected. \n\nCaused by: {}",
-                    tss.get_position(),
-                    err
-                );
-            }
-        }
-    }
-    detected
 }
 
 /// Handles the shutdown procedure, if the runner needs to shutdown during the init phase (before any tests were ran)
