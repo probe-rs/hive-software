@@ -139,7 +139,6 @@ fn main() {
     for thread in testing_threads {
         thread.join().unwrap();
     }
-    log::debug!("Joined all testing threads");
 
     // Reenable panic printing
     //panic::set_hook(standard_hook);
@@ -148,7 +147,7 @@ fn main() {
 
     // Wait for communications to finish
     comm_tread.join().unwrap();
-    log::debug!("Joined comm thread");
+    log::info!("Finished testing task, shutting down...");
 }
 
 fn init_hardware_from_monitor_data(

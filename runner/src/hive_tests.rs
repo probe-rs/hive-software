@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use hive_test::{hive_test, inventory, TestChannelHandle};
 use probe_rs_test::Session;
 
@@ -10,6 +12,34 @@ fn my_first_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session
     let b = 2;
 
     assert_eq!(a + b, 4);
+}
+
+#[hive_test]
+fn check_uid(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
+    let _unused = test_channel;
+    let cores = session.list_cores();
+    println!("found cores: {:?}", cores);
+    session
+        .core(cores[0].0)
+        .unwrap()
+        .reset_and_halt(Duration::from_millis(200))
+        .unwrap();
+
+    session
+        .core(cores[0].0)
+        .unwrap()
+        .set_hw_breakpoint(0xDA)
+        .unwrap();
+    session.core(cores[0].0).unwrap().run().unwrap();
+
+    session
+        .core(cores[0].0)
+        .unwrap()
+        .wait_for_core_halted(Duration::from_millis(500))
+        .unwrap();
+
+    let uid = session.core(cores[0].0).unwrap().read_core_reg(0).unwrap();
+    assert_eq!(uid, 2);
 }
 
 #[hive_test]
