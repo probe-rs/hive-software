@@ -23,8 +23,15 @@ pub enum TargetState {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TargetInfo {
     pub name: String,
+    pub architecture: Option<Architecture>,
     pub memory_address: Option<Memory>,
     pub status: Result<(), String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum Architecture {
+    ARM,
+    RISCV,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
