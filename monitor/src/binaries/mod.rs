@@ -17,8 +17,8 @@ use probe_rs::flashing::Format;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions};
 use testprogram::TestProgram;
 
-use crate::database::{keys, CborDb, HiveDb};
-use crate::{TESTCHANNELS, TSS};
+use crate::database::{keys, CborDb};
+use crate::{DB, TESTCHANNELS, TSS};
 
 mod address;
 mod build;
@@ -29,8 +29,8 @@ pub(crate) mod testprogram;
 ///
 /// # Panics
 /// If the target or testprogram configuration data in the DB has not been initialized.
-pub(crate) fn sync_binaries(db: Arc<HiveDb>) {
-    let active_testprogram: TestProgram = db
+pub(crate) fn sync_binaries() {
+    let active_testprogram: TestProgram = DB
         .config_tree
         .c_get(keys::config::ACTIVE_TESTPROGRAM)
         .unwrap().expect("Failed to get active testprogram in DB. The DB needs to be initialized before this function can be called");
@@ -68,8 +68,8 @@ struct FlashStatus {
 }
 
 /// Tries to flash the testbinaries onto all available targets.
-pub(crate) fn flash_testbinaries(db: Arc<HiveDb>) {
-    let active_testprogram: Arc<TestProgram> = Arc::new(db.config_tree.c_get(keys::config::ACTIVE_TESTPROGRAM).unwrap().expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known"));
+pub(crate) fn flash_testbinaries() {
+    let active_testprogram: Arc<TestProgram> = Arc::new(DB.config_tree.c_get(keys::config::ACTIVE_TESTPROGRAM).unwrap().expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known"));
 
     // A buffersize of 0 enforces that the RwLock flash_results vector does not slowly get out of sync due to read locks.
     // This could lead to situations where a thread checks the FlashStatus on an already invalid flash_results vector thus causing unwanted flashes of already successfully flashed targets.

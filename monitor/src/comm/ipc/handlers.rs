@@ -1,22 +1,20 @@
 //! IPC request handlers
-use std::sync::Arc;
-
-use axum::Extension;
 use ciborium::cbor;
 use colored::Colorize;
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
 use comm_types::results::TestResult;
 use comm_types::{cbor::CborValue, ipc::IpcMessage};
 
-use crate::database::{keys, CborDb, HiveDb};
+use crate::database::{keys, CborDb};
+use crate::DB;
 
 use super::error::ServerError;
 use super::extractors::Cbor;
 
-pub(crate) async fn probe_handler(Extension(db): Extension<Arc<HiveDb>>) -> CborValue {
+pub(crate) async fn probe_handler() -> CborValue {
     log::debug!("Received an IPC request on probe handler");
 
-    let data: HiveProbeData = db
+    let data: HiveProbeData = DB
         .config_tree
         .c_get(keys::config::PROBES)
         .unwrap()
@@ -25,10 +23,10 @@ pub(crate) async fn probe_handler(Extension(db): Extension<Arc<HiveDb>>) -> Cbor
     CborValue(cbor!(IpcMessage::ProbeInitData(data)).unwrap())
 }
 
-pub(crate) async fn target_handler(Extension(db): Extension<Arc<HiveDb>>) -> CborValue {
+pub(crate) async fn target_handler() -> CborValue {
     log::info!("Received an IPC request on target handler");
 
-    let data: HiveTargetData = db
+    let data: HiveTargetData = DB
         .config_tree
         .c_get(keys::config::TARGETS)
         .unwrap()

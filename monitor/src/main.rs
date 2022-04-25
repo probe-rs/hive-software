@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::thread;
 
 use controller::common::{
@@ -29,37 +29,33 @@ lazy_static! {
     static ref EXPANDERS: [HiveIoExpander; 8] = create_expanders(&SHARED_I2C);
     static ref TSS: Vec<Mutex<TargetStackShield>> = create_shareable_tss(&SHARED_I2C, &EXPANDERS);
     static ref TESTCHANNELS: [Mutex<CombinedTestChannel>; 4] = create_shareable_testchannels();
+    static ref DB: HiveDb = HiveDb::open();
 }
 
 fn main() {
     Logger::init_with_level(Level::Info);
 
     init::initialize_statics();
-    let db = Arc::new(HiveDb::open());
-    let comm_db = db.clone();
 
-    init::dummy_init_config_data(db.clone());
-    init::init_hardware_from_db_data(db.clone()).expect("TODO, stop initialization and enter 'NOT READY' state which should tell the user to provide the initialization in the backend UI");
+    init::dummy_init_config_data();
+    init::init_hardware_from_db_data().expect("TODO, stop initialization and enter 'NOT READY' state which should tell the user to provide the initialization in the backend UI");
     init::init_target_info_from_registry();
-    init::init_testprograms(db.clone());
+    init::init_testprograms();
 
-    binaries::flash_testbinaries(db.clone());
+    binaries::flash_testbinaries();
 
     // Synchronize the target data in the DB with the runtime data so that the runner receives valid data.
-    database::sync::sync_tss_target_data(db.clone());
+    database::sync::sync_tss_target_data();
 
     let rt = Builder::new_current_thread().enable_io().build().unwrap();
     let comm_tread = thread::spawn(move || {
         rt.block_on(async {
-            comm::serve(comm_db).await;
+            comm::serve().await;
         });
     });
 
     dummy_unlock_probes();
     log::info!("Dropped the debug probes... runner can now be started.");
-
-    // Drop DB so all buffered changes are written to memory once all Arc instances of the db have been dropped
-    drop(db);
 
     comm_tread.join().unwrap();
 }

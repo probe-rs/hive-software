@@ -1,7 +1,6 @@
 //! Handles all initialization required to start testing
 use std::fs;
 use std::path::Path;
-use std::sync::Arc;
 
 use comm_types::hardware::{Architecture, ProbeInfo, TargetInfo, TargetState};
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
@@ -10,10 +9,11 @@ use probe_rs::{config, Probe};
 
 use crate::binaries;
 use crate::binaries::testprogram::{TestProgram, TESTPROGRAM_PATH};
-use crate::database::{keys, CborDb, HiveDb};
-use crate::{EXPANDERS, SHARED_I2C, TESTCHANNELS, TSS};
+use crate::database::{keys, CborDb};
+use crate::{DB, EXPANDERS, SHARED_I2C, TESTCHANNELS, TSS};
 
 pub(crate) fn initialize_statics() {
+    lazy_static::initialize(&DB);
     lazy_static::initialize(&SHARED_I2C);
     lazy_static::initialize(&EXPANDERS);
     lazy_static::initialize(&TSS);
@@ -21,7 +21,7 @@ pub(crate) fn initialize_statics() {
 }
 
 /// Current dummy implementation of the configuration data initialization. Later this will be done by the user in the configuration backend UI
-pub(crate) fn dummy_init_config_data(db: Arc<HiveDb>) {
+pub(crate) fn dummy_init_config_data() {
     let target_data: HiveTargetData = [
         // atsamd daughterboard
         Some([
@@ -128,7 +128,7 @@ pub(crate) fn dummy_init_config_data(db: Arc<HiveDb>) {
         None,
     ];
 
-    db.config_tree
+    DB.config_tree
         .c_insert(keys::config::TARGETS, &target_data)
         .unwrap();
 
@@ -153,7 +153,7 @@ pub(crate) fn dummy_init_config_data(db: Arc<HiveDb>) {
         None,
     ];
 
-    db.config_tree
+    DB.config_tree
         .c_insert(keys::config::PROBES, &probe_data)
         .unwrap();
 }
@@ -162,9 +162,9 @@ pub(crate) fn dummy_init_config_data(db: Arc<HiveDb>) {
 ///
 /// # Panics
 /// In case the default test program is not (or only partially) found on the disk. This might indicate a corrupted monitor install.
-pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
+pub(crate) fn init_testprograms() {
     log::debug!("Initializing testprograms");
-    match db
+    match DB
         .config_tree
         .c_get::<Vec<TestProgram>>(keys::config::TESTPROGRAMS)
         .unwrap()
@@ -189,7 +189,7 @@ pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
                     let _ = fs::remove_dir_all(programs[idx].path.to_owned());
 
                     programs.remove(idx);
-                    db.config_tree
+                    DB.config_tree
                         .c_insert(keys::config::TESTPROGRAMS, &programs)
                         .unwrap();
                 } else {
@@ -198,7 +198,7 @@ pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
             }
 
             // Sync binaries after testprograms have been checked and cleaned
-            binaries::sync_binaries(db);
+            binaries::sync_binaries();
         }
         None => {
             // As this might be the first run of the monitor the default testprogram has to be registered in the DB first
@@ -213,18 +213,18 @@ pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
                     path: Path::new(&format!("{}{}", TESTPROGRAM_PATH, "default/")).to_path_buf(),
                 };
 
-                db.config_tree
+                DB.config_tree
                     .c_insert(keys::config::ACTIVE_TESTPROGRAM, &default_testprogram)
                     .unwrap();
 
                 testprograms.push(default_testprogram);
 
-                db.config_tree
+                DB.config_tree
                     .c_insert(keys::config::TESTPROGRAMS, &testprograms)
                     .unwrap();
 
                 // Sync binaries after testprograms have been checked and cleaned
-                binaries::sync_binaries(db);
+                binaries::sync_binaries();
             }
         }
     }
@@ -234,9 +234,9 @@ pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
 ///
 /// # Panics
 /// If the data in the DB has not been initialized.
-pub(crate) fn init_hardware_from_db_data(db: Arc<HiveDb>) -> Result<(), init::InitError> {
-    let target_data = db.config_tree.c_get(keys::config::TARGETS).unwrap().expect("Failed to get the target data in the DB. This function can only be called once the target data has been initialized in the DB.");
-    let probe_data = db.config_tree.c_get(keys::config::PROBES).unwrap().expect("Failed to get the probe data in the DB. This function can only be called once the probe data has been initialized in the DB.");
+pub(crate) fn init_hardware_from_db_data() -> Result<(), init::InitError> {
+    let target_data = DB.config_tree.c_get(keys::config::TARGETS).unwrap().expect("Failed to get the target data in the DB. This function can only be called once the target data has been initialized in the DB.");
+    let probe_data = DB.config_tree.c_get(keys::config::PROBES).unwrap().expect("Failed to get the probe data in the DB. This function can only be called once the probe data has been initialized in the DB.");
 
     init::initialize_target_data(&TSS, target_data)?;
     init::initialize_probe_data(&TESTCHANNELS, probe_data)
