@@ -39,10 +39,14 @@ fn main() {
     let comm_db = db.clone();
 
     init::dummy_init_config_data(db.clone());
-    init::init_hardware_from_db_data(db.clone()).expect("TODO, stop initialization and enter 'NOT READY' state which shoudld tell the user to provide the initialization in the backend UI");
+    init::init_hardware_from_db_data(db.clone()).expect("TODO, stop initialization and enter 'NOT READY' state which should tell the user to provide the initialization in the backend UI");
+    init::init_target_info_from_registry();
     init::init_testprograms(db.clone());
 
     binaries::flash_testbinaries(db.clone());
+
+    // Synchronize the target data in the DB with the runtime data so that the runner receives valid data.
+    database::sync::sync_tss_target_data(db.clone());
 
     let rt = Builder::new_current_thread().enable_io().build().unwrap();
     let comm_tread = thread::spawn(move || {

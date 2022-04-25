@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use sled::{Config, Db, Mode, Result as SledResult, Tree};
 
 pub(crate) mod keys;
+pub(crate) mod sync;
 
 const FLUSH_INTERVAL_MS: u64 = 60_000;
 const CACHE_CAPACITY: u64 = 52_428_800; // 50MB

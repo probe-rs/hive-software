@@ -3,10 +3,10 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
-use comm_types::hardware::{ProbeInfo, TargetInfo, TargetState};
+use comm_types::hardware::{Architecture, ProbeInfo, TargetInfo, TargetState};
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
 use controller::common::init;
-use probe_rs::Probe;
+use probe_rs::{config, Probe};
 
 use crate::binaries;
 use crate::binaries::testprogram::{TestProgram, TESTPROGRAM_PATH};
@@ -27,21 +27,25 @@ pub(crate) fn dummy_init_config_data(db: Arc<HiveDb>) {
         Some([
             TargetState::Known(TargetInfo {
                 name: "ATSAMD10C13A".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
             TargetState::Known(TargetInfo {
                 name: "ATSAMD09D14A-M".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
             TargetState::Known(TargetInfo {
                 name: "ATSAMD51J18A".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
             TargetState::Known(TargetInfo {
                 name: "ATSAMD21E16L".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
@@ -52,6 +56,7 @@ pub(crate) fn dummy_init_config_data(db: Arc<HiveDb>) {
             TargetState::Unknown,
             TargetState::Known(TargetInfo {
                 name: "FE310-G002".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
@@ -62,12 +67,14 @@ pub(crate) fn dummy_init_config_data(db: Arc<HiveDb>) {
             TargetState::NotConnected,
             TargetState::Known(TargetInfo {
                 name: "LPC1114FDH28_102_5".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
             TargetState::NotConnected,
             TargetState::Known(TargetInfo {
                 name: "LPC1313FBD48_01,15".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
@@ -76,21 +83,25 @@ pub(crate) fn dummy_init_config_data(db: Arc<HiveDb>) {
         Some([
             TargetState::Known(TargetInfo {
                 name: "nRF5340_xxAA".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
             TargetState::Known(TargetInfo {
                 name: "nRF52832_xxAB".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
             TargetState::Known(TargetInfo {
                 name: "nRF52840_xxAA".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
             TargetState::Known(TargetInfo {
                 name: "NRF51822_xxAC".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
@@ -100,12 +111,14 @@ pub(crate) fn dummy_init_config_data(db: Arc<HiveDb>) {
         Some([
             TargetState::Known(TargetInfo {
                 name: "STM32G031F4Px".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
             TargetState::NotConnected,
             TargetState::Known(TargetInfo {
                 name: "STM32L151C8xxA".to_owned(),
+                architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
             }),
@@ -227,4 +240,36 @@ pub(crate) fn init_hardware_from_db_data(db: Arc<HiveDb>) -> Result<(), init::In
 
     init::initialize_target_data(&TSS, target_data)?;
     init::initialize_probe_data(&TESTCHANNELS, probe_data)
+}
+
+/// Initializes [`TargetInfo`] on each known target connected to the tss using the [`probe_rs::config::get_target_by_name()`] function. If the target is not found in the probe-rs registry, its [`TargetInfo`] status field is set to a [`Result::Err`] value.
+/// Targets which are not found in the registry are thus being ignored for any subsequent initialization steps, such as flashing the testbinaries for example.
+pub(crate) fn init_target_info_from_registry() {
+    for tss in TSS.iter() {
+        let mut tss = tss.lock().unwrap();
+
+        let mut targets = tss.get_targets().clone();
+
+        if targets.is_some() {
+            for target in targets.as_mut().unwrap().iter_mut() {
+                if let TargetState::Known(target_info) = target {
+                    match config::get_target_by_name(&target_info.name) {
+                        Ok(probe_rs_target) => {
+                            // Set the architecture field
+                            let architecture = match probe_rs_target.architecture() {
+                                probe_rs::Architecture::Arm => Architecture::ARM,
+                                probe_rs::Architecture::Riscv => Architecture::RISCV,
+                            };
+                            target_info.architecture = Some(architecture);
+
+                            target_info.status = Ok(());
+                        }
+                        Err(err) => target_info.status = Err(err.to_string()),
+                    }
+                }
+            }
+
+            tss.set_targets(targets.unwrap());
+        }
+    }
 }

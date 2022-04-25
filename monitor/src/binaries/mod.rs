@@ -11,15 +11,14 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use std::thread;
 
-use crate::database::{keys, CborDb, HiveDb};
-use crate::{TESTCHANNELS, TSS};
-use comm_types::hardware::TargetInfo;
-use comm_types::hardware::TargetState;
-use comm_types::ipc::HiveTargetData;
+use comm_types::hardware::{Architecture, TargetInfo, TargetState};
 use controller::common::CombinedTestChannel;
 use probe_rs::flashing::Format;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions};
 use testprogram::TestProgram;
+
+use crate::database::{keys, CborDb, HiveDb};
+use crate::{TESTCHANNELS, TSS};
 
 mod address;
 mod build;
@@ -128,42 +127,52 @@ pub(crate) fn flash_testbinaries(db: Arc<HiveDb>) {
         thread.join().unwrap();
     }
 
-    // Update target data with the results TODO: update statics
-    let mut target_data: HiveTargetData = db
-        .config_tree
-        .c_get(keys::config::TARGETS)
-        .unwrap()
-        .unwrap();
+    // Update tss targets with the flash results
+    for tss in TSS.iter() {
+        let tss = tss.lock().unwrap();
 
-    for (idx, tss) in target_data.iter_mut().enumerate() {
-        if tss.is_some() {
-            for target in tss.as_mut().unwrap() {
-                if let TargetState::Known(target_info) = target {
-                    let flash_results = flash_results.read().unwrap();
+        if tss.get_targets().is_none() {
+            // No daughterboard attached
+            continue;
+        }
 
-                    if flash_results
-                        .iter()
-                        .filter(|result| {
-                            result.tss_pos as usize == idx
-                                && result.target_name == target_info.name
-                                && result.result.is_ok()
-                        })
-                        .count()
-                        != 0
-                    {
-                        target_info.status = Ok(());
-                    } else {
-                        target_info.status =
-                            Err("Failed to flash testbinary prior to testing".to_owned());
-                    }
+        let mut targets = tss.get_targets().clone();
+
+        for target in targets.as_mut().unwrap() {
+            if let TargetState::Known(target_info) = target {
+                let flash_results = flash_results.read().unwrap();
+
+                if flash_results
+                    .iter()
+                    .filter(|result| {
+                        result.tss_pos == tss.get_position()
+                            && result.target_name == target_info.name
+                    })
+                    .count()
+                    == 0
+                {
+                    // Target is not included in the flash_results
+                    continue;
+                }
+
+                if flash_results
+                    .iter()
+                    .filter(|result| {
+                        result.tss_pos == tss.get_position()
+                            && result.target_name == target_info.name
+                            && result.result.is_ok()
+                    })
+                    .count()
+                    != 0
+                {
+                    target_info.status = Ok(());
+                } else {
+                    target_info.status =
+                        Err("Failed to flash testbinary prior to testing".to_owned());
                 }
             }
         }
     }
-
-    db.config_tree
-        .c_insert::<HiveTargetData>(keys::config::TARGETS, &target_data)
-        .unwrap();
 
     log::info!(
         "Following results were pushed by the flashing threads: {:#?}",
@@ -171,6 +180,10 @@ pub(crate) fn flash_testbinaries(db: Arc<HiveDb>) {
     );
 }
 
+/// Flashes a testbinary onto the provided target.
+///
+/// # Panics
+/// If the provided [`TargetInfo`] struct fields `architecture` and/or `memory_address` are not initialized
 fn flash_target(
     test_channel: &mut CombinedTestChannel,
     target_info: &TargetInfo,
@@ -179,8 +192,8 @@ fn flash_target(
     testprogram: &TestProgram,
     flash_results: &Arc<RwLock<Vec<FlashStatus>>>,
 ) {
-    // Check if Testchannel is ready, it might not be anymore in case probe reinitialization failed.
-    if !test_channel.is_ready() || target_info.memory_address.is_none() {
+    // Check if Testchannel is ready and if the target_info has been successfully initialized.
+    if !test_channel.is_ready() || target_info.status.is_err() {
         return;
     }
 
@@ -208,9 +221,18 @@ fn flash_target(
             let mut download_options = DownloadOptions::default();
             download_options.do_chip_erase = true;
 
+            let path = match target_info.architecture.as_ref().unwrap() {
+                Architecture::ARM => {
+                    testprogram.get_elf_path_arm(&target_info.memory_address.as_ref().unwrap())
+                }
+                Architecture::RISCV => {
+                    testprogram.get_elf_path_riscv(&target_info.memory_address.as_ref().unwrap())
+                }
+            };
+
             match download_file_with_options(
                 &mut session,
-                testprogram.get_elf_path_arm(&target_info.memory_address.as_ref().unwrap()),
+                path,
                 Format::Elf,
                 download_options,
             ) {

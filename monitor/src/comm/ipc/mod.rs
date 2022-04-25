@@ -149,21 +149,25 @@ mod tests {
             Some([
                 TargetState::Known(TargetInfo{
                     name: "ATSAMD10C13A-SS".to_owned(),
+                    architecture: None,
                     memory_address: None,
                     status: Err("Not initialized".to_owned()),
                 }),
                 TargetState::Known(TargetInfo{
                     name: "ATSAMD09D14A-M".to_owned(),
+                    architecture: None,
                     memory_address: None,
                     status: Err("Not initialized".to_owned()),
                 }),
                 TargetState::Known(TargetInfo{
                     name: "ATSAMD51J18A-A".to_owned(),
+                    architecture: None,
                     memory_address: None,
                     status: Err("Not initialized".to_owned()),
                 }),
                 TargetState::Known(TargetInfo{
                     name: "ATSAMD21E16L-AFT".to_owned(),
+                    architecture: None,
                     memory_address: None,
                     status: Err("Not initialized".to_owned()),
                 }),
@@ -173,12 +177,14 @@ mod tests {
                 TargetState::NotConnected,
                 TargetState::Known(TargetInfo{
                     name: "LPC1114FDH28_102_5".to_owned(),
+                    architecture: None,
                     memory_address: None,
                     status: Err("Not initialized".to_owned()),
                 }),
                 TargetState::NotConnected,
                 TargetState::Known(TargetInfo{
                     name: "LPC1313FBD48_01,15".to_owned(),
+                    architecture: None,
                     memory_address: None,
                     status: Err("Not initialized".to_owned()),
                 }),
@@ -186,21 +192,25 @@ mod tests {
             Some([
                 TargetState::Known(TargetInfo{
                     name: "nRF5340".to_owned(),
+                    architecture: None,
                     memory_address: None,
                     status: Err("Not initialized".to_owned()),
                 }),
                 TargetState::Known(TargetInfo{
                     name: "nRF52832-QFAB-T".to_owned(),
+                    architecture: None,
                     memory_address: None,
                     status: Err("Not initialized".to_owned()),
                 }),
                 TargetState::Known(TargetInfo{
                     name: "nRF52840".to_owned(),
+                    architecture: None,
                     memory_address: None,
                     status: Err("Not initialized".to_owned()),
                 }),
                 TargetState::Known(TargetInfo{
                     name: "NRF51822-QFAC-R7".to_owned(),
+                    architecture: None,
                     memory_address: None,
                     status: Err("Not initialized".to_owned()),
                 }),
@@ -209,12 +219,14 @@ mod tests {
             Some([
                 TargetState::Known(TargetInfo{
                     name: "STM32G031F4P6".to_owned(),
+                    architecture: None,
                     memory_address: None,
                     status: Err("Not initialized".to_owned()),
                 }),
                 TargetState::NotConnected,
                 TargetState::Known(TargetInfo{
                     name: "STM32L151C8TxA".to_owned(),
+                    architecture: None,
                     memory_address: None,
                     status: Err("Not initialized".to_owned()),
                 }),
