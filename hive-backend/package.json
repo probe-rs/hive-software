@@ -2,19 +2,26 @@
   "name": "hive-backend",
   "version": "0.1.0",
   "scripts": {
-    "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview --port 5050",
     "test:unit": "vitest --environment jsdom",
     "test:e2e": "start-server-and-test preview http://127.0.0.1:5050/ 'cypress open'",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "dev": "vite",
+    "preview": "vite preview --port 5050",
     "test:e2e:ci": "start-server-and-test preview http://127.0.0.1:5050/ 'cypress run'",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
+    "typecheck": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false"
   },
   "dependencies": {
+    "@mdi/font": "5.9.55",
+    "@vuetify/vite-plugin": "^1.0.0-alpha.10",
+    "konva": "^8.3.5",
     "pinia": "^2.0.13",
+    "pinia-plugin-persistedstate": "^1.5.1",
     "vue": "^3.2.33",
-    "vue-router": "^4.0.14"
+    "vue-konva": "^3.0.0",
+    "vue-router": "^4.0.14",
+    "vue3-ace-editor": "^2.2.2",
+    "vuetify": "npm:@vuetify/nightly@next"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.1.0",
@@ -31,10 +38,14 @@
     "eslint-plugin-vue": "^8.2.0",
     "jsdom": "^19.0.0",
     "prettier": "^2.5.1",
+    "sass": "^1.38.0",
+    "sass-loader": "^10.0.0",
     "start-server-and-test": "^1.14.0",
     "typescript": "~4.6.3",
     "vite": "^2.9.5",
     "vitest": "^0.9.3",
-    "vue-tsc": "^0.34.7"
+    "vue-cli-plugin-vuetify": "~2.4.8",
+    "vue-tsc": "^0.34.7",
+    "vuetify-loader": "^2.0.0-alpha.0"
   }
 }
