@@ -10,4 +10,5 @@ pub(crate) mod config {
 
 pub(crate) mod credentials {
     //! All valid keys for credentials DB Tree
+    pub(crate) const USERS: &str = "users";
 }

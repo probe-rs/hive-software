@@ -8,13 +8,15 @@ description = "Hive monitor which handles all external communication, prepares t
 readme = "README.md"
 
 [dependencies]
-comm-types = {path = "../comm-types/", features = ["cbor", "ipc"]}
+comm-types = {path = "../comm-types/", features = ["cbor", "ipc", "auth"]}
 controller = {path = "../controller/"}
 simple-clap-logger = {git = "https://github.com/TeyKey1/simple-clap-logger.git", rev = "6371878"}
 log = "0.4"
 tokio = {version  = "1.17", features = ["rt", "sync", "fs"]}
 axum = "0.5"
+axum-server = { version = "0.4", features = ["tls-rustls"] }
 hyper = "0.14"
+tower-http = {version = "0.3", features = ["fs"]}
 futures = "0.3"
 ciborium = "0.2"
 lazy_static = "1.4"
@@ -25,6 +27,7 @@ serde = "1.0"
 probe-rs = "0.12"
 thiserror = "1.0"
 uid = "0.1"
+argon2 = "0.4"
 
 # Only used for dummy functions
 colored = "2.0"

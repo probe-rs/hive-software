@@ -1,17 +1,13 @@
 //! IPC request handlers
-use ciborium::cbor;
 use colored::Colorize;
-use comm_types::ipc::{HiveProbeData, HiveTargetData};
+use comm_types::cbor::{Cbor, ServerParseError};
+use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
 use comm_types::results::TestResult;
-use comm_types::{cbor::CborValue, ipc::IpcMessage};
 
 use crate::database::{keys, CborDb};
 use crate::DB;
 
-use super::error::ServerError;
-use super::extractors::Cbor;
-
-pub(crate) async fn probe_handler() -> CborValue {
+pub(crate) async fn probe_handler() -> Cbor<IpcMessage> {
     log::debug!("Received an IPC request on probe handler");
 
     let data: HiveProbeData = DB
@@ -20,10 +16,10 @@ pub(crate) async fn probe_handler() -> CborValue {
         .unwrap()
         .expect("Probe data was not found in the database. The data should be initialized before the runner is started.");
 
-    CborValue(cbor!(IpcMessage::ProbeInitData(data)).unwrap())
+    Cbor(IpcMessage::ProbeInitData(data))
 }
 
-pub(crate) async fn target_handler() -> CborValue {
+pub(crate) async fn target_handler() -> Cbor<IpcMessage> {
     log::info!("Received an IPC request on target handler");
 
     let data: HiveTargetData = DB
@@ -32,17 +28,19 @@ pub(crate) async fn target_handler() -> CborValue {
         .unwrap()
         .expect("Target data was not found in the database. The data should be initialized before the runner is started.");
 
-    CborValue(cbor!(IpcMessage::TargetInitData(data)).unwrap())
+    Cbor(IpcMessage::TargetInitData(data))
 }
 
-pub(crate) async fn runner_log_handler(Cbor(message): Cbor) -> CborValue {
+pub(crate) async fn runner_log_handler(Cbor(message): Cbor<IpcMessage>) -> Cbor<IpcMessage> {
     log::info!("Received {:#?} on runner log handler.", message);
     todo!();
 
-    CborValue(cbor!(IpcMessage::Empty).unwrap())
+    Cbor(IpcMessage::Empty)
 }
 
-pub(crate) async fn test_result_handler(Cbor(message): Cbor) -> Result<CborValue, ServerError> {
+pub(crate) async fn test_result_handler(
+    Cbor(message): Cbor<IpcMessage>,
+) -> Result<Cbor<IpcMessage>, ServerParseError> {
     if let IpcMessage::TestResults(mut results) = message {
         /*log::info!("Received test results on result handler: {:#?}", results);
         todo!();*/
@@ -107,8 +105,8 @@ pub(crate) async fn test_result_handler(Cbor(message): Cbor) -> Result<CborValue
             }
         }
     } else {
-        return Err(ServerError::WrongMessageType);
+        return Err(ServerParseError::InvalidCbor);
     }
 
-    Ok(CborValue(cbor!(IpcMessage::Empty).unwrap()))
+    Ok(Cbor(IpcMessage::Empty))
 }

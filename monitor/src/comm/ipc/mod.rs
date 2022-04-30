@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::task;
 use std::task::Poll;
 
-use axum::extract::{connect_info, extractor_middleware};
+use axum::extract::connect_info;
 use axum::routing::{get, post};
 use axum::{BoxError, Router, Server};
 use futures::ready;
@@ -12,10 +12,7 @@ use hyper::server::accept::Accept;
 use tokio::net::unix::UCred;
 use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
 
-mod error;
-mod extractors;
 mod handlers;
-mod middleware;
 
 const SOCKET_PATH: &str = "/tmp/hive/monitor/ipc_sock";
 
@@ -54,7 +51,7 @@ impl connect_info::Connected<&UnixStream> for IpcConnectionInfo {
 }
 
 /// Starts the IPC server and listens for incoming connections
-pub(crate) async fn ipc_server() {
+pub(super) async fn ipc_server() {
     let socket_path = Path::new(SOCKET_PATH);
 
     init_socket_file(socket_path).await;
@@ -80,7 +77,6 @@ fn app() -> Router {
         .route("/data/target", get(handlers::target_handler))
         .route("/runner/log", post(handlers::runner_log_handler))
         .route("/runner/results", post(handlers::test_result_handler))
-        .layer(extractor_middleware::<middleware::CheckContentType>())
 }
 
 /// Creates the folders required by the path, if not existing. Removes previous socket file if existing.
@@ -230,74 +226,6 @@ mod tests {
             None,
             None,
         ];
-    }
-
-    #[tokio::test]
-    async fn content_type_middleware_no_content_type() {
-        let ipc_server = app();
-
-        let res = ipc_server
-            .oneshot(
-                Request::builder()
-                    .method(Method::GET)
-                    .uri("/data/probe")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-
-        let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
-        assert_eq!(
-            String::from_utf8(bytes[..].to_vec()).unwrap(),
-            "Missing content type header. Expecting application/cbor"
-        );
-    }
-
-    #[tokio::test]
-    async fn content_type_middleware_wrong_content_type() {
-        let ipc_server = app();
-
-        let res = ipc_server
-            .oneshot(
-                Request::builder()
-                    .method(Method::GET)
-                    .uri("/data/probe")
-                    .header(header::CONTENT_TYPE, "application/json")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-
-        let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
-        assert_eq!(
-            String::from_utf8(bytes[..].to_vec()).unwrap(),
-            "Wrong content type header provided. Expecting application/cbor"
-        );
-    }
-
-    #[tokio::test]
-    async fn content_type_middleware_correct() {
-        let ipc_server = app();
-
-        let res = ipc_server
-            .oneshot(
-                Request::builder()
-                    .method(Method::GET)
-                    .uri("/data/probe")
-                    .header(header::CONTENT_TYPE, "application/cbor")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(res.status(), StatusCode::OK);
     }
 
     #[tokio::test]

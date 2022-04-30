@@ -47,7 +47,11 @@ fn main() {
     // Synchronize the target data in the DB with the runtime data so that the runner receives valid data.
     database::sync::sync_tss_target_data();
 
-    let rt = Builder::new_current_thread().enable_io().build().unwrap();
+    let rt = Builder::new_current_thread()
+        .enable_io()
+        .enable_time()
+        .build()
+        .unwrap();
     let comm_tread = thread::spawn(move || {
         rt.block_on(async {
             comm::serve().await;
