@@ -1,6 +1,6 @@
 //! Wrappers to make hyper requests retryable
 use axum::http::Request;
-use comm_types::ipc::{IpcMessage, ParseError};
+use comm_types::ipc::{ClientParseError, IpcMessage};
 use hyper::{header, Body, StatusCode};
 use hyper::{Client, Error as HyperError};
 use tokio_retry::strategy::{jitter, FibonacciBackoff};
@@ -11,7 +11,7 @@ const REQ_RETRY_LIMIT: usize = 3;
 #[derive(Debug)]
 pub(crate) enum RequestError {
     BadStatus(StatusCode),
-    Parse(ParseError),
+    Parse(ClientParseError),
     Network(HyperError),
 }
 
@@ -33,7 +33,7 @@ fn is_retryable_error(err: &RequestError) -> bool {
             }
         }
         RequestError::Parse(err) => {
-            if let ParseError::InvalidBody = err {
+            if let ClientParseError::InvalidBody = err {
                 return true;
             }
         }
