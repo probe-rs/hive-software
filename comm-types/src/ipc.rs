@@ -9,6 +9,9 @@ use super::cbor::CBOR_MIME;
 use super::hardware::{ProbeInfo, TargetState};
 use super::results::TestResult;
 
+pub type HiveProbeData = [Option<ProbeInfo>; 4];
+pub type HiveTargetData = [Option<[TargetState; 4]>; 8];
+
 /// All possible message types that can be sent via Hive IPC
 #[derive(Debug, Serialize, Deserialize)]
 pub enum IpcMessage {
@@ -28,11 +31,28 @@ pub enum IpcMessage {
     Empty,
 }
 
-pub type HiveProbeData = [Option<ProbeInfo>; 4];
-pub type HiveTargetData = [Option<[TargetState; 4]>; 8];
+impl IpcMessage {
+    /// Tries to parse an [`IpcMessage`] from the provided HTTP response
+    pub async fn from_response(res: Response<Body>) -> Result<Self, ClientParseError> {
+        if res.headers().get(header::CONTENT_TYPE).is_some() {
+            if res.headers().get(header::CONTENT_TYPE).unwrap() != CBOR_MIME {
+                return Err(ClientParseError::InvalidHeader);
+            }
+        } else {
+            return Err(ClientParseError::InvalidHeader);
+        }
+
+        let body = hyper::body::aggregate(res)
+            .await
+            .map_err(|_| ClientParseError::InvalidBody)?;
+        let msg = from_reader(body.reader()).map_err(|_| ClientParseError::InvalidCbor)?;
+
+        Ok(msg)
+    }
+}
 
 #[derive(Debug, Error)]
-pub enum ParseError {
+pub enum ClientParseError {
     #[error(
         "Response had an invalid header configuration, check that content-type is application/cbor"
     )]
@@ -43,24 +63,4 @@ pub enum ParseError {
     InvalidCbor,
     #[error("Response contained invalid body format")]
     InvalidBody,
-}
-
-impl IpcMessage {
-    /// Tries to parse an [`IpcMessage`] from the provided HTTP response
-    pub async fn from_response(res: Response<Body>) -> Result<Self, ParseError> {
-        if res.headers().get(header::CONTENT_TYPE).is_some() {
-            if res.headers().get(header::CONTENT_TYPE).unwrap() != CBOR_MIME {
-                return Err(ParseError::InvalidHeader);
-            }
-        } else {
-            return Err(ParseError::InvalidHeader);
-        }
-
-        let body = hyper::body::aggregate(res)
-            .await
-            .map_err(|_| ParseError::InvalidBody)?;
-        let msg = from_reader(body.reader()).map_err(|_| ParseError::InvalidCbor)?;
-
-        Ok(msg)
-    }
 }

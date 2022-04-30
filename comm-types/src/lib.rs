@@ -15,3 +15,6 @@ pub mod ipc;
 
 #[cfg(feature = "results")]
 pub mod results;
+
+#[cfg(feature = "auth")]
+pub mod auth;
