@@ -20,6 +20,6 @@ const editorTheme = computed(() => {
 </script>
 
 <template>
-    <VAceEditor style="height: 300px" :options="{ fontSize: 20, readOnly: false }" v-model:value="code"
+    <VAceEditor style="height: 300px" :options="{ fontSize: 20, readOnly: false }" wrap v-model:value="code"
         :theme="editorTheme" lang="assembly_x86" />
 </template>
