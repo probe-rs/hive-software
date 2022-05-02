@@ -4,7 +4,7 @@ import App from "./App.vue";
 import router from "./router";
 import vuetify from "@/plugins/vuetify";
 import pinia from "@/plugins/pinia";
-import vueKonva from 'vue-konva';
+import vueKonva from "vue-konva";
 
 const app = createApp(App);
 

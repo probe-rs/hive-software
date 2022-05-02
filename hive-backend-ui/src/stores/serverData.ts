@@ -4,28 +4,28 @@
 import { defineStore } from "pinia";
 
 export const useServerData = defineStore("serverData", {
-    state: () => ({
-        targetData: [
-            [
-                {
-                    Known: {
-                        name: 'stm32f000',
-                        architecture: null,
-                        memory_address: null,
-                        status: [Object]
-                    }
-                },
-                'NotConnected',
-                'NotConnected',
-                'Unknown'
-            ],
-            [],
-            [],
-            [],
-            null,
-            [],
-            null,
-            null
-        ],
-    }),
+  state: () => ({
+    targetData: [
+      [
+        {
+          Known: {
+            name: "stm32f000",
+            architecture: null,
+            memory_address: null,
+            status: [Object],
+          },
+        },
+        "NotConnected",
+        "NotConnected",
+        "Unknown",
+      ],
+      [],
+      [],
+      [],
+      null,
+      [],
+      null,
+      null,
+    ],
+  }),
 });

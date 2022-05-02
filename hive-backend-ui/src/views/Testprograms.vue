@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import CodeEditor from "@/components/CodeEditor.vue"
+import CodeEditor from "@/components/CodeEditor.vue";
+import Terminal from "@/components/Terminal.vue";
 
 const items = ["Default", "Hive Standard"];
 const selectedTestprogram = ref("Default");
@@ -12,7 +13,18 @@ const selectedTestprogram = ref("Default");
 
         <v-toolbar-title>Testprogram</v-toolbar-title>
 
-        <v-spacer></v-spacer>
+        <template v-slot:extension>
+            <v-tabs color="secondary">
+                <v-tab>
+                    ARM
+                </v-tab>
+                <v-tab>
+                    RISCV
+                </v-tab>
+            </v-tabs>
+        </template>
+
+        <v-spacer />
 
         <v-btn>
             {{ selectedTestprogram }}
@@ -31,20 +43,28 @@ const selectedTestprogram = ref("Default");
     </v-toolbar>
 
     <v-row class="pt-4">
-        <v-col>
+        <v-col style="height: 55vh;">
             <CodeEditor />
         </v-col>
     </v-row>
 
     <v-row>
-        <v-col>
-            <v-file-input
-    accept=".o,.S"
-    label="Upload testprogram"
-  />
-<v-btn color="error">Delete testprogram</v-btn>
+        <v-col style="height: 30vh;" lg="8">
+            <Terminal />
+        </v-col>
+        <v-col lg="4">
+            <v-card elevation="1">
+                <v-card-title> Manage Testprogram </v-card-title>
+
+                <v-card-content>
+                    <div class="d-flex justify-space-between">
+                        <v-file-input style="max-width: 300px" density="compact" class="align-self-start" accept=".o,.S"
+                            label="Upload Testprogram" />
+
+                        <v-btn class="align-self-baseline" color="error">Delete Testprogram</v-btn>
+                    </div>
+                </v-card-content>
+            </v-card>
         </v-col>
     </v-row>
-
-
 </template>
