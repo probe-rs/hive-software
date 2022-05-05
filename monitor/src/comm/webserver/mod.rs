@@ -1,13 +1,14 @@
 //! Hive webserver
 use std::net::SocketAddr;
 
-use axum::routing;
-use axum::routing::{get, post};
+use axum::routing::{self, get, post};
 use axum::Router;
 use axum_server::tls_rustls::RustlsConfig;
 use hyper::StatusCode;
+use tower_http::auth::RequireAuthorizationLayer;
 use tower_http::services::ServeDir;
 
+mod auth;
 mod handlers;
 
 const STATIC_FILES: &str = "data/webserver/static/";
@@ -26,6 +27,11 @@ pub(super) async fn web_server() {
 
 /// Builds the webserver with all endpoints
 fn app() -> Router {
+    let ws_routes = Router::new().route(
+        "/backend",
+        get(handlers::backend_ws_handler).layer(RequireAuthorizationLayer::custom(auth::HiveAuth)),
+    );
+
     Router::new()
     // Static fileserver used to host the hive-backend-ui Vue app
     .route(
@@ -40,7 +46,7 @@ fn app() -> Router {
         ),
     )
     // Auth handler to get tokens for websocket connection establishment
-    .route("/auth/", post(handlers::auth_handler))
+    .route("/auth", post(auth::ws_auth_handler))
     // Websocket handler for backend UI
-    .route("/ws/backend/", get(handlers::backend_ws_handler))
+    .nest("/ws", ws_routes)
 }

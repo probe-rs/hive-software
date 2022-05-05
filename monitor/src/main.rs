@@ -33,7 +33,7 @@ lazy_static! {
 }
 
 fn main() {
-    Logger::init_with_level(Level::Info);
+    Logger::init_with_level(Level::Trace);
 
     init::initialize_statics();
 
