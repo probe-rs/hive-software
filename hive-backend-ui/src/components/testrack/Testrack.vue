@@ -1,33 +1,40 @@
 <script setup lang="ts">
 import { ref, onBeforeMount, onUnmounted, onMounted } from "vue";
 import konva from "konva";
-import { computed } from "@vue/reactivity";
+import {
+  computed,
+  reactive,
+  type ComputedRef,
+  type Ref,
+} from "@vue/reactivity";
 import { useServerData } from "@/stores/serverData";
+import RackPartComponent from "./RackPart.vue";
+import {
+  paddingHorizontal,
+  rackXpos,
+  rackYpos,
+  referenceStageWidth,
+  stageAspectRatio,
+} from "./constants";
 
-const referenceStageWidth = 1750; // Reference width based on which all canvas objects are scaled
-const paddingHorizontal = 12; // Standard Horizontal padding of v-col in px for stageWidth calculations
-const stageAspectRatio = 3; // Stage Aspect ratio of height : width (1:x)
-const defaultRackScale = 0.5; // Default scale of all rack components
-const hoverRackScale = 0.55; // Scale of rack component if hovered
-const rackXpos = 570; // X pos of first rack component
-const rackYpos = 160; // Y pos of first rack component (and all consecutive components)
+enum PartType {
+  RPI,
+  PSS,
+  TSS,
+}
+
+type RackPart = {
+  type: PartType;
+  // Location in the overall rack, including RPI and PSS
+  location: number;
+  // Index in TSS stack (Only used if type is TSS)
+  index: number;
+};
 
 const serverData = useServerData();
 const stageWidth = ref(1000);
 const stageHeight = ref(250);
 const stageScale = ref(1);
-const rpiScale = ref(defaultRackScale);
-const pssScale = ref(defaultRackScale);
-const tssScales = ref([
-  defaultRackScale,
-  defaultRackScale,
-  defaultRackScale,
-  defaultRackScale,
-  defaultRackScale,
-  defaultRackScale,
-  defaultRackScale,
-  defaultRackScale,
-]);
 const selectedComponent = ref(undefined);
 
 // Dynamically loaded images
@@ -37,26 +44,10 @@ const hiveTargetStackShieldImage = ref<HTMLImageElement>();
 const hiveTargetStackShieldImageDaughterboardSpacer = ref<HTMLImageElement>();
 const hiveTargetStackShieldImageDaughterboard = ref<HTMLImageElement>();
 const hiveTargetStackShieldImageSpacer = ref<HTMLImageElement>();
-const hiveDaughterboardImage = ref<HTMLImageElement>();
-const hiveSpacerImage = ref<HTMLImageElement>();
 
 // Konva stage
 const konvaStage = ref(null);
 const stage = ref(null);
-
-// Dummy placeholder data
-const hive = {
-  tss: [
-    { hasDaughterboard: true },
-    { hasDaughterboard: false },
-    { hasDaughterboard: false },
-    { hasDaughterboard: true },
-    { hasDaughterboard: false },
-    { hasDaughterboard: false },
-    { hasDaughterboard: true },
-    { hasDaughterboard: true },
-  ],
-};
 
 onBeforeMount(() => {
   window.addEventListener("resize", updateStageSize);
@@ -125,6 +116,7 @@ onUnmounted(() => {
 
 function tssConfig(
   idx: number,
+  location: number,
   data:
     | (
         | string
@@ -161,10 +153,6 @@ function tssConfig(
     image: img,
     x: rackXpos + 247 + idx * 114,
     y: yVal,
-    scale: {
-      x: tssScales.value[idx],
-      y: tssScales.value[idx],
-    },
   };
 }
 
@@ -176,33 +164,48 @@ const stageConfig = computed(() => {
       x: stageScale.value,
       y: stageScale.value,
     },
-    //container: "konvaStage",
   };
 });
 
-const rpiConfig = computed(() => {
+function rpiConfig(location: number) {
   return {
     image: hiveRpiImage.value,
     x: rackXpos,
     y: rackYpos,
-    scale: {
-      x: rpiScale.value,
-      y: rpiScale.value,
-    },
   };
-});
+}
 
-const pssConfig = computed(() => {
+function pssConfig(location: number) {
   return {
     image: hiveProbeStackShieldImage.value,
     x: rackXpos + 133,
     y: rackYpos,
-    scale: {
-      x: pssScale.value,
-      y: pssScale.value,
-    },
   };
-});
+}
+
+function getConfig(type: PartType, index: number, location: number) {
+  switch (type) {
+    case PartType.RPI:
+      return rpiConfig(location);
+    case PartType.PSS:
+      return pssConfig(location);
+    case PartType.TSS:
+      return tssConfig(index, location, serverData.targetData[index]);
+  }
+}
+
+const rackParts: RackPart[] = reactive([
+  { type: PartType.RPI, location: 0, index: 0 },
+  { type: PartType.PSS, location: 1, index: 0 },
+  { type: PartType.TSS, location: 2, index: 0 },
+  { type: PartType.TSS, location: 3, index: 1 },
+  { type: PartType.TSS, location: 4, index: 2 },
+  { type: PartType.TSS, location: 5, index: 3 },
+  { type: PartType.TSS, location: 6, index: 4 },
+  { type: PartType.TSS, location: 7, index: 5 },
+  { type: PartType.TSS, location: 8, index: 6 },
+  { type: PartType.TSS, location: 9, index: 7 },
+]);
 </script>
 
 <template>
@@ -214,27 +217,10 @@ const pssConfig = computed(() => {
   >
     <v-stage :config="stageConfig" ref="stage">
       <v-layer ref="layer">
-        <v-image
-          ref="rpi"
-          :config="rpiConfig"
-          @mouseenter="rpiScale = hoverRackScale"
-          @mouseleave="rpiScale = defaultRackScale"
-        />
-
-        <v-image
-          ref="pss"
-          :config="pssConfig"
-          @mouseenter="pssScale = hoverRackScale"
-          @mouseleave="pssScale = defaultRackScale"
-        />
-
-        <v-image
-          v-for="(data, idx) in serverData.targetData"
-          v-bind:key="idx"
-          :ref="'tss' + idx"
-          :config="tssConfig(idx, data)"
-          @mouseenter="tssScales[idx] = hoverRackScale"
-          @mouseleave="tssScales[idx] = defaultRackScale"
+        <RackPartComponent
+          v-for="part in rackParts"
+          :type="part.type"
+          :config="getConfig(part.type, part.index, part.location)"
         />
       </v-layer>
     </v-stage>

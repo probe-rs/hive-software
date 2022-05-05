@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Testrack from "@/components/Testrack.vue";
+import Testrack from "@/components/testrack/Testrack.vue";
 import TargetOverview from "@/components/TargetOverview.vue";
 </script>
 

@@ -27,5 +27,13 @@ export const useServerData = defineStore("serverData", {
       null,
       null,
     ],
+    availableTss: [true, true, true, true, true, false, false, false],
   }),
+  getters: {
+    getConnectedShields: (state) => {
+      state.targetData.filter((_, idx) => {
+        return state.availableTss[idx];
+      });
+    },
+  },
 });

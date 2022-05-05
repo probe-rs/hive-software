@@ -3,6 +3,8 @@ import { ref, onMounted, onBeforeMount, onUnmounted } from "vue";
 import { Terminal } from "xterm";
 import "xterm/css/xterm.css";
 import { FitAddon } from "xterm-addon-fit";
+// @ts-ignore
+import * as XtermWebfont from "xterm-webfont";
 
 const terminalParent = ref(null);
 const terminal = new Terminal({
@@ -16,14 +18,16 @@ const terminal = new Terminal({
 });
 const terminalFit = new FitAddon();
 terminal.loadAddon(terminalFit);
+terminal.loadAddon(new XtermWebfont());
 terminal.writeln("Assembler & Linker output:");
 
 onBeforeMount(() => {
   window.addEventListener("resize", updateTerminalSize);
 });
 
-onMounted(() => {
-  terminal.open(terminalParent.value!);
+onMounted(async () => {
+  // @ts-ignore
+  await terminal.loadWebfontAndOpen(terminalParent.value!);
   updateTerminalSize();
 });
 
@@ -44,6 +48,7 @@ function updateTerminalSize() {
 .xterm {
   padding-left: 0.5rem;
 }
+
 .terminal {
   width: 100%;
   height: 100%;
