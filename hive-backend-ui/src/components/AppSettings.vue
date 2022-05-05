@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { AppTheme } from "@/plugins/vuetify";
 import { useAppConfig } from "@/stores/appConfig";
+import AccountSettings from "@/components/AccountSettings.vue";
 
 const appConfig = useAppConfig();
 
@@ -33,25 +34,7 @@ const accountDialog = ref(false);
         max-width="800px"
         transition="dialog-top-transition"
       >
-        <v-card>
-          <v-card-title class="text-h5 grey lighten-2">
-            Account Settings
-          </v-card-title>
-
-          <v-card-text>
-            Test
-            <!--<Account />-->
-          </v-card-text>
-
-          <v-divider></v-divider>
-
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="primary" text @click="accountDialog = false">
-              Save and Exit
-            </v-btn>
-          </v-card-actions>
-        </v-card>
+        <account-settings @closeEvent="accountDialog = false" />
       </v-dialog>
     </v-list-item>
     <v-list-item key="Theme" @click="appConfig.toggleTheme">

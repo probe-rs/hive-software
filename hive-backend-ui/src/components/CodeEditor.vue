@@ -12,15 +12,24 @@ import { AppTheme } from "@/plugins/vuetify";
 const code = ref(JSON.stringify({ text: "some code ....", to: false }));
 const appConfig = useAppConfig();
 const editorTheme = computed(() => {
-    if (appConfig.theme === AppTheme.Light) {
-        return "kuroir";
-    }
-    return "dracula";
+  if (appConfig.theme === AppTheme.Light) {
+    return "kuroir";
+  }
+  return "dracula";
 });
 </script>
 
 <template>
-    <VAceEditor style="height: 100%" :options="{
-        fontSize: 20, fontFamily: 'Ubuntu Mono', readOnly: false
-    }" wrap v-model:value="code" :theme="editorTheme" lang="assembly_x86" />
+  <VAceEditor
+    style="height: 100%"
+    :options="{
+      fontSize: 20,
+      fontFamily: 'Ubuntu Mono',
+      readOnly: false,
+    }"
+    wrap
+    v-model:value="code"
+    :theme="editorTheme"
+    lang="assembly_x86"
+  />
 </template>
