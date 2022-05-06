@@ -5,6 +5,7 @@
 //!
 //! As various targets have different flash and ram address spaces the final linking is done by the monitor depending on which targets are currently attached to the Hive Testrack.
 //! The final binaries are then flashed onto the connected targets by the monitor before each test run.
+use std::error::Error;
 use std::sync::mpsc;
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
@@ -15,6 +16,8 @@ use comm_types::hardware::{Architecture, TargetInfo, TargetState};
 use controller::common::CombinedTestChannel;
 use probe_rs::flashing::Format;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions};
+use probe_rs::DebugProbeInfo;
+use probe_rs::Session;
 use testprogram::TestProgram;
 
 use crate::database::{keys, CborDb};
@@ -129,7 +132,7 @@ pub(crate) fn flash_testbinaries() {
 
     // Update tss targets with the flash results
     for tss in TSS.iter() {
-        let tss = tss.lock().unwrap();
+        let mut tss = tss.lock().unwrap();
 
         if tss.get_targets().is_none() {
             // No daughterboard attached
@@ -151,7 +154,7 @@ pub(crate) fn flash_testbinaries() {
                     .count()
                     == 0
                 {
-                    // Target is not included in the flash_results
+                    // Target is not included in the flash_results due to previous init errors
                     continue;
                 }
 
@@ -172,6 +175,11 @@ pub(crate) fn flash_testbinaries() {
                 }
             }
         }
+
+        if targets.is_some() {
+            // save updated targets back to tss
+            tss.set_targets(targets.unwrap());
+        }
     }
 
     log::info!(
@@ -185,7 +193,7 @@ pub(crate) fn flash_testbinaries() {
 /// # Panics
 /// If the provided [`TargetInfo`] struct fields `architecture` and/or `memory_address` are not initialized
 fn flash_target(
-    test_channel: &mut CombinedTestChannel,
+    testchannel: &mut CombinedTestChannel,
     target_info: &TargetInfo,
     tss_pos: u8,
     result_sender: &SyncSender<FlashStatus>,
@@ -193,7 +201,7 @@ fn flash_target(
     flash_results: &Arc<RwLock<Vec<FlashStatus>>>,
 ) {
     // Check if Testchannel is ready and if the target_info has been successfully initialized.
-    if !test_channel.is_ready() || target_info.status.is_err() {
+    if !testchannel.is_ready() || target_info.status.is_err() {
         return;
     }
 
@@ -213,59 +221,74 @@ fn flash_target(
     }
     drop(flash_results); // Return lock
 
-    let probe_info_lock = test_channel.get_probe_info().lock();
+    let probe_info_lock = testchannel.get_probe_info().lock();
     let probe_info = probe_info_lock.as_ref().unwrap();
 
-    match test_channel.take_probe_owned().attach(&target_info.name) {
-        Ok(mut session) => {
-            let mut download_options = DownloadOptions::default();
-            download_options.do_chip_erase = true;
+    let flash_result = retry_flash(&testchannel, target_info, probe_info, |mut session| {
+        let mut download_options = DownloadOptions::default();
+        download_options.do_chip_erase = true;
 
-            let path = match target_info.architecture.as_ref().unwrap() {
-                Architecture::ARM => {
-                    testprogram.get_elf_path_arm(&target_info.memory_address.as_ref().unwrap())
-                }
-                Architecture::RISCV => {
-                    testprogram.get_elf_path_riscv(&target_info.memory_address.as_ref().unwrap())
-                }
-            };
-
-            match download_file_with_options(
-                &mut session,
-                path,
-                Format::Elf,
-                download_options,
-            ) {
-                Ok(_) => result_sender.send(FlashStatus {
-                    tss_pos,
-                    target_name: target_info.name.clone(),
-                    result: Ok(()),
-                }).expect("Failed to send results to main thread, the receiver might have been dropped unexpectedly."),
-                Err(err) => result_sender.send(FlashStatus {
-                    tss_pos,
-                    target_name: target_info.name.clone(),
-                    result: Err(err.to_string()),
-                }).expect("Failed to send results to main thread, the receiver might have been dropped unexpectedly."),
+        let path = match target_info.architecture.as_ref().unwrap() {
+            Architecture::ARM => {
+                testprogram.get_elf_path_arm(&target_info.memory_address.as_ref().unwrap())
             }
-        }
-        Err(err) => {
-            result_sender.send(FlashStatus {
-                tss_pos,
-                target_name: target_info.name.clone(),
-                result: Err(err.to_string()),
-            }).expect("Failed to send results to main thread, the receiver might have been dropped unexpectedly.");
-        }
+            Architecture::RISCV => {
+                testprogram.get_elf_path_riscv(&target_info.memory_address.as_ref().unwrap())
+            }
+        };
+
+        download_file_with_options(&mut session, path, Format::Elf, download_options)?;
+
+        Ok(())
+    });
+
+    match flash_result {
+        Ok(_) => result_sender.send(FlashStatus {
+            tss_pos,
+            target_name: target_info.name.clone(),
+            result: Ok(()),
+        }).expect("Failed to send results to main thread, the receiver might have been dropped unexpectedly."),
+        Err(err) => result_sender.send(FlashStatus {
+            tss_pos,
+            target_name: target_info.name.clone(),
+            result: Err(err.to_string()),
+        }).expect("Failed to send results to main thread, the receiver might have been dropped unexpectedly."),
     }
 
     // reinitialize probe, and transfer ownership back to test_channel
     match probe_info.open() {
-        Ok(probe) => test_channel.return_probe(probe),
+        Ok(probe) => testchannel.return_probe(probe),
         Err(err) => {
             log::warn!(
                 "Failed to reinitialize the debug probe connected to {}: {}. Skipping the remaining flash attempts on this Testchannel.",
-                test_channel.get_channel(),
+                testchannel.get_channel(),
                 err
             )
         }
     }
+}
+
+/// Retries the provided flash function with option attach-under-reset if it fails without
+fn retry_flash<F>(
+    testchannel: &CombinedTestChannel,
+    target_info: &TargetInfo,
+    probe_info: &DebugProbeInfo,
+    flash: F,
+) -> Result<(), Box<dyn Error>>
+where
+    F: Fn(Session) -> Result<(), Box<dyn Error>>,
+{
+    let session = testchannel.take_probe_owned().attach(&target_info.name);
+
+    if session.is_ok() {
+        if flash(session.unwrap()).is_ok() {
+            return Ok(());
+        };
+    }
+
+    log::debug!("Failed to flash without reset, retrying with attach-under-reset");
+
+    let session = probe_info.open()?.attach_under_reset(&target_info.name)?;
+
+    flash(session)
 }
