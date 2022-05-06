@@ -108,9 +108,9 @@ fn link_binary_arm(testprogram: &TestProgram, arm_address: &Memory) -> Result<()
             "elf32-littlearm",
             "main.o",
             "-o",
-            &format!("main_{}_{}.elf", arm_address.nvm.start, arm_address.ram.start),
-            &format!("{}{}", "-Ttext=", arm_address.nvm.start),
-            &format!("{}{}", "-Tdata=", arm_address.ram.start),
+            &format!("main_{:#x}_{:#x}.elf", arm_address.nvm.start, arm_address.ram.start),
+            &format!("{}{:#x}", "-Ttext=", arm_address.nvm.start),
+            &format!("{}{:#x}", "-Tdata=", arm_address.ram.start),
         ])
         .current_dir(working_dir)
         .output()
@@ -150,13 +150,13 @@ fn link_binary_riscv(testprogram: &TestProgram, riscv_address: &Memory) -> Resul
         .args([
             "main.o",
             "-o",
-            &format!("main_{}_{}.elf", riscv_address.nvm.start, riscv_address.ram.start),
+            &format!("main_{:#x}_{:#x}.elf", riscv_address.nvm.start, riscv_address.ram.start),
             "-b",
             "elf32-littleriscv",
             "-Ttext",
-            &format!("{}", riscv_address.nvm.start),
+            &format!("{:#x}", riscv_address.nvm.start),
             "-Tdata",
-            &format!("{}", riscv_address.ram.start),
+            &format!("{:#x}", riscv_address.ram.start),
         ])
         .current_dir(working_dir)
         .output()

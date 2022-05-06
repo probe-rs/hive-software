@@ -13,14 +13,14 @@ pub(crate) struct TestProgram {
 impl TestProgram {
     pub(super) fn get_elf_path_arm(&self, memory_address: &Memory) -> PathBuf {
         self.path.join(format!(
-            "arm/main_{}_{}.elf",
+            "arm/main_{:#x}_{:#x}.elf",
             memory_address.nvm.start, memory_address.ram.start
         ))
     }
 
     pub(super) fn get_elf_path_riscv(&self, memory_address: &Memory) -> PathBuf {
         self.path.join(format!(
-            "riscv/main_{}_{}.elf",
+            "riscv/main_{:#x}_{:#x}.elf",
             memory_address.nvm.start, memory_address.ram.start
         ))
     }
