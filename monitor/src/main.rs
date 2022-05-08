@@ -16,7 +16,9 @@ use tokio::runtime::Builder;
 mod binaries;
 mod comm;
 mod database;
+mod flash;
 mod init;
+mod testprogram;
 
 use database::HiveDb;
 
@@ -33,7 +35,7 @@ lazy_static! {
 }
 
 fn main() {
-    Logger::init_with_level(Level::Trace);
+    Logger::init_with_level(Level::Info);
 
     init::initialize_statics();
 
@@ -42,7 +44,7 @@ fn main() {
     init::init_target_info_from_registry();
     init::init_testprograms();
 
-    binaries::flash_testbinaries();
+    flash::flash_testbinaries();
 
     // Synchronize the target data in the DB with the runtime data so that the runner receives valid data.
     database::sync::sync_tss_target_data();

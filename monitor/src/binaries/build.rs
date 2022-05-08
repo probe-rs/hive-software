@@ -4,7 +4,7 @@ use std::process::Command;
 use comm_types::hardware::Memory;
 use thiserror::Error;
 
-use super::testprogram::TestProgram;
+use crate::testprogram::TestProgram;
 
 #[derive(Debug, Error)]
 pub(super) enum BuildError {

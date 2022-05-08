@@ -8,8 +8,8 @@ use controller::common::init;
 use probe_rs::{config, Probe};
 
 use crate::binaries;
-use crate::binaries::testprogram::{TestProgram, TESTPROGRAM_PATH};
 use crate::database::{keys, CborDb};
+use crate::testprogram::{TestProgram, TESTPROGRAM_PATH};
 use crate::{DB, EXPANDERS, SHARED_I2C, TESTCHANNELS, TSS};
 
 pub(crate) fn initialize_statics() {
