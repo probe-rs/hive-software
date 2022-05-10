@@ -17,4 +17,13 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  server: {
+    proxy: {
+      "/graphql/backend": {
+        target: "https://192.168.1.85:4356",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 });

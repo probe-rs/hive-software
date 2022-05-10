@@ -1,26 +1,29 @@
 <script setup lang="ts">
 import Testrack from "@/components/testrack/Testrack.vue";
-import TargetOverview from "@/components/TargetOverview.vue";
+import TssOverview from "@/components/TssOverview.vue";
+import { ref } from "vue";
+
+const selectedPartLocation = ref(-1);
+
+function handleSelect(location: number) {
+  selectedPartLocation.value = location;
+}
 </script>
 
 <template>
   <v-row dense>
-    <Testrack />
+    <Testrack @selectedPartLocation="handleSelect" />
   </v-row>
-  <v-row>
-    <v-col cols="6">
-      <TargetOverview :target="0" :status="false" />
-    </v-col>
-    <v-col cols="6">
-      <TargetOverview :target="1" :status="true" />
-    </v-col>
-  </v-row>
-  <v-row>
-    <v-col cols="6">
-      <TargetOverview :target="2" :status="true" />
-    </v-col>
-    <v-col cols="6">
-      <TargetOverview :target="3" :status="true" />
-    </v-col>
-  </v-row>
+  <template v-if="selectedPartLocation > 1">
+    <TssOverview :tssPos="selectedPartLocation - 2" />
+  </template>
+  <template v-else-if="selectedPartLocation === 1">
+    <p>PSS selected</p>
+  </template>
+  <template v-else-if="selectedPartLocation === 0">
+    <p>RPI selected</p>
+  </template>
+  <template v-else>
+    <p>Nothing selected</p>
+  </template>
 </template>

@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import {
-  computed,
   defineProps,
   type PropType,
-  onBeforeMount,
   ref,
   onMounted,
   watch,
-  reactive,
+  toRefs,
 } from "vue";
 import type { PartType } from "./types";
 import { defaultRackScale } from "./constants";
@@ -18,7 +16,18 @@ const props = defineProps({
     type: Number as PropType<PartType>,
     required: true,
   },
-  config: Object,
+  location: {
+    type: Number,
+    required: true,
+  },
+  config: {
+    type: Object,
+    required: true,
+  },
+  isSelected: {
+    type: Boolean,
+    required: true,
+  },
 });
 
 onMounted(() => {
@@ -38,27 +47,37 @@ const part = ref(null);
 function handleMouseEnter() {
   (part.value! as any).getNode().getStage().container().style.cursor =
     "pointer";
-  (part.value! as any).getNode().enterTween.play();
+
+  if (!props.isSelected) {
+    (part.value! as any).getNode().enterTween.play();
+  }
 }
 
 function handleMouseLeave() {
   (part.value! as any).getNode().getStage().container().style.cursor =
     "default";
-  (part.value! as any).getNode().enterTween.reverse();
+
+  if (!props.isSelected) {
+    (part.value! as any).getNode().enterTween.reverse();
+  }
 }
+
+watch(() => props.isSelected, (isSelected) => {
+  if (isSelected) {
+    (part.value! as any).getNode().enterTween.play();
+  } else {
+    (part.value! as any).getNode().enterTween.reverse();
+  }
+})
 </script>
 
 <template>
-  <v-image
-    @mouseenter="handleMouseEnter"
-    @mouseleave="handleMouseLeave"
-    ref="part"
-    :config="{
+  <v-image @click="$emit('mouseClick', props.location)" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave"
+    ref="part" :config="{
       ...props.config,
       scale: {
         x: scale,
         y: scale,
       },
-    }"
-  />
+    }" />
 </template>

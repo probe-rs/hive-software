@@ -2,28 +2,21 @@
 /// Will later be used by the websocket connection to automatically
 /// update the state of the app on data change
 import { defineStore } from "pinia";
+import { apolloClient } from "@/plugins/apollo";
+import gql from "graphql-tag";
+import { provideApolloClient } from "@vue/apollo-composable";
+
+provideApolloClient(apolloClient);
 
 export const useServerData = defineStore("serverData", {
   state: () => ({
     targetData: [
-      [
-        {
-          Known: {
-            name: "stm32f000",
-            architecture: null,
-            memory_address: null,
-            status: [Object],
-          },
-        },
-        "NotConnected",
-        "NotConnected",
-        "Unknown",
-      ],
-      [],
-      [],
-      [],
       null,
-      [],
+      null,
+      null,
+      null,
+      null,
+      null,
       null,
       null,
     ],
@@ -34,6 +27,24 @@ export const useServerData = defineStore("serverData", {
       state.targetData.filter((_, idx) => {
         return state.availableTss[idx];
       });
+    },
+  },
+  actions: {
+    async initStore() {
+      const serverData = await apolloClient.query({
+        query: gql`
+          query {
+            targetData {
+              state
+              data {
+                name
+              }
+            }
+          }
+        `,
+      });
+
+      this.targetData = serverData.data.targetData;
     },
   },
 });

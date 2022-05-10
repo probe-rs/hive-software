@@ -1,21 +1,39 @@
 <script setup lang="ts">
-import { ref, defineProps } from "vue";
+import { ref, defineProps, watch } from "vue";
+import { useQuery } from '@vue/apollo-composable'
+import { gql } from "@apollo/client/core";
+import { computed } from "@vue/reactivity";
 
 const props = defineProps({
-  target: Number,
+  target: {
+    type: Number,
+    required: true,
+  },
   status: Boolean,
+  tssPos: {
+    type: Number,
+    required: true,
+  },
 });
 
-const targetRegistry = ["STM32", "nRF5282", "atmel", "LPC1523"];
+const search = ref("");
+const selectedChip = ref("");
 
-const loading = ref(false);
+const { result, loading } = useQuery(gql`
+    query ($search: String) {
+      searchSupportedTargets(search: $search)
+    }
+  `, { search });
 
-function setDummyLoading() {
-  loading.value = true;
-  setTimeout(() => {
-    loading.value = false;
-  }, 2000);
-}
+const foundChips = computed(() => {
+  if (result.value) {
+    const array = result.value.searchSupportedTargets.map((x: String) => x);
+    array.push("Unknown", "Not Connected")
+    return array;
+  }
+  return ["Unknown", "Not Connected"];
+})
+
 </script>
 
 <template>
@@ -32,38 +50,16 @@ function setDummyLoading() {
     </v-card-subtitle>
 
     <v-card-subtitle v-show="props.status">
-      <v-icon
-        icon="mdi-checkbox-marked"
-        size="18"
-        color="success"
-        class="mr-1 pb-1"
-      />
+      <v-icon icon="mdi-checkbox-marked" size="18" color="success" class="mr-1 pb-1" />
 
       No problems found
     </v-card-subtitle>
 
     <v-card-text class="pb-0">
-      <v-autocomplete
-        :items="targetRegistry"
-        dense
-        label="Chip model"
-        hint="Please select the appropriate chip"
-        persistent-hint
-        no-data-text="No matching models found"
-      ></v-autocomplete>
+      <v-autocomplete v-model:search="search" v-model="selectedChip" :loading="loading" :items="foundChips" dense
+        label="Chip model" hint="Please select the appropriate chip" persistent-hint
+        no-data-text="No matching models found">
+      </v-autocomplete>
     </v-card-text>
-
-    <v-card-actions>
-      <v-btn color="warning" @click="setDummyLoading">Update</v-btn>
-    </v-card-actions>
-
-    <v-overlay
-      v-model="loading"
-      persistent
-      contained
-      class="align-center justify-center"
-    >
-      <v-progress-circular color="secondary" size="80" indeterminate />
-    </v-overlay>
   </v-card>
 </template>

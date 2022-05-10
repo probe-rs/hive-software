@@ -12,8 +12,13 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false"
   },
   "dependencies": {
+    "@apollo/client": "^3.6.2",
     "@mdi/font": "5.9.55",
+    "@vue/apollo-composable": "^4.0.0-alpha.17",
+    "@vue/apollo-util": "^4.0.0-alpha.17",
     "@vuetify/vite-plugin": "^1.0.0-alpha.10",
+    "graphql": "^16.4.0",
+    "graphql-tag": "^2.12.6",
     "konva": "^8.3.5",
     "pinia": "^2.0.13",
     "pinia-plugin-persistedstate": "^1.5.1",

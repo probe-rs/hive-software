@@ -16,6 +16,7 @@ import {
   referenceStageWidth,
   stageAspectRatio,
 } from "./constants";
+import { storeToRefs } from "pinia";
 
 enum PartType {
   RPI,
@@ -29,9 +30,17 @@ type RackPart = {
   location: number;
   // Index in TSS stack (Only used if type is TSS)
   index: number;
+  // Wheter or not the part is currently selected by the user
+  isSelected: boolean,
 };
 
+const emit = defineEmits<{
+  (event: 'selectedPartLocation', location: number): void
+}>();
+
 const serverData = useServerData();
+const { targetData } = storeToRefs(serverData);
+
 const stageWidth = ref(1000);
 const stageHeight = ref(250);
 const stageScale = ref(1);
@@ -117,24 +126,13 @@ onUnmounted(() => {
 function tssConfig(
   idx: number,
   location: number,
-  data:
-    | (
-        | string
-        | {
-            Known: {
-              name: string;
-              architecture: null;
-              memory_address: null;
-              status: ObjectConstructor[];
-            };
-          }
-      )[]
-    | null,
+  data: null | { state: String, data: { name: String } },
 ) {
+
   var img = undefined;
   var yVal = rackYpos - 71;
 
-  if (idx == serverData.targetData.length - 1) {
+  if (idx == targetData.value.length - 1) {
     if (data) {
       img = hiveTargetStackShieldImageDaughterboard.value;
       yVal = rackYpos - 141;
@@ -194,34 +192,45 @@ function getConfig(type: PartType, index: number, location: number) {
   }
 }
 
+function handlePartClick(location: number) {
+  const prevSelectedLocation = rackParts.findIndex((e) => {
+    return e.isSelected;
+  });
+
+  emit("selectedPartLocation", location);
+
+  rackParts[prevSelectedLocation] = {
+    ...rackParts[prevSelectedLocation],
+    isSelected: false,
+  }
+
+  rackParts[location] = {
+    ...rackParts[location],
+    isSelected: true,
+  }
+}
+
 const rackParts: RackPart[] = reactive([
-  { type: PartType.RPI, location: 0, index: 0 },
-  { type: PartType.PSS, location: 1, index: 0 },
-  { type: PartType.TSS, location: 2, index: 0 },
-  { type: PartType.TSS, location: 3, index: 1 },
-  { type: PartType.TSS, location: 4, index: 2 },
-  { type: PartType.TSS, location: 5, index: 3 },
-  { type: PartType.TSS, location: 6, index: 4 },
-  { type: PartType.TSS, location: 7, index: 5 },
-  { type: PartType.TSS, location: 8, index: 6 },
-  { type: PartType.TSS, location: 9, index: 7 },
+  { type: PartType.RPI, location: 0, index: 0, isSelected: false },
+  { type: PartType.PSS, location: 1, index: 0, isSelected: false },
+  { type: PartType.TSS, location: 2, index: 0, isSelected: false },
+  { type: PartType.TSS, location: 3, index: 1, isSelected: false },
+  { type: PartType.TSS, location: 4, index: 2, isSelected: false },
+  { type: PartType.TSS, location: 5, index: 3, isSelected: false },
+  { type: PartType.TSS, location: 6, index: 4, isSelected: false },
+  { type: PartType.TSS, location: 7, index: 5, isSelected: false },
+  { type: PartType.TSS, location: 8, index: 6, isSelected: false },
+  { type: PartType.TSS, location: 9, index: 7, isSelected: false },
 ]);
 </script>
 
 <template>
-  <v-col
-    id="konvaStage"
-    ref="konvaStage"
-    style="border-radius: 8px"
-    cols="lg-10"
-  >
+  <v-col id="konvaStage" ref="konvaStage" style="border-radius: 8px" cols="lg-10">
     <v-stage :config="stageConfig" ref="stage">
       <v-layer ref="layer">
-        <RackPartComponent
-          v-for="part in rackParts"
-          :type="part.type"
-          :config="getConfig(part.type, part.index, part.location)"
-        />
+        <RackPartComponent v-for="part in rackParts" :type="part.type"
+          :config="getConfig(part.type, part.index, part.location)" :location="part.location"
+          :isSelected="part.isSelected" @mouseClick="handlePartClick" />
       </v-layer>
     </v-stage>
   </v-col>
