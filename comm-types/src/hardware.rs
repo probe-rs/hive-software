@@ -1,6 +1,7 @@
 //! Contains all Hive hardware shared types
 use std::ops::Range;
 
+use async_graphql::SimpleObject;
 use serde::{Deserialize, Serialize};
 
 /// Holds all information on a testrack instance which needs to be accessible to multiple applications
@@ -20,11 +21,14 @@ pub enum TargetState {
     NotConnected,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SimpleObject)]
 pub struct TargetInfo {
     pub name: String,
+    #[graphql(skip)]
     pub architecture: Option<Architecture>,
+    #[graphql(skip)]
     pub memory_address: Option<Memory>,
+    #[graphql(skip)]
     pub status: Result<(), String>,
 }
 

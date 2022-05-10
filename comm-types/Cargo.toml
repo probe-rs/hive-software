@@ -20,6 +20,7 @@ ciborium = "0.2"
 http = "0.2"
 axum = "0.5"
 hyper = "0.14"
+async-graphql = "3.0"
 thiserror = "1.0"
 
 [dev-dependencies]
