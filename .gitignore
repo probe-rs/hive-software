@@ -1,3 +1,4 @@
 /target
 /probe-rs-testcandidate
+/ws-manager
 deploy.sh

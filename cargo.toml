@@ -2,4 +2,11 @@
 
 members = [
 	"ll-api",
+	"comm-types",
+	"controller",
+	"hive-backend-ui",
+	"hive-macro",
+	"hive-test",
+	"monitor",
+	"runner"
 ]
