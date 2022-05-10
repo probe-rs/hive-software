@@ -15,9 +15,12 @@ log = "0.4"
 tokio = {version  = "1.17", features = ["rt", "sync", "fs"]}
 axum = {version = "0.5", features = ["ws"]}
 axum-server = { version = "0.4", features = ["tls-rustls"] }
+axum-macros = "0.2"
 hyper = "0.14"
 tower-http = {version = "0.3", features = ["fs", "auth"]}
 http-body = "0.4"
+async-graphql = {version = "3.0"}
+async-graphql-axum = "3.0"
 futures = "0.3"
 ciborium = "0.2"
 lazy_static = "1.4"

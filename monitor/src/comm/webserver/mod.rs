@@ -2,13 +2,14 @@
 use std::net::SocketAddr;
 
 use axum::routing::{self, get, post};
-use axum::Router;
+use axum::{Extension, Router};
 use axum_server::tls_rustls::RustlsConfig;
 use hyper::StatusCode;
 use tower_http::auth::RequireAuthorizationLayer;
 use tower_http::services::ServeDir;
 
 mod auth;
+mod backend;
 mod handlers;
 
 const STATIC_FILES: &str = "data/webserver/static/";
@@ -32,21 +33,24 @@ fn app() -> Router {
         get(handlers::backend_ws_handler).layer(RequireAuthorizationLayer::custom(auth::HiveAuth)),
     );
 
+    let graphql_routes = Router::new()
+        .route("/backend", post(handlers::graphql_backend))
+        .layer(Extension(backend::build_schema()));
+    println!("{}", backend::build_schema().sdl());
+
     Router::new()
     // Static fileserver used to host the hive-backend-ui Vue app
-    .route(
-        "/",
-        routing::get_service(ServeDir::new(STATIC_FILES)).handle_error(
-            |error: std::io::Error| async move {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to fetch static files, this is likely due to a bug in the software or wrong software setup: {}", error),
-                )
-            },
-        ),
-    )
+    .fallback(routing::get_service(ServeDir::new(STATIC_FILES)).handle_error(
+        |error: std::io::Error| async move {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to fetch static files, this is likely due to a bug in the software or wrong software setup: {}", error),
+            )
+        },
+    ))
     // Auth handler to get tokens for websocket connection establishment
     .route("/auth", post(auth::ws_auth_handler))
     // Websocket handler for backend UI
     .nest("/ws", ws_routes)
+    .nest("/graphql", graphql_routes)
 }
