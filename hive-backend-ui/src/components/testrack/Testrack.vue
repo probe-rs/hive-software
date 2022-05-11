@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onBeforeMount, onUnmounted, onMounted } from "vue";
+import { ref, onBeforeMount, onUnmounted, onMounted, watch } from "vue";
 import konva from "konva";
 import {
   computed,
@@ -28,8 +28,6 @@ type RackPart = {
   type: PartType;
   // Location in the overall rack, including RPI and PSS
   location: number;
-  // Index in TSS stack (Only used if type is TSS)
-  index: number;
   // Wheter or not the part is currently selected by the user
   isSelected: boolean,
 };
@@ -124,10 +122,11 @@ onUnmounted(() => {
 });
 
 function tssConfig(
-  idx: number,
   location: number,
   data: null | { state: String, data: { name: String } },
 ) {
+
+  const idx = location - 2;
 
   var img = undefined;
   var yVal = rackYpos - 71;
@@ -165,7 +164,7 @@ const stageConfig = computed(() => {
   };
 });
 
-function rpiConfig(location: number) {
+function rpiConfig() {
   return {
     image: hiveRpiImage.value,
     x: rackXpos,
@@ -173,7 +172,7 @@ function rpiConfig(location: number) {
   };
 }
 
-function pssConfig(location: number) {
+function pssConfig() {
   return {
     image: hiveProbeStackShieldImage.value,
     x: rackXpos + 133,
@@ -181,14 +180,14 @@ function pssConfig(location: number) {
   };
 }
 
-function getConfig(type: PartType, index: number, location: number) {
+function getConfig(type: PartType, location: number) {
   switch (type) {
     case PartType.RPI:
-      return rpiConfig(location);
+      return rpiConfig();
     case PartType.PSS:
-      return pssConfig(location);
+      return pssConfig();
     case PartType.TSS:
-      return tssConfig(index, location, serverData.targetData[index]);
+      return tssConfig(location, targetData.value[location - 2]);
   }
 }
 
@@ -196,6 +195,17 @@ function handlePartClick(location: number) {
   const prevSelectedLocation = rackParts.findIndex((e) => {
     return e.isSelected;
   });
+
+  if(prevSelectedLocation === location){
+    location = -1
+    emit("selectedPartLocation", location);
+
+    rackParts[prevSelectedLocation] = {
+    ...rackParts[prevSelectedLocation],
+    isSelected: false,
+     }
+    return;
+  }
 
   emit("selectedPartLocation", location);
 
@@ -211,16 +221,16 @@ function handlePartClick(location: number) {
 }
 
 const rackParts: RackPart[] = reactive([
-  { type: PartType.RPI, location: 0, index: 0, isSelected: false },
-  { type: PartType.PSS, location: 1, index: 0, isSelected: false },
-  { type: PartType.TSS, location: 2, index: 0, isSelected: false },
-  { type: PartType.TSS, location: 3, index: 1, isSelected: false },
-  { type: PartType.TSS, location: 4, index: 2, isSelected: false },
-  { type: PartType.TSS, location: 5, index: 3, isSelected: false },
-  { type: PartType.TSS, location: 6, index: 4, isSelected: false },
-  { type: PartType.TSS, location: 7, index: 5, isSelected: false },
-  { type: PartType.TSS, location: 8, index: 6, isSelected: false },
-  { type: PartType.TSS, location: 9, index: 7, isSelected: false },
+  { type: PartType.RPI, location: 0, isSelected: false },
+  { type: PartType.PSS, location: 1, isSelected: false },
+  { type: PartType.TSS, location: 2, isSelected: false },
+  { type: PartType.TSS, location: 3, isSelected: false },
+  { type: PartType.TSS, location: 4, isSelected: false },
+  { type: PartType.TSS, location: 5, isSelected: false },
+  { type: PartType.TSS, location: 6, isSelected: false },
+  { type: PartType.TSS, location: 7, isSelected: false },
+  { type: PartType.TSS, location: 8, isSelected: false },
+  { type: PartType.TSS, location: 9, isSelected: false },
 ]);
 </script>
 
@@ -229,7 +239,7 @@ const rackParts: RackPart[] = reactive([
     <v-stage :config="stageConfig" ref="stage">
       <v-layer ref="layer">
         <RackPartComponent v-for="part in rackParts" :type="part.type"
-          :config="getConfig(part.type, part.index, part.location)" :location="part.location"
+          :config="getConfig(part.type, part.location)" :location="part.location"
           :isSelected="part.isSelected" @mouseClick="handlePartClick" />
       </v-layer>
     </v-stage>

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {
-  defineProps,
   type PropType,
   ref,
   onMounted,
   watch,
   toRefs,
+computed,
 } from "vue";
 import type { PartType } from "./types";
 import { defaultRackScale } from "./constants";
@@ -30,16 +30,26 @@ const props = defineProps({
   },
 });
 
+watch(() => props.config, (newConfig, oldConfig) => {
+  //if(oldConfig.y !== newConfig.y){
+    setTween(newConfig.y);
+  //}
+})
+
 onMounted(() => {
+  setTween(props.config.y);
+});
+
+function setTween(y: number){
   const node = (part.value! as any).getNode();
 
   node.enterTween = new Konva.Tween({
     node: node,
-    y: node.absolutePosition().y - 20,
+    y: y - 20,
     duration: 0.2,
     easing: Konva.Easings.EaseOut,
   });
-});
+}
 
 const scale = ref(defaultRackScale);
 const part = ref(null);
