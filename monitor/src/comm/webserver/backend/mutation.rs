@@ -21,14 +21,10 @@ impl BackendMutation {
     /// Assigns a target to a given position. This does only update the data in the DB. To apply the changes into the runtime use the update mutation to reinitialize the testrack
     async fn assign_target(
         &self,
-        tss_pos: usize,
-        target_pos: usize,
+        #[graphql(validator(maximum = 7))] tss_pos: usize,
+        #[graphql(validator(maximum = 3))] target_pos: usize,
         target_name: String,
     ) -> GraphQlResult<AssignTargetResponse> {
-        if tss_pos > 7 || target_pos > 3 {
-            return Err(anyhow!("Invalid tss or target position provided."))?;
-        }
-
         let mut assigned = DB
             .config_tree
             .c_get::<HiveTargetData>(keys::config::ASSIGNED_TARGETS)
@@ -56,13 +52,9 @@ impl BackendMutation {
 
     async fn assign_probe(
         &self,
-        probe_pos: usize,
+        #[graphql(validator(maximum = 3))] probe_pos: usize,
         probe_state: FlatProbeState,
     ) -> GraphQlResult<AssignProbeResponse> {
-        if probe_pos > 3 {
-            return Err(anyhow!("Invalid probe position provided."))?;
-        }
-
         let mut assigned = DB
             .config_tree
             .c_get::<HiveProbeData>(keys::config::ASSIGNED_PROBES)
