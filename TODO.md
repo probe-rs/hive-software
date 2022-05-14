@@ -10,4 +10,4 @@
 - [ ] Check JWT-SECRET env variable strength to enforce strong secrets
 - [ ] ~~Websocket pass auth jwt as query param instead of auth header, as browser ws libs usually don't support setting such headers. Caching is not really a concern as the token is very short lived, it needs to be determined whether axum logs urls with params to avoid logging jwt's in query params~~
 - [ ] ~~Websocket verify origin, autoclose socket after certain duration~~
-- [ ] Add auth to backend graphql server
+- [X] Add auth to backend graphql server
