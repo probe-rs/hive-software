@@ -1,12 +1,13 @@
 //! Handles all initialization required to start testing
 use std::fs;
 use std::path::Path;
+use std::process;
 
-use comm_types::hardware::{Architecture, ProbeInfo, ProbeState, TargetInfo, TargetState};
-use comm_types::ipc::{HiveProbeData, HiveTargetData};
+use comm_types::auth::DbUser;
+use comm_types::hardware::{Architecture, TargetState};
 use controller::common::init;
 use controller::common::TargetStackShield;
-use probe_rs::{config, Probe};
+use probe_rs::config;
 
 use crate::binaries;
 use crate::database::{keys, CborDb};
@@ -19,6 +20,25 @@ pub(crate) fn initialize_statics() {
     lazy_static::initialize(&EXPANDERS);
     lazy_static::initialize(&TSS);
     lazy_static::initialize(&TESTCHANNELS);
+}
+
+/// Checks if there is at least one user registered in the database, otherwise exit the process, as the application has to be run in init-mode first to register a user.
+///
+/// If no user is found this function exits the process and prompts the user to restart the program in init-mode
+pub(crate) fn check_uninit() {
+    let users = DB
+        .credentials_tree
+        .c_get::<Vec<DbUser>>(keys::credentials::USERS)
+        .unwrap();
+
+    if users.is_some() {
+        if !users.unwrap().is_empty() {
+            return;
+        }
+    }
+
+    println!("Failed to find a user in the DB. Please register the first user by running the program in init-mode: 'monitor init'");
+    process::exit(1);
 }
 
 /// Detect all connected TSS and update DB data

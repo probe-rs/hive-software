@@ -1,5 +1,4 @@
 use std::sync::Mutex;
-use std::thread;
 
 use clap::{ArgEnum, Parser};
 use controller::common::{
@@ -12,7 +11,6 @@ use log::Level;
 use rppal::i2c::I2c;
 use shared_bus::BusManager;
 use simple_clap_logger::Logger;
-use tokio::runtime::Builder;
 
 mod binaries;
 mod comm;
@@ -36,6 +34,7 @@ lazy_static! {
     static ref DB: HiveDb = HiveDb::open();
 }
 
+/// The different modes the monitor can be run in. For more information please take a look at the [`mode`] module.
 #[derive(Clone, Debug, ArgEnum)]
 enum ApplicationMode {
     Init,
@@ -64,34 +63,6 @@ fn main() {
         ApplicationMode::ClusterSlave => todo!(),
         ApplicationMode::ClusterMaster => todo!(),
     }
-
-    init::initialize_statics();
-
-    init::init_tss();
-    init::init_hardware_from_db_data().expect("TODO, stop initialization and enter 'NOT READY' state which should tell the user to provide the initialization in the backend UI");
-    init::init_target_info_from_registry();
-    init::init_testprograms();
-
-    flash::flash_testbinaries();
-
-    // Synchronize the target data in the DB with the runtime data so that the runner receives valid data.
-    database::sync::sync_tss_target_data();
-
-    let rt = Builder::new_current_thread()
-        .enable_io()
-        .enable_time()
-        .build()
-        .unwrap();
-    let comm_tread = thread::spawn(move || {
-        rt.block_on(async {
-            comm::serve().await;
-        });
-    });
-
-    dummy_unlock_probes();
-    log::info!("Dropped the debug probes... runner can now be started.");
-
-    comm_tread.join().unwrap();
 }
 
 /// Gets the log level of the application to the provided verbosity flag. If no flag was provided the default [`Level::Error`] is used.
