@@ -34,9 +34,18 @@ fn app() -> Router {
     );
 
     let graphql_routes = Router::new()
-        .route("/backend", post(handlers::graphql_backend))
+        .route(
+            "/backend",
+            post(handlers::graphql_backend)
+                .layer(RequireAuthorizationLayer::custom(auth::HiveAuth)),
+        )
         .layer(Extension(backend::build_schema()));
     println!("{}", backend::build_schema().sdl());
+
+    let auth_routes = Router::new()
+        .route("/backend", post(handlers::graphql_backend_auth))
+        .route("/ws", post(auth::ws_auth_handler))
+        .layer(Extension(backend::auth::build_schema()));
 
     Router::new()
     // Static fileserver used to host the hive-backend-ui Vue app
@@ -48,8 +57,8 @@ fn app() -> Router {
             )
         },
     ))
-    // Auth handler to get tokens for websocket connection establishment
-    .route("/auth", post(auth::ws_auth_handler))
+    // Auth handlers
+    .nest("/auth", auth_routes)
     // Websocket handler for backend UI
     .nest("/ws", ws_routes)
     .nest("/graphql", graphql_routes)

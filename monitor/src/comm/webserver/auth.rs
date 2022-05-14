@@ -24,27 +24,10 @@ const JWT_SECRET_ENV: &str = "JWT_SECRET";
 pub(super) async fn ws_auth_handler(
     Cbor(request): Cbor<AuthRequest>,
 ) -> Result<Cbor<AuthResponse>, StatusCode> {
-    let user = check_password(request).map_err(|_| StatusCode::UNAUTHORIZED)?;
+    let user =
+        check_password(request.username, request.password).map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-    let claims = JwtClaims {
-        iss: ISSUER.to_owned(),
-        exp: (get_current_timestamp() + TOKEN_EXPIRE_TIME) as usize,
-        role: user.role,
-    };
-
-    let token = jsonwebtoken::encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(
-            env::var(JWT_SECRET_ENV)
-                .expect(&format!(
-                    "Environment variable {} is not set",
-                    JWT_SECRET_ENV
-                ))
-                .as_bytes(),
-        ),
-    )
-    .unwrap();
+    let token = generate_jwt(user, TOKEN_EXPIRE_TIME);
 
     Ok(Cbor(AuthResponse { token }))
 }
@@ -86,10 +69,34 @@ impl<B> AuthorizeRequest<B> for HiveAuth {
     }
 }
 
+/// Generates a new JWT for the provided user which expires after the provided amount in seconds
+pub(crate) fn generate_jwt(user: DbUser, expires_in_secs: u64) -> String {
+    let claims = JwtClaims {
+        iss: ISSUER.to_owned(),
+        exp: (get_current_timestamp() + expires_in_secs) as usize,
+        username: user.username,
+        role: user.role,
+    };
+
+    jsonwebtoken::encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(
+            env::var(JWT_SECRET_ENV)
+                .expect(&format!(
+                    "Environment variable {} is not set",
+                    JWT_SECRET_ENV
+                ))
+                .as_bytes(),
+        ),
+    )
+    .unwrap()
+}
+
 /// Re-hashes the provided password and checks it against the userdata in the DB, if the user exists.
 ///
 /// This function only returns an [`Result::Ok`] value with the authenticated user if the provided user exists and the provided password is correct.
-fn check_password(request: AuthRequest) -> Result<DbUser, ()> {
+pub(crate) fn check_password(username: String, password: String) -> Result<DbUser, ()> {
     let users: Vec<DbUser> = DB
         .credentials_tree
         .c_get(keys::credentials::USERS)
@@ -98,13 +105,13 @@ fn check_password(request: AuthRequest) -> Result<DbUser, ()> {
 
     if users
         .iter()
-        .filter(|user| user.username == request.username)
+        .filter(|user| user.username == username)
         .count()
         == 1
     {
         let user = users
             .into_iter()
-            .filter(|user| user.username == request.username)
+            .filter(|user| user.username == username)
             .next()
             .unwrap();
 
@@ -119,7 +126,7 @@ fn check_password(request: AuthRequest) -> Result<DbUser, ()> {
             }
         };
 
-        match hasher.verify_password(request.password.as_bytes(), &db_password_hash) {
+        match hasher.verify_password(password.as_bytes(), &db_password_hash) {
             Ok(_) => return Ok(user),
             Err(_) => return Err(()),
         };
@@ -199,6 +206,7 @@ mod tests {
         let claims = JwtClaims {
             iss: ISSUER.to_owned(),
             exp: (get_current_timestamp() - TOKEN_EXPIRE_TIME) as usize,
+            username: "SomeUser".to_owned(),
             role: Role::ADMIN,
         };
 
@@ -244,6 +252,7 @@ mod tests {
         let claims = JwtClaims {
             iss: ISSUER.to_owned(),
             exp: (get_current_timestamp() + TOKEN_EXPIRE_TIME) as usize,
+            username: "SomeUser".to_owned(),
             role: Role::ADMIN,
         };
 

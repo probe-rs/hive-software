@@ -5,6 +5,7 @@ use axum::extract::Extension;
 use axum::response::Response;
 use comm_types::auth::Role;
 
+use super::backend::auth::BackendAuthSchema;
 use super::backend::BackendSchema;
 
 pub(super) async fn backend_ws_handler(
@@ -57,6 +58,13 @@ async fn stream_handler(mut socket: WebSocket, role: Role) {
 
 pub(super) async fn graphql_backend(
     schema: Extension<BackendSchema>,
+    req: GraphQLRequest,
+) -> GraphQLResponse {
+    schema.execute(req.into_inner()).await.into()
+}
+
+pub(super) async fn graphql_backend_auth(
+    schema: Extension<BackendAuthSchema>,
     req: GraphQLRequest,
 ) -> GraphQLResponse {
     schema.execute(req.into_inner()).await.into()
