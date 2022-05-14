@@ -3,20 +3,20 @@ use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::Extension;
 use axum::response::Response;
-use comm_types::auth::Role;
+use comm_types::auth::JwtClaims;
 
 use super::backend::auth::BackendAuthSchema;
 use super::backend::BackendSchema;
 
 pub(super) async fn backend_ws_handler(
     ws: WebSocketUpgrade,
-    Extension(role): Extension<Role>,
+    Extension(claims): Extension<JwtClaims>,
 ) -> Response {
-    log::warn!("received ws request from role {:?}", role);
-    ws.on_upgrade(|socket| stream_handler(socket, role))
+    log::warn!("received ws request from role {:?}", claims.role);
+    ws.on_upgrade(|socket| stream_handler(socket, claims))
 }
 
-async fn stream_handler(mut socket: WebSocket, role: Role) {
+async fn stream_handler(mut socket: WebSocket, claims: JwtClaims) {
     if let Some(msg) = socket.recv().await {
         if let Ok(msg) = msg {
             match msg {
@@ -45,7 +45,7 @@ async fn stream_handler(mut socket: WebSocket, role: Role) {
 
     loop {
         if socket
-            .send(Message::Text(format!("Hi from role: {:?}", role)))
+            .send(Message::Text(format!("Hi from role: {:?}", claims.role)))
             .await
             .is_err()
         {
@@ -59,8 +59,9 @@ async fn stream_handler(mut socket: WebSocket, role: Role) {
 pub(super) async fn graphql_backend(
     schema: Extension<BackendSchema>,
     req: GraphQLRequest,
+    Extension(claims): Extension<JwtClaims>,
 ) -> GraphQLResponse {
-    schema.execute(req.into_inner()).await.into()
+    schema.execute(req.into_inner().data(claims)).await.into()
 }
 
 pub(super) async fn graphql_backend_auth(

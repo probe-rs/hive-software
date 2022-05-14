@@ -4,7 +4,7 @@ use std::env;
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use axum::http::{header, HeaderValue};
 use axum::response::Response;
-use comm_types::auth::{AuthRequest, AuthResponse, DbUser, JwtClaims, Role};
+use comm_types::auth::{AuthRequest, AuthResponse, DbUser, JwtClaims};
 use comm_types::cbor::Cbor;
 use http_body::combinators::UnsyncBoxBody;
 use hyper::{Request, StatusCode};
@@ -54,8 +54,8 @@ impl<B> AuthorizeRequest<B> for HiveAuth {
         let auth_header = auth_header.unwrap();
 
         match check_jwt(auth_header) {
-            Ok(role) => {
-                request.extensions_mut().insert(role);
+            Ok(claims) => {
+                request.extensions_mut().insert(claims);
 
                 return Ok(());
             }
@@ -136,7 +136,7 @@ pub(crate) fn check_password(username: String, password: String) -> Result<DbUse
 }
 
 /// Checks if the provided jwt is valid and returns the contained [`Role`] if it is.
-fn check_jwt(auth_header: &HeaderValue) -> Result<Role, ()> {
+fn check_jwt(auth_header: &HeaderValue) -> Result<JwtClaims, ()> {
     let auth_header = auth_header.to_str().map_err(|_| ())?;
 
     let mut parts = auth_header.split_ascii_whitespace();
@@ -166,7 +166,7 @@ fn check_jwt(auth_header: &HeaderValue) -> Result<Role, ()> {
             )
             .map_err(|_| ())?;
 
-            return Ok(payload.claims.role);
+            return Ok(payload.claims);
         }
     }
 
@@ -268,6 +268,6 @@ mod tests {
         let result = check_jwt(&auth_header);
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Role::ADMIN);
+        assert_eq!(result.unwrap(), claims);
     }
 }
