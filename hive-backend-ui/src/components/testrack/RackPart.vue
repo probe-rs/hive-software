@@ -1,12 +1,5 @@
 <script setup lang="ts">
-import {
-  type PropType,
-  ref,
-  onMounted,
-  watch,
-  toRefs,
-computed,
-} from "vue";
+import { type PropType, ref, onMounted, watch } from "vue";
 import type { PartType } from "./types";
 import { defaultRackScale } from "./constants";
 import Konva from "konva";
@@ -30,17 +23,20 @@ const props = defineProps({
   },
 });
 
-watch(() => props.config, (newConfig, oldConfig) => {
-  //if(oldConfig.y !== newConfig.y){
+watch(
+  () => props.config,
+  (newConfig, oldConfig) => {
+    //if(oldConfig.y !== newConfig.y){
     setTween(newConfig.y);
-  //}
-})
+    //}
+  },
+);
 
 onMounted(() => {
   setTween(props.config.y);
 });
 
-function setTween(y: number){
+function setTween(y: number) {
   const node = (part.value! as any).getNode();
 
   node.enterTween = new Konva.Tween({
@@ -72,22 +68,30 @@ function handleMouseLeave() {
   }
 }
 
-watch(() => props.isSelected, (isSelected) => {
-  if (isSelected) {
-    (part.value! as any).getNode().enterTween.play();
-  } else {
-    (part.value! as any).getNode().enterTween.reverse();
-  }
-})
+watch(
+  () => props.isSelected,
+  (isSelected) => {
+    if (isSelected) {
+      (part.value! as any).getNode().enterTween.play();
+    } else {
+      (part.value! as any).getNode().enterTween.reverse();
+    }
+  },
+);
 </script>
 
 <template>
-  <v-image @click="$emit('mouseClick', props.location)" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave"
-    ref="part" :config="{
+  <v-image
+    @click="$emit('mouseClick', props.location)"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave"
+    ref="part"
+    :config="{
       ...props.config,
       scale: {
         x: scale,
         y: scale,
       },
-    }" />
+    }"
+  />
 </template>

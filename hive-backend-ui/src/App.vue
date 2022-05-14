@@ -2,15 +2,8 @@
 import { RouterView } from "vue-router";
 import { useAppConfig } from "@/stores/appConfig";
 import MenuFrame from "./components/MenuFrame.vue";
-import { onMounted } from "vue";
-import { useServerData } from "./stores/serverData";
 
 const appConfig = useAppConfig();
-const serverData = useServerData();
-
-onMounted(async () => {
-  await serverData.initStore();
-});
 </script>
 
 <template>

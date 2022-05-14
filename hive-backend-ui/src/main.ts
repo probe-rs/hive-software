@@ -1,5 +1,5 @@
-import { createApp, h, provide } from "vue";
-import { DefaultApolloClient, provideApolloClient } from "@vue/apollo-composable";
+import { createApp } from "vue";
+import { provideApolloClient } from "@vue/apollo-composable";
 import App from "./App.vue";
 import router from "./router";
 import vuetify from "@/plugins/vuetify";
@@ -15,7 +15,5 @@ app.use(vuetify);
 app.use(vueKonva);
 
 provideApolloClient(apolloClient);
-
-//app.provide(DefaultApolloClient, apolloClient);
 
 app.mount("#app");

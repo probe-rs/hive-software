@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, defineProps, watch } from "vue";
-import { useQuery } from '@vue/apollo-composable'
+import { useMutation, useQuery } from "@vue/apollo-composable";
 import { gql } from "@apollo/client/core";
 import { computed } from "@vue/reactivity";
+import { cloneDeep } from "@apollo/client/utilities";
 
 const props = defineProps({
   target: {
@@ -14,26 +15,130 @@ const props = defineProps({
     type: Number,
     required: true,
   },
+  initialData: {
+    type: Object,
+    required: true,
+  },
 });
 
 const search = ref("");
-const selectedChip = ref("");
+const selectedChip = ref(getInitialSelectedChip());
 
-const { result, loading } = useQuery(gql`
+const { result: searchResults, loading: searchLoading } = useQuery(
+  gql`
     query ($search: String) {
       searchSupportedTargets(search: $search)
     }
-  `, { search });
+  `,
+  { search },
+);
+
+const { mutate: submitTarget } = useMutation(
+  gql`
+    mutation ($tssPos: Int!, $targetPos: Int!, $targetName: String!) {
+      assignTarget(
+        tssPos: $tssPos
+        targetPos: $targetPos
+        targetName: $targetName
+      ) {
+        tssPos
+        targetPos
+        targetName
+      }
+    }
+  `,
+  {
+    update: (cache, { data: { assignTarget } }) => {
+      const QUERY = gql`
+        query {
+          assignedTargets {
+            state
+            data {
+              name
+            }
+          }
+        }
+      `;
+
+      let data: any = cache.readQuery({
+        query: QUERY,
+      });
+
+      let newTarget;
+
+      switch (assignTarget.targetName) {
+        case "Unknown":
+          newTarget = {
+            state: "UNKNOWN",
+            data: null,
+            __typename: "FlatTargetState",
+          };
+          break;
+        case "Not Connected":
+          newTarget = {
+            state: "NOT_CONNECTED",
+            data: null,
+            __typename: "FlatTargetState",
+          };
+          break;
+        default:
+          newTarget = {
+            state: "KNOWN",
+            data: {
+              name: assignTarget.targetName,
+              __typename: "TargetInfo",
+            },
+            __typename: "FlatTargetState",
+          };
+          break;
+      }
+
+      const newAssignedTargets = cloneDeep(data.assignedTargets);
+
+      newAssignedTargets[assignTarget.tssPos][assignTarget.targetPos] =
+        newTarget;
+
+      data = {
+        ...data,
+        assignedTargets: newAssignedTargets,
+      };
+
+      cache.writeQuery({ query: QUERY, data });
+    },
+  },
+);
+
+function getInitialSelectedChip() {
+  if (props.initialData.state === "UNKNOWN") {
+    return "Unknown";
+  } else if (props.initialData.state === "NOT_CONNECTED") {
+    return "Not Connected";
+  } else {
+    return props.initialData.data.name;
+  }
+}
 
 const foundChips = computed(() => {
-  if (result.value) {
-    const array = result.value.searchSupportedTargets.map((x: String) => x);
-    array.push("Unknown", "Not Connected")
+  if (searchResults.value) {
+    const array = searchResults.value.searchSupportedTargets.map(
+      (x: string) => x,
+    );
+    array.push("Unknown", "Not Connected");
     return array;
   }
   return ["Unknown", "Not Connected"];
-})
+});
 
+watch(
+  () => props.tssPos,
+  () => {
+    selectedChip.value = getInitialSelectedChip();
+  },
+);
+
+function submit(targetName: string) {
+  submitTarget({ tssPos: props.tssPos, targetPos: props.target, targetName });
+}
 </script>
 
 <template>
@@ -50,15 +155,29 @@ const foundChips = computed(() => {
     </v-card-subtitle>
 
     <v-card-subtitle v-show="props.status">
-      <v-icon icon="mdi-checkbox-marked" size="18" color="success" class="mr-1 pb-1" />
+      <v-icon
+        icon="mdi-checkbox-marked"
+        size="18"
+        color="success"
+        class="mr-1 pb-1"
+      />
 
       No problems found
     </v-card-subtitle>
 
     <v-card-text class="pb-0">
-      <v-autocomplete v-model:search="search" v-model="selectedChip" :loading="loading" :items="foundChips" dense
-        label="Chip model" hint="Please select the appropriate chip" persistent-hint
-        no-data-text="No matching models found">
+      <v-autocomplete
+        @update:modelValue="submit"
+        v-model:search="search"
+        v-model="selectedChip"
+        :loading="searchLoading"
+        :items="foundChips"
+        dense
+        label="Chip model"
+        hint="Please select the appropriate chip"
+        persistent-hint
+        no-data-text="No matching models found"
+      >
       </v-autocomplete>
     </v-card-text>
   </v-card>
