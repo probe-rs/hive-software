@@ -36,5 +36,6 @@ pub struct AuthResponse {
 pub struct JwtClaims {
     pub iss: String,
     pub exp: usize,
+    pub username: String,
     pub role: Role,
 }
