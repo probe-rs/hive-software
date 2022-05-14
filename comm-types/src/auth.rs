@@ -32,7 +32,7 @@ pub struct AuthResponse {
 }
 
 /// Claims used in a Hive JWT
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct JwtClaims {
     pub iss: String,
     pub exp: usize,
