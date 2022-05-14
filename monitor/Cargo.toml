@@ -33,6 +33,7 @@ thiserror = "1.0"
 uid = "0.1"
 argon2 = "0.4"
 jsonwebtoken = "8.1"
+anyhow = "1.0"
 
 # Only used for dummy functions
 colored = "2.0"

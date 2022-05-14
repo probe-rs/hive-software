@@ -19,6 +19,6 @@ pub(crate) fn sync_tss_target_data() {
     }
 
     DB.config_tree
-        .c_insert(keys::config::TARGETS, &target_data)
+        .c_insert(keys::config::ASSIGNED_TARGETS, &target_data)
         .unwrap();
 }

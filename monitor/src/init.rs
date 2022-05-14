@@ -2,9 +2,10 @@
 use std::fs;
 use std::path::Path;
 
-use comm_types::hardware::{Architecture, ProbeInfo, TargetInfo, TargetState};
+use comm_types::hardware::{Architecture, ProbeInfo, ProbeState, TargetInfo, TargetState};
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
 use controller::common::init;
+use controller::common::TargetStackShield;
 use probe_rs::{config, Probe};
 
 use crate::binaries;
@@ -129,32 +130,43 @@ pub(crate) fn dummy_init_config_data() {
     ];
 
     DB.config_tree
-        .c_insert(keys::config::TARGETS, &target_data)
+        .c_insert(keys::config::ASSIGNED_TARGETS, &target_data)
         .unwrap();
 
     let probes = Probe::list_all();
 
     let probe_data: HiveProbeData = [
-        Some(ProbeInfo {
+        ProbeState::Known(ProbeInfo {
             identifier: probes[0].identifier.clone(),
             vendor_id: probes[0].vendor_id,
             product_id: probes[0].product_id,
             serial_number: probes[0].serial_number.clone(),
             hid_interface: probes[0].hid_interface,
         }),
-        Some(ProbeInfo {
+        ProbeState::Known(ProbeInfo {
             identifier: probes[1].identifier.clone(),
             vendor_id: probes[1].vendor_id,
             product_id: probes[1].product_id,
             serial_number: probes[1].serial_number.clone(),
             hid_interface: probes[1].hid_interface,
         }),
-        None,
-        None,
+        ProbeState::Unknown,
+        ProbeState::Unknown,
     ];
 
     DB.config_tree
-        .c_insert(keys::config::PROBES, &probe_data)
+        .c_insert(keys::config::ASSIGNED_PROBES, &probe_data)
+        .unwrap();
+}
+
+/// Detect all connected TSS and update DB data
+pub(crate) fn init_tss() {
+    let detected = TargetStackShield::detect_connected_tss(SHARED_I2C.acquire_i2c());
+
+    let detected = detected.map(|e| e.is_some());
+
+    DB.config_tree
+        .c_insert(keys::config::TSS, &detected)
         .unwrap();
 }
 
@@ -235,8 +247,8 @@ pub(crate) fn init_testprograms() {
 /// # Panics
 /// If the data in the DB has not been initialized.
 pub(crate) fn init_hardware_from_db_data() -> Result<(), init::InitError> {
-    let target_data = DB.config_tree.c_get(keys::config::TARGETS).unwrap().expect("Failed to get the target data in the DB. This function can only be called once the target data has been initialized in the DB.");
-    let probe_data = DB.config_tree.c_get(keys::config::PROBES).unwrap().expect("Failed to get the probe data in the DB. This function can only be called once the probe data has been initialized in the DB.");
+    let target_data = DB.config_tree.c_get(keys::config::ASSIGNED_TARGETS).unwrap().expect("Failed to get the target data in the DB. This function can only be called once the target data has been initialized in the DB.");
+    let probe_data = DB.config_tree.c_get(keys::config::ASSIGNED_PROBES).unwrap().expect("Failed to get the probe data in the DB. This function can only be called once the probe data has been initialized in the DB.");
 
     init::initialize_target_data(&TSS, target_data)?;
     init::initialize_probe_data(&TESTCHANNELS, probe_data)

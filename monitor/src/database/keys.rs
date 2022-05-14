@@ -2,8 +2,9 @@
 
 pub(crate) mod config {
     //! All valid keys for config DB Tree
-    pub(crate) const TARGETS: &str = "targets";
-    pub(crate) const PROBES: &str = "probes";
+    pub(crate) const TSS: &str = "tss";
+    pub(crate) const ASSIGNED_TARGETS: &str = "targets";
+    pub(crate) const ASSIGNED_PROBES: &str = "probes";
     pub(crate) const TESTPROGRAMS: &str = "testprograms";
     pub(crate) const ACTIVE_TESTPROGRAM: &str = "active_testprogram";
 }

@@ -99,7 +99,7 @@ mod tests {
     use axum::body::Body;
     use axum::http::{header, Method, Request, StatusCode};
     use ciborium::de::from_reader;
-    use comm_types::hardware::{ProbeInfo, TargetInfo, TargetState};
+    use comm_types::hardware::{ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
     use lazy_static::lazy_static;
     use tower::ServiceExt;
@@ -113,28 +113,28 @@ mod tests {
         static ref DB: HiveDb = {
             let db = HiveDb::open_test();
 
-            db.config_tree.c_insert(keys::config::PROBES, &*PROBE_DATA).unwrap();
-            db.config_tree.c_insert(keys::config::TARGETS, &*TARGET_DATA).unwrap();
+            db.config_tree.c_insert(keys::config::ASSIGNED_PROBES, &*PROBE_DATA).unwrap();
+            db.config_tree.c_insert(keys::config::ASSIGNED_TARGETS, &*TARGET_DATA).unwrap();
 
             db
         };
         static ref PROBE_DATA: HiveProbeData = [
-            Some(ProbeInfo {
+            ProbeState::Known(ProbeInfo {
                 identifier: "Curious Probe".to_owned(),
                 vendor_id: 42,
                 product_id: 920,
                 serial_number: Some("abcde1234".to_owned()),
                 hid_interface: None,
             }),
-            None,
-            Some(ProbeInfo {
+            ProbeState::Unknown,
+            ProbeState::Known(ProbeInfo {
                 identifier: "Overpriced Probe".to_owned(),
                 vendor_id: 43,
                 product_id: 921,
                 serial_number: Some("1234abcde".to_owned()),
                 hid_interface: None,
             }),
-            None,
+            ProbeState::Unknown,
         ];
         static ref TARGET_DATA: HiveTargetData = [
             Some([
@@ -272,13 +272,14 @@ mod tests {
             assert_eq!(
                 data.iter().zip(PROBE_DATA.clone()).all(|(a, b)| {
                     match (a, b) {
-                        (Some(a), Some(b)) => {
+                        (ProbeState::Known(a), ProbeState::Known(b)) => {
                             if *a == b {
                                 return true;
                             }
                             false
                         }
-                        (None, None) => true,
+                        (ProbeState::Unknown, ProbeState::Unknown) => true,
+                        (ProbeState::NotConnected, ProbeState::NotConnected) => true,
                         _ => false,
                     }
                 }),

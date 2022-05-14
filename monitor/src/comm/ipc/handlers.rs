@@ -12,7 +12,7 @@ pub(crate) async fn probe_handler() -> Cbor<IpcMessage> {
 
     let data: HiveProbeData = DB
         .config_tree
-        .c_get(keys::config::PROBES)
+        .c_get(keys::config::ASSIGNED_PROBES)
         .unwrap()
         .expect("Probe data was not found in the database. The data should be initialized before the runner is started.");
 
@@ -24,7 +24,7 @@ pub(crate) async fn target_handler() -> Cbor<IpcMessage> {
 
     let data: HiveTargetData = DB
         .config_tree
-        .c_get(keys::config::TARGETS)
+        .c_get(keys::config::ASSIGNED_TARGETS)
         .unwrap()
         .expect("Target data was not found in the database. The data should be initialized before the runner is started.");
 

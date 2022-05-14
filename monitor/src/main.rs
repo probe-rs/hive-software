@@ -40,6 +40,7 @@ fn main() {
     init::initialize_statics();
 
     init::dummy_init_config_data();
+    init::init_tss();
     init::init_hardware_from_db_data().expect("TODO, stop initialization and enter 'NOT READY' state which should tell the user to provide the initialization in the backend UI");
     init::init_target_info_from_registry();
     init::init_testprograms();
