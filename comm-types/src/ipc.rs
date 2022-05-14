@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::cbor::CBOR_MIME;
-use super::hardware::{ProbeInfo, TargetState};
+use super::hardware::{ProbeState, TargetState};
 use super::results::TestResult;
 
-pub type HiveProbeData = [Option<ProbeInfo>; 4];
+pub type HiveProbeData = [ProbeState; 4];
 pub type HiveTargetData = [Option<[TargetState; 4]>; 8];
 
 /// All possible message types that can be sent via Hive IPC

@@ -21,6 +21,31 @@ pub enum TargetState {
     NotConnected,
 }
 
+impl From<String> for TargetState {
+    fn from(str: String) -> Self {
+        if str == "Unknown" {
+            return Self::Unknown;
+        } else if str == "Not Connected" {
+            return Self::NotConnected;
+        } else {
+            return Self::Known(TargetInfo {
+                name: str,
+                architecture: None,
+                memory_address: None,
+                status: Err("Not initialized".to_owned()),
+            });
+        }
+    }
+}
+
+/// Represents the state of a single probe connected to a testchannel
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ProbeState {
+    Known(ProbeInfo),
+    Unknown,
+    NotConnected,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SimpleObject)]
 pub struct TargetInfo {
     pub name: String,
