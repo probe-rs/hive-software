@@ -1,6 +1,7 @@
 //! Common initialization functions
 use std::sync::Mutex;
 
+use comm_types::hardware::ProbeState;
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
 use thiserror::Error;
 
@@ -70,8 +71,8 @@ pub fn initialize_probe_data(
     );
 
     for (channel_idx, probe_info) in data.iter().enumerate().filter_map(|(channel_idx, data)| {
-        if data.is_some() {
-            return Some((channel_idx, data.as_ref().unwrap()));
+        if let ProbeState::Known(probe_info) = data {
+            return Some((channel_idx, probe_info));
         }
         None
     }) {
