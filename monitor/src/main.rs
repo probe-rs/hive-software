@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 use std::thread;
 
+use clap::{ArgEnum, Parser};
 use controller::common::{
     create_expanders, create_shareable_testchannels, create_shareable_tss, CombinedTestChannel,
     TargetStackShield,
@@ -18,6 +19,7 @@ mod comm;
 mod database;
 mod flash;
 mod init;
+mod mode;
 mod testprogram;
 
 use database::HiveDb;
@@ -34,12 +36,37 @@ lazy_static! {
     static ref DB: HiveDb = HiveDb::open();
 }
 
+#[derive(Clone, Debug, ArgEnum)]
+enum ApplicationMode {
+    Init,
+    Standalone,
+    ClusterSlave,
+    ClusterMaster,
+}
+
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Which mode the monitor runs in
+    #[clap(arg_enum, default_value_t = ApplicationMode::Standalone)]
+    mode: ApplicationMode,
+    #[clap(flatten)]
+    verbose: clap_verbosity_flag::Verbosity,
+}
+
 fn main() {
-    Logger::init_with_level(Level::Info);
+    let cli_args = Args::parse();
+    Logger::init_with_level(get_log_level(&cli_args.verbose.log_level()));
+
+    match cli_args.mode {
+        ApplicationMode::Init => mode::init::run_init_mode(),
+        ApplicationMode::Standalone => mode::standalone::run_standalone_mode(),
+        ApplicationMode::ClusterSlave => todo!(),
+        ApplicationMode::ClusterMaster => todo!(),
+    }
 
     init::initialize_statics();
 
-    init::dummy_init_config_data();
     init::init_tss();
     init::init_hardware_from_db_data().expect("TODO, stop initialization and enter 'NOT READY' state which should tell the user to provide the initialization in the backend UI");
     init::init_target_info_from_registry();
@@ -65,6 +92,14 @@ fn main() {
     log::info!("Dropped the debug probes... runner can now be started.");
 
     comm_tread.join().unwrap();
+}
+
+/// Gets the log level of the application to the provided verbosity flag. If no flag was provided the default [`Level::Error`] is used.
+fn get_log_level(verbosity: &Option<log::Level>) -> Level {
+    match verbosity {
+        Some(level) => *level,
+        None => Level::Error,
+    }
 }
 
 // Current dummy implementation of unlocking the debug probes, so the runner can take over control. Only used for testing/demo purposes
