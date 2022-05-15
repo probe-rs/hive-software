@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use clap::{ArgEnum, Parser};
 use controller::common::{
@@ -31,7 +31,6 @@ lazy_static! {
     static ref EXPANDERS: [HiveIoExpander; 8] = create_expanders(&SHARED_I2C);
     static ref TSS: Vec<Mutex<TargetStackShield>> = create_shareable_tss(&SHARED_I2C, &EXPANDERS);
     static ref TESTCHANNELS: [Mutex<CombinedTestChannel>; 4] = create_shareable_testchannels();
-    static ref DB: HiveDb = HiveDb::open();
 }
 
 /// The different modes the monitor can be run in. For more information please take a look at the [`mode`] module.
@@ -57,9 +56,11 @@ fn main() {
     let cli_args = Args::parse();
     Logger::init_with_level(get_log_level(&cli_args.verbose.log_level()));
 
+    let db = Arc::new(HiveDb::open());
+
     match cli_args.mode {
-        ApplicationMode::Init => mode::init::run_init_mode(),
-        ApplicationMode::Standalone => mode::standalone::run_standalone_mode(),
+        ApplicationMode::Init => mode::init::run_init_mode(db.clone()),
+        ApplicationMode::Standalone => mode::standalone::run_standalone_mode(db.clone()),
         ApplicationMode::ClusterSlave => todo!(),
         ApplicationMode::ClusterMaster => todo!(),
     }

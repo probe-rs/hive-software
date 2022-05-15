@@ -1,9 +1,11 @@
 //! Handles user authentication
 use std::env;
+use std::sync::Arc;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use axum::http::{header, HeaderValue};
 use axum::response::Response;
+use axum::Extension;
 use comm_types::auth::{AuthRequest, AuthResponse, DbUser, JwtClaims};
 use comm_types::cbor::Cbor;
 use http_body::combinators::UnsyncBoxBody;
@@ -11,8 +13,7 @@ use hyper::{Request, StatusCode};
 use jsonwebtoken::{get_current_timestamp, DecodingKey, EncodingKey, Header, Validation};
 use tower_http::auth::AuthorizeRequest;
 
-use crate::database::keys;
-use crate::{database::CborDb, DB};
+use crate::database::{keys, CborDb, HiveDb};
 
 const ISSUER: &str = "probe-rs hive";
 const TOKEN_EXPIRE_TIME: u64 = 30; // 30s
@@ -22,10 +23,11 @@ const JWT_SECRET_ENV: &str = "JWT_SECRET";
 ///
 /// If authentication is successful it returns a JWT which contains the user role and is valid for [`TOKEN_EXPIRE_TIME`]. Which is then used by the client to open a websocket connection.
 pub(super) async fn ws_auth_handler(
+    Extension(db): Extension<Arc<HiveDb>>,
     Cbor(request): Cbor<AuthRequest>,
 ) -> Result<Cbor<AuthResponse>, StatusCode> {
-    let user =
-        check_password(request.username, request.password).map_err(|_| StatusCode::UNAUTHORIZED)?;
+    let user = check_password(db, request.username, request.password)
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     let token = generate_jwt(user, TOKEN_EXPIRE_TIME);
 
@@ -96,8 +98,12 @@ pub(crate) fn generate_jwt(user: DbUser, expires_in_secs: u64) -> String {
 /// Re-hashes the provided password and checks it against the userdata in the DB, if the user exists.
 ///
 /// This function only returns an [`Result::Ok`] value with the authenticated user if the provided user exists and the provided password is correct.
-pub(crate) fn check_password(username: String, password: String) -> Result<DbUser, ()> {
-    let users: Vec<DbUser> = DB
+pub(crate) fn check_password(
+    db: Arc<HiveDb>,
+    username: String,
+    password: String,
+) -> Result<DbUser, ()> {
+    let users: Vec<DbUser> = db
         .credentials_tree
         .c_get(keys::credentials::USERS)
         .unwrap()

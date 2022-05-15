@@ -2,6 +2,7 @@
 //!
 //! This mode adds the first user to the DB in case none has been registered before. This is required to register the first administrator which then has access to the Hive backend for any further customization.
 use std::process;
+use std::sync::Arc;
 
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
@@ -10,13 +11,10 @@ use argon2::{
 use comm_types::auth::{DbUser, Role};
 use dialoguer::{theme::ColorfulTheme, Input, Password};
 
-use crate::{
-    database::{keys, CborDb},
-    DB,
-};
+use crate::database::{keys, CborDb, HiveDb};
 
-pub(crate) fn run_init_mode() {
-    let users = DB
+pub(crate) fn run_init_mode(db: Arc<HiveDb>) {
+    let users = db
         .credentials_tree
         .c_get::<Vec<DbUser>>(keys::credentials::USERS)
         .unwrap();
@@ -70,7 +68,7 @@ pub(crate) fn run_init_mode() {
         role: Role::ADMIN,
     });
 
-    DB.credentials_tree
+    db.credentials_tree
         .c_insert(keys::credentials::USERS, &users)
         .unwrap();
 

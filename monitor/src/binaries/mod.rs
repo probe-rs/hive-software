@@ -5,9 +5,10 @@
 //!
 //! As various targets have different flash and ram address spaces the final linking is done by the monitor depending on which targets are currently attached to the Hive Testrack.
 //! The final binaries are then flashed onto the connected targets by the monitor before each test run.
-use crate::database::{keys, CborDb};
+use std::sync::Arc;
+
+use crate::database::{keys, CborDb, HiveDb};
 use crate::testprogram::TestProgram;
-use crate::DB;
 
 mod address;
 mod build;
@@ -16,8 +17,8 @@ mod build;
 ///
 /// # Panics
 /// If the target or testprogram configuration data in the DB has not been initialized.
-pub(crate) fn sync_binaries() {
-    let active_testprogram: TestProgram = DB
+pub(crate) fn sync_binaries(db: Arc<HiveDb>) {
+    let active_testprogram: TestProgram = db
         .config_tree
         .c_get(keys::config::ACTIVE_TESTPROGRAM)
         .unwrap().expect("Failed to get active testprogram in DB. The DB needs to be initialized before this function can be called");

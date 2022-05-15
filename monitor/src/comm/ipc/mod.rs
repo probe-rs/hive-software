@@ -6,11 +6,13 @@ use std::task::Poll;
 
 use axum::extract::connect_info;
 use axum::routing::{get, post};
-use axum::{BoxError, Router, Server};
+use axum::{BoxError, Extension, Router, Server};
 use futures::ready;
 use hyper::server::accept::Accept;
 use tokio::net::unix::UCred;
 use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
+
+use crate::database::HiveDb;
 
 mod handlers;
 
@@ -51,7 +53,7 @@ impl connect_info::Connected<&UnixStream> for IpcConnectionInfo {
 }
 
 /// Starts the IPC server and listens for incoming connections
-pub(super) async fn ipc_server() {
+pub(super) async fn ipc_server(db: Arc<HiveDb>) {
     let socket_path = Path::new(SOCKET_PATH);
 
     init_socket_file(socket_path).await;
@@ -59,7 +61,7 @@ pub(super) async fn ipc_server() {
     let listener = UnixListener::bind(socket_path).expect("TODO");
 
     let server_handle = tokio::spawn(async {
-        let route = app();
+        let route = app(db);
 
         Server::builder(IpcStreamListener { listener })
             .serve(route.into_make_service_with_connect_info::<IpcConnectionInfo>())
@@ -71,12 +73,13 @@ pub(super) async fn ipc_server() {
 }
 
 /// Builds the IPC server with all endpoints
-fn app() -> Router {
+fn app(db: Arc<HiveDb>) -> Router {
     Router::new()
         .route("/data/probe", get(handlers::probe_handler))
         .route("/data/target", get(handlers::target_handler))
         .route("/runner/log", post(handlers::runner_log_handler))
         .route("/runner/results", post(handlers::test_result_handler))
+        .layer(Extension(db))
 }
 
 /// Creates the folders required by the path, if not existing. Removes previous socket file if existing.
@@ -96,6 +99,8 @@ async fn init_socket_file(socket_path: &Path) {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use axum::body::Body;
     use axum::http::{header, Method, Request, StatusCode};
     use ciborium::de::from_reader;
@@ -110,13 +115,13 @@ mod tests {
 
     lazy_static! {
         // We open a temporary test database and initialize it to the test values
-        static ref DB: HiveDb = {
+        static ref DB: Arc<HiveDb> = {
             let db = HiveDb::open_test();
 
             db.config_tree.c_insert(keys::config::ASSIGNED_PROBES, &*PROBE_DATA).unwrap();
             db.config_tree.c_insert(keys::config::ASSIGNED_TARGETS, &*TARGET_DATA).unwrap();
 
-            db
+            Arc::new(db)
         };
         static ref PROBE_DATA: HiveProbeData = [
             ProbeState::Known(ProbeInfo {
@@ -230,7 +235,7 @@ mod tests {
 
     #[tokio::test]
     async fn wrong_rest_method() {
-        let ipc_server = app();
+        let ipc_server = app(DB.clone());
 
         let res = ipc_server
             .oneshot(
@@ -249,7 +254,7 @@ mod tests {
 
     #[tokio::test]
     async fn probe_endpoint() {
-        let ipc_server = app();
+        let ipc_server = app(DB.clone());
 
         let res = ipc_server
             .oneshot(
@@ -292,7 +297,7 @@ mod tests {
 
     #[tokio::test]
     async fn target_endpoint() {
-        let ipc_server = app();
+        let ipc_server = app(DB.clone());
 
         let res = ipc_server
             .oneshot(

@@ -1,16 +1,15 @@
 //! The graphql mutation
+use std::sync::Arc;
+
 use anyhow::anyhow;
-use async_graphql::{Object, Result as GraphQlResult};
+use async_graphql::{Context, Object, Result as GraphQlResult};
 use comm_types::{
     hardware::{ProbeInfo, ProbeState, TargetState},
     ipc::{HiveProbeData, HiveTargetData},
 };
 use probe_rs::Probe;
 
-use crate::{
-    database::{keys, CborDb},
-    DB,
-};
+use crate::database::{keys, CborDb, HiveDb};
 
 use super::model::{AssignProbeResponse, AssignTargetResponse, FlatProbeState, State};
 
@@ -19,13 +18,16 @@ pub(in crate::comm::webserver) struct BackendMutation;
 #[Object]
 impl BackendMutation {
     /// Assigns a target to a given position. This does only update the data in the DB. To apply the changes into the runtime use the update mutation to reinitialize the testrack
-    async fn assign_target(
+    async fn assign_target<'ctx>(
         &self,
+        ctx: &Context<'ctx>,
         #[graphql(validator(maximum = 7))] tss_pos: usize,
         #[graphql(validator(maximum = 3))] target_pos: usize,
         target_name: String,
     ) -> GraphQlResult<AssignTargetResponse> {
-        let mut assigned = DB
+        let db = ctx.data::<Arc<HiveDb>>().unwrap();
+
+        let mut assigned = db
             .config_tree
             .c_get::<HiveTargetData>(keys::config::ASSIGNED_TARGETS)
             .unwrap()
@@ -39,7 +41,7 @@ impl BackendMutation {
 
         assigned[tss_pos].as_mut().unwrap()[target_pos] = target_state;
 
-        DB.config_tree
+        db.config_tree
             .c_insert(keys::config::ASSIGNED_TARGETS, &assigned)
             .unwrap();
 
@@ -50,12 +52,15 @@ impl BackendMutation {
         })
     }
 
-    async fn assign_probe(
+    async fn assign_probe<'ctx>(
         &self,
+        ctx: &Context<'ctx>,
         #[graphql(validator(maximum = 3))] probe_pos: usize,
         probe_state: FlatProbeState,
     ) -> GraphQlResult<AssignProbeResponse> {
-        let mut assigned = DB
+        let db = ctx.data::<Arc<HiveDb>>().unwrap();
+
+        let mut assigned = db
             .config_tree
             .c_get::<HiveProbeData>(keys::config::ASSIGNED_PROBES)
             .unwrap()
@@ -106,7 +111,7 @@ impl BackendMutation {
             };
         }
 
-        DB.config_tree
+        db.config_tree
             .c_insert(keys::config::ASSIGNED_PROBES, &assigned)
             .unwrap();
 

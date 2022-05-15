@@ -1,13 +1,12 @@
 //! The graphql query
-use async_graphql::Object;
+use std::sync::Arc;
+
+use async_graphql::{Context, Object};
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
 use probe_rs::config::search_chips;
 use probe_rs::Probe;
 
-use crate::{
-    database::{keys, CborDb},
-    DB,
-};
+use crate::database::{keys, CborDb, HiveDb};
 
 use super::model::{FlatProbeState, FlatTargetState, ProbeInfo};
 
@@ -16,8 +15,10 @@ pub(in crate::comm::webserver) struct BackendQuery;
 #[Object]
 impl BackendQuery {
     /// The currently connected daughterboards
-    async fn connected_daughterboards(&self) -> [bool; 8] {
-        let targets: HiveTargetData = DB
+    async fn connected_daughterboards<'ctx>(&self, ctx: &Context<'ctx>) -> [bool; 8] {
+        let db = ctx.data::<Arc<HiveDb>>().unwrap();
+
+        let targets: HiveTargetData = db
             .config_tree
             .c_get(keys::config::ASSIGNED_TARGETS)
             .unwrap()
@@ -34,16 +35,23 @@ impl BackendQuery {
     }
 
     /// The currently connected TSS
-    async fn connected_tss(&self) -> [bool; 8] {
-        DB.config_tree
+    async fn connected_tss<'ctx>(&self, ctx: &Context<'ctx>) -> [bool; 8] {
+        let db = ctx.data::<Arc<HiveDb>>().unwrap();
+
+        db.config_tree
             .c_get(keys::config::TSS)
             .unwrap()
             .expect("DB not initialized")
     }
 
     /// The current targets assigned to connected daughterboards
-    async fn assigned_targets(&self) -> [Option<[FlatTargetState; 4]>; 8] {
-        let target_data = DB
+    async fn assigned_targets<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+    ) -> [Option<[FlatTargetState; 4]>; 8] {
+        let db = ctx.data::<Arc<HiveDb>>().unwrap();
+
+        let target_data = db
             .config_tree
             .c_get::<HiveTargetData>(keys::config::ASSIGNED_TARGETS)
             .unwrap()
@@ -72,8 +80,10 @@ impl BackendQuery {
     }
 
     /// The current probes assigned to testchannels
-    async fn assigned_probes(&self) -> [FlatProbeState; 4] {
-        DB.config_tree
+    async fn assigned_probes<'ctx>(&self, ctx: &Context<'ctx>) -> [FlatProbeState; 4] {
+        let db = ctx.data::<Arc<HiveDb>>().unwrap();
+
+        db.config_tree
             .c_get::<HiveProbeData>(keys::config::ASSIGNED_PROBES)
             .unwrap()
             .expect("DB not initialized")
