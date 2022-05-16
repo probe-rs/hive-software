@@ -1,16 +1,26 @@
 <script setup lang="ts">
-import { RouterView } from "vue-router";
+import { RouterView, useRoute } from "vue-router";
 import { useAppConfig } from "@/stores/appConfig";
 import MenuFrame from "./components/MenuFrame.vue";
+import { computed } from "@vue/reactivity";
 
 const appConfig = useAppConfig();
+
+const currentRoute = computed(()=>{
+  return useRoute().name
+})
 </script>
 
 <template>
   <v-app :theme="appConfig.theme">
+  <template v-if="currentRoute === 'login'">
+      <RouterView />
+  </template>
+  <template v-else>
     <MenuFrame>
       <RouterView />
     </MenuFrame>
+    </template>
   </v-app>
 </template>
 
