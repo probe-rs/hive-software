@@ -10,6 +10,7 @@ use tower_http::auth::RequireAuthorizationLayer;
 use tower_http::services::ServeDir;
 
 use crate::database::HiveDb;
+use crate::SHUTDOWN_SIGNAL;
 
 mod auth;
 mod backend;
@@ -23,10 +24,14 @@ pub(super) async fn web_server(db: Arc<HiveDb>) {
     let app = app(db);
     let addr = SocketAddr::from(([0, 0, 0, 0], 4356));
     let tls_config = RustlsConfig::from_pem_file(PEM_CERT, PEM_KEY).await.expect(&format!("Failed to find the PEM certificate file. It should be stored in the application data folder: Cert: {} Key: {}", PEM_CERT, PEM_KEY));
-    axum_server::bind_rustls(addr, tls_config)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+
+    let server = axum_server::bind_rustls(addr, tls_config).serve(app.into_make_service());
+    let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
+
+    tokio::select! {
+        result = server => {result.expect("Unhandled webserver error encountered")}
+        result = shutdown_signal.recv() => {result.expect("Failed to receive global shutdown signal")}
+    }
 }
 
 /// Builds the webserver with all endpoints

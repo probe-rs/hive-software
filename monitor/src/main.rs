@@ -11,6 +11,7 @@ use log::Level;
 use rppal::i2c::I2c;
 use shared_bus::BusManager;
 use simple_clap_logger::Logger;
+use tokio::sync::broadcast::{self, Sender};
 
 mod binaries;
 mod comm;
@@ -31,6 +32,10 @@ lazy_static! {
     static ref EXPANDERS: [HiveIoExpander; 8] = create_expanders(&SHARED_I2C);
     static ref TSS: Vec<Mutex<TargetStackShield>> = create_shareable_tss(&SHARED_I2C, &EXPANDERS);
     static ref TESTCHANNELS: [Mutex<CombinedTestChannel>; 4] = create_shareable_testchannels();
+    static ref SHUTDOWN_SIGNAL: Sender<()> = {
+        let (sender, _) = broadcast::channel::<()>(1);
+        sender
+    };
 }
 
 /// The different modes the monitor can be run in. For more information please take a look at the [`mode`] module.
@@ -64,6 +69,7 @@ fn main() {
         ApplicationMode::ClusterSlave => todo!(),
         ApplicationMode::ClusterMaster => todo!(),
     }
+    // Only global shutdown procedures should be called here, application logic should be put inside the appropriate mode handler
 }
 
 /// Gets the log level of the application to the provided verbosity flag. If no flag was provided the default [`Level::Error`] is used.
@@ -72,6 +78,13 @@ fn get_log_level(verbosity: &Option<log::Level>) -> Level {
         Some(level) => *level,
         None => Level::Error,
     }
+}
+
+/// Sends the shutdown signal to tokio tasks which then stop and return to terminate the program.
+fn shutdown_application() {
+    SHUTDOWN_SIGNAL
+        .send(())
+        .expect("No receivers available to send the shutdown signal to.");
 }
 
 // Current dummy implementation of unlocking the debug probes, so the runner can take over control. Only used for testing/demo purposes

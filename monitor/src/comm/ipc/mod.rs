@@ -13,6 +13,7 @@ use tokio::net::unix::UCred;
 use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
 
 use crate::database::HiveDb;
+use crate::SHUTDOWN_SIGNAL;
 
 mod handlers;
 
@@ -60,13 +61,18 @@ pub(super) async fn ipc_server(db: Arc<HiveDb>) {
 
     let listener = UnixListener::bind(socket_path).expect("TODO");
 
-    let server_handle = tokio::spawn(async {
+    let server_handle = tokio::spawn(async move {
         let route = app(db);
 
-        Server::builder(IpcStreamListener { listener })
-            .serve(route.into_make_service_with_connect_info::<IpcConnectionInfo>())
-            .await
-            .unwrap();
+        let server = Server::builder(IpcStreamListener { listener })
+            .serve(route.into_make_service_with_connect_info::<IpcConnectionInfo>());
+
+        let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
+
+        tokio::select! {
+            result = server => {result.expect("Unhandled IPC server error encountered")}
+            result = shutdown_signal.recv() => {result.expect("Failed to receive global shutdown signal")}
+        }
     });
 
     server_handle.await.unwrap();

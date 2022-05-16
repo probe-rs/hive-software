@@ -25,6 +25,9 @@ pub(crate) fn initialize_statics() {
 /// Checks if there is at least one user registered in the database, otherwise exit the process, as the application has to be run in init-mode first to register a user.
 ///
 /// If no user is found this function exits the process and prompts the user to restart the program in init-mode
+///
+/// # Termination
+/// This function terminates the program by using [`process::exit`]. No values are dropped during exit. Therefore this function should be called as early as possible in the program flow before manipulating DB data.
 pub(crate) fn check_uninit(db: Arc<HiveDb>) {
     let users = db
         .credentials_tree

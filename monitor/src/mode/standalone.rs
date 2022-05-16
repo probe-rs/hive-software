@@ -1,14 +1,12 @@
 //! Handle standalone mode
-use std::sync::Arc;
 use std::thread;
+use std::{sync::Arc, time::Duration};
 
 use tokio::runtime::Builder;
 
-use crate::{
-    comm,
-    database::{self, HiveDb},
-    dummy_unlock_probes, flash, init,
-};
+use crate::database::{self, HiveDb};
+use crate::SHUTDOWN_SIGNAL;
+use crate::{comm, dummy_unlock_probes, flash, init};
 
 pub(crate) fn run_standalone_mode(db: Arc<HiveDb>) {
     init::check_uninit(db.clone());
@@ -39,5 +37,6 @@ pub(crate) fn run_standalone_mode(db: Arc<HiveDb>) {
     dummy_unlock_probes();
     log::info!("Dropped the debug probes... runner can now be started.");
 
+    // Wait for comm thread to shutdown
     comm_tread.join().unwrap();
 }

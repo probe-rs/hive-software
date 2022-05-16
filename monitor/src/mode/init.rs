@@ -73,5 +73,4 @@ pub(crate) fn run_init_mode(db: Arc<HiveDb>) {
         .unwrap();
 
     println!("Successfully added user '{}', with admin role.\nYou can now restart the application in a non init-mode.", username_input);
-    process::exit(0);
 }
