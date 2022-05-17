@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import Login from "@/components/Login.vue";
-import logo from "@/assets/probe-rs-color-primary.png";
+import logo from "@/assets/probe-rs-color-primary.svg";
 
 </script>
 
