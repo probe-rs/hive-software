@@ -3,9 +3,11 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::routing::{self, get, post};
-use axum::{Extension, Router};
+use axum::{middleware, Extension, Router};
 use axum_server::tls_rustls::RustlsConfig;
 use hyper::StatusCode;
+use tower::ServiceBuilder;
+use tower_cookies::CookieManagerLayer;
 use tower_http::auth::RequireAuthorizationLayer;
 use tower_http::services::ServeDir;
 
@@ -14,6 +16,7 @@ use crate::SHUTDOWN_SIGNAL;
 
 mod auth;
 mod backend;
+mod csrf;
 mod handlers;
 
 const STATIC_FILES: &str = "data/webserver/static/";
@@ -42,20 +45,33 @@ fn app(db: Arc<HiveDb>) -> Router {
     );
 
     let graphql_routes = Router::new()
-        .route(
-            "/backend",
-            post(handlers::graphql_backend)
-                .layer(RequireAuthorizationLayer::custom(auth::HiveAuth)),
-        )
-        .layer(Extension(db.clone()))
-        .layer(Extension(backend::build_schema()));
+        .route("/backend", post(handlers::graphql_backend))
+        .layer(
+            ServiceBuilder::new()
+                .layer(CookieManagerLayer::new())
+                .layer(middleware::from_fn(csrf::require_csrf_token))
+                .layer(RequireAuthorizationLayer::custom(auth::HiveAuth))
+                .layer(Extension(db.clone()))
+                .layer(Extension(backend::build_schema())),
+        );
+
     println!("{}", backend::build_schema().sdl());
 
     let auth_routes = Router::new()
         .route("/backend", post(handlers::graphql_backend_auth))
+        .layer(
+            ServiceBuilder::new()
+                .layer(CookieManagerLayer::new())
+                .layer(middleware::from_fn(csrf::require_csrf_token))
+                .layer(Extension(db.clone()))
+                .layer(Extension(backend::auth::build_schema())),
+        )
         .route("/ws", post(auth::ws_auth_handler))
-        .layer(Extension(db.clone()))
-        .layer(Extension(backend::auth::build_schema()));
+        .layer(
+            ServiceBuilder::new()
+                .layer(Extension(db.clone()))
+                .layer(Extension(backend::auth::build_schema())),
+        );
 
     Router::new()
     // Static fileserver used to host the hive-backend-ui Vue app

@@ -1,11 +1,10 @@
 //! Handle standalone mode
+use std::sync::Arc;
 use std::thread;
-use std::{sync::Arc, time::Duration};
 
 use tokio::runtime::Builder;
 
 use crate::database::{self, HiveDb};
-use crate::SHUTDOWN_SIGNAL;
 use crate::{comm, dummy_unlock_probes, flash, init};
 
 pub(crate) fn run_standalone_mode(db: Arc<HiveDb>) {

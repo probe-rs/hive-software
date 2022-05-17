@@ -1,5 +1,4 @@
 //! Handles user authentication
-use std::env;
 use std::sync::Arc;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
@@ -11,13 +10,25 @@ use comm_types::cbor::Cbor;
 use http_body::combinators::UnsyncBoxBody;
 use hyper::{Request, StatusCode};
 use jsonwebtoken::{get_current_timestamp, DecodingKey, EncodingKey, Header, Validation};
+use lazy_static::lazy_static;
+use rand_chacha::rand_core::{RngCore, SeedableRng};
+use rand_chacha::ChaChaRng;
 use tower_http::auth::AuthorizeRequest;
 
 use crate::database::{keys, CborDb, HiveDb};
 
 const ISSUER: &str = "probe-rs hive";
 const TOKEN_EXPIRE_TIME: u64 = 30; // 30s
-const JWT_SECRET_ENV: &str = "JWT_SECRET";
+
+lazy_static! {
+    static ref JWT_SECRET: [u8; 64] = {
+        let mut secret: [u8; 64] = [0; 64];
+        let mut rng = ChaChaRng::from_entropy();
+        rng.fill_bytes(&mut secret);
+
+        secret
+    };
+}
 
 /// Handles user authentication requests to obtain ws connection.
 ///
@@ -65,7 +76,44 @@ impl<B> AuthorizeRequest<B> for HiveAuth {
                 return Err(Response::builder()
                     .status(StatusCode::UNAUTHORIZED)
                     .body(UnsyncBoxBody::default())
-                    .unwrap())
+                    .unwrap());
+            }
+        }
+    }
+}
+
+/// Implements custom jwt authentication in [`tower_http`] auth middleware which includes a csrf token check using "double cookie" method.
+///
+/// The jwt needs to be supplied in the authorization header in the form of: `Bearer <jwt>`
+#[derive(Clone, Copy)]
+pub(super) struct HiveAuthCsrf;
+
+impl<B> AuthorizeRequest<B> for HiveAuthCsrf {
+    type ResponseBody = UnsyncBoxBody<axum::body::Bytes, axum::Error>;
+
+    fn authorize(&mut self, request: &mut Request<B>) -> Result<(), Response<Self::ResponseBody>> {
+        let auth_header = request.headers().get(header::AUTHORIZATION);
+
+        if auth_header.is_none() {
+            return Err(Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .body(UnsyncBoxBody::default())
+                .unwrap());
+        }
+
+        let auth_header = auth_header.unwrap();
+
+        match check_jwt(auth_header) {
+            Ok(claims) => {
+                request.extensions_mut().insert(claims);
+
+                return Ok(());
+            }
+            Err(_) => {
+                return Err(Response::builder()
+                    .status(StatusCode::UNAUTHORIZED)
+                    .body(UnsyncBoxBody::default())
+                    .unwrap());
             }
         }
     }
@@ -83,14 +131,7 @@ pub(crate) fn generate_jwt(user: DbUser, expires_in_secs: u64) -> String {
     jsonwebtoken::encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(
-            env::var(JWT_SECRET_ENV)
-                .expect(&format!(
-                    "Environment variable {} is not set",
-                    JWT_SECRET_ENV
-                ))
-                .as_bytes(),
-        ),
+        &EncodingKey::from_secret(&*JWT_SECRET),
     )
     .unwrap()
 }
@@ -160,14 +201,7 @@ fn check_jwt(auth_header: &HeaderValue) -> Result<JwtClaims, ()> {
 
             let payload = jsonwebtoken::decode::<JwtClaims>(
                 token.unwrap(),
-                &DecodingKey::from_secret(
-                    env::var(JWT_SECRET_ENV)
-                        .expect(&format!(
-                            "Environment variable {} is not set",
-                            JWT_SECRET_ENV
-                        ))
-                        .as_bytes(),
-                ),
+                &DecodingKey::from_secret(&*JWT_SECRET),
                 &validator,
             )
             .map_err(|_| ())?;
@@ -181,8 +215,6 @@ fn check_jwt(auth_header: &HeaderValue) -> Result<JwtClaims, ()> {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-
     use axum::http::HeaderValue;
     use comm_types::auth::JwtClaims;
     use comm_types::auth::Role;
@@ -192,7 +224,7 @@ mod tests {
 
     use super::check_jwt;
     use super::ISSUER;
-    use super::JWT_SECRET_ENV;
+    use super::JWT_SECRET;
     use super::TOKEN_EXPIRE_TIME;
 
     #[test]
@@ -219,7 +251,7 @@ mod tests {
         let new_token = jsonwebtoken::encode(
             &Header::default(),
             &claims,
-            &EncodingKey::from_secret(env::var(JWT_SECRET_ENV).unwrap().as_bytes()),
+            &EncodingKey::from_secret(&*JWT_SECRET),
         )
         .unwrap();
 
@@ -244,7 +276,7 @@ mod tests {
         let new_token = jsonwebtoken::encode(
             &Header::default(),
             &claims,
-            &EncodingKey::from_secret(env::var(JWT_SECRET_ENV).unwrap().as_bytes()),
+            &EncodingKey::from_secret(&*JWT_SECRET),
         )
         .unwrap();
 
@@ -265,7 +297,7 @@ mod tests {
         let new_token = jsonwebtoken::encode(
             &Header::default(),
             &claims,
-            &EncodingKey::from_secret(env::var(JWT_SECRET_ENV).unwrap().as_bytes()),
+            &EncodingKey::from_secret(&*JWT_SECRET),
         )
         .unwrap();
 

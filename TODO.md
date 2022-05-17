@@ -7,7 +7,7 @@
 - [ ] Add the ability to run multiple testbinaries in a single testrun. The currently most promising idea is to create a testprogram with multiple entrypoints, which then run the individual testprograms. This would not require reflashing of testbinaries during a testrun (which might be a quite expensive operation if the runner runs in a virtualised environment). In this approach the runner would set the PC to the appropriate entrypoint based on which testprogram is defined in the testfunction.
 - [ ] It needs to be determined how the different operating modes are implemented with having as little redundant code as possible. Most operating modes just require changes in the external communication which would only affect the webserver.
 - [X] Fix IPC server unit tests (static DB)
-- [ ] Check JWT-SECRET env variable strength to enforce strong secrets
+- [ ] ~~Check JWT-SECRET env variable strength to enforce strong secrets~~
 - [ ] ~~Websocket pass auth jwt as query param instead of auth header, as browser ws libs usually don't support setting such headers. Caching is not really a concern as the token is very short lived, it needs to be determined whether axum logs urls with params to avoid logging jwt's in query params~~
 - [ ] ~~Websocket verify origin, autoclose socket after certain duration~~
 - [X] Add auth to backend graphql server
