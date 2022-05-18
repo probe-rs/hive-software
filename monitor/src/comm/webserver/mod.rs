@@ -26,7 +26,7 @@ const PEM_KEY: &str = "data/webserver/cert/key.pem";
 pub(super) async fn web_server(db: Arc<HiveDb>) {
     let app = app(db);
     let addr = SocketAddr::from(([0, 0, 0, 0], 4356));
-    let tls_config = RustlsConfig::from_pem_file(PEM_CERT, PEM_KEY).await.expect(&format!("Failed to find the PEM certificate file. It should be stored in the application data folder: Cert: {} Key: {}", PEM_CERT, PEM_KEY));
+    let tls_config = RustlsConfig::from_pem_file(PEM_CERT, PEM_KEY).await.unwrap_or_else(|_| panic!("Failed to find the PEM certificate file. It should be stored in the application data folder: Cert: {} Key: {}", PEM_CERT, PEM_KEY));
 
     let server = axum_server::bind_rustls(addr, tls_config).serve(app.into_make_service());
     let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
@@ -69,7 +69,7 @@ fn app(db: Arc<HiveDb>) -> Router {
         .route("/ws", post(auth::ws_auth_handler))
         .layer(
             ServiceBuilder::new()
-                .layer(Extension(db.clone()))
+                .layer(Extension(db))
                 .layer(Extension(backend::auth::build_schema())),
         );
 

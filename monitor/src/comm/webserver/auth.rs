@@ -75,14 +75,12 @@ impl<B> AuthorizeRequest<B> for HiveAuth {
             Ok(claims) => {
                 request.extensions_mut().insert(claims);
 
-                return Ok(());
+                Ok(())
             }
-            Err(_) => {
-                return Err(Response::builder()
-                    .status(StatusCode::UNAUTHORIZED)
-                    .body(UnsyncBoxBody::default())
-                    .unwrap());
-            }
+            Err(_) => Err(Response::builder()
+                .status(StatusCode::UNAUTHORIZED)
+                .body(UnsyncBoxBody::default())
+                .unwrap()),
         }
     }
 }
@@ -126,8 +124,7 @@ pub(crate) fn check_password(
     {
         let user = users
             .into_iter()
-            .filter(|user| user.username == username)
-            .next()
+            .find(|user| user.username == username)
             .unwrap();
 
         let hasher = Argon2::default();

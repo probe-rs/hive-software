@@ -19,12 +19,10 @@ pub(crate) fn run_init_mode(db: Arc<HiveDb>) {
         .c_get::<Vec<DbUser>>(keys::credentials::USERS)
         .unwrap();
 
-    if users.is_some() {
-        if !users.unwrap().is_empty() {
-            log::error!("Failed to run the application in init-mode. The DB already contains a registered user.\n\tHint: You can only register the first user with init-mode, if you want to register another user, please use the Hive-Backend-UI.");
+    if users.is_some() && !users.unwrap().is_empty() {
+        log::error!("Failed to run the application in init-mode. The DB already contains a registered user.\n\tHint: You can only register the first user with init-mode, if you want to register another user, please use the Hive-Backend-UI.");
 
-            process::exit(1);
-        }
+        process::exit(1);
     }
 
     println!(
@@ -34,7 +32,7 @@ pub(crate) fn run_init_mode(db: Arc<HiveDb>) {
     let username_input = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Username")
         .validate_with(|input: &String| -> Result<(), &str> {
-            if input.contains(" ") {
+            if input.contains(' ') {
                 return Err("Whitespaces are not allowed");
             }
 
@@ -61,12 +59,11 @@ pub(crate) fn run_init_mode(db: Arc<HiveDb>) {
         .hash_password(password_input.as_bytes(), &salt)
         .unwrap();
 
-    let mut users = vec![];
-    users.push(DbUser {
+    let users = vec![DbUser {
         username: username_input.clone(),
         hash: hash.to_string(),
         role: Role::ADMIN,
-    });
+    }];
 
     db.credentials_tree
         .c_insert(keys::credentials::USERS, &users)

@@ -41,20 +41,18 @@ pub(super) fn assemble_binary_arm(testprogram: &TestProgram) -> Result<(), Build
     // -g Generate debug info, -mthumb assemble thumb code
     let assemble = Command::new("arm-none-eabi-as")
         .args(["-g", "main.S", "-o", "main.o", "-mthumb"])
-        .current_dir(working_dir.clone())
+        .current_dir(working_dir)
         .output()
         .expect("Failed to run the ARM assembly process, is the arm-none-eabi-as command accessible to the application?");
 
     if !assemble.status.success() {
-        let cause;
-
-        if !assemble.stderr.is_empty() {
-            cause = String::from_utf8(assemble.stderr)
-                .expect("Failed to parse stderr from ARM assembler to string");
+        let cause = if !assemble.stderr.is_empty() {
+            String::from_utf8(assemble.stderr)
+                .expect("Failed to parse stderr from ARM assembler to string")
         } else {
-            cause = String::from_utf8(assemble.stdout)
-                .expect("Failed to parse stdout from ARM assembler to string");
-        }
+            String::from_utf8(assemble.stdout)
+                .expect("Failed to parse stdout from ARM assembler to string")
+        };
 
         return Err(BuildError::AssemblyError(cause));
     }
@@ -68,20 +66,18 @@ pub(super) fn assemble_binary_riscv(testprogram: &TestProgram) -> Result<(), Bui
 
     let assemble = Command::new("riscv-none-embed-as")
         .args(["main.S", "-o", "main.o"])
-        .current_dir(working_dir.clone())
+        .current_dir(working_dir)
         .output()
         .expect("Failed to run the RISCV assembly process, is the riscv-none-embed-as command accessible to the application?");
 
     if !assemble.status.success() {
-        let cause;
-
-        if !assemble.stderr.is_empty() {
-            cause = String::from_utf8(assemble.stderr)
-                .expect("Failed to parse stderr from RISCV assembler to string");
+        let cause = if !assemble.stderr.is_empty() {
+            String::from_utf8(assemble.stderr)
+                .expect("Failed to parse stderr from RISCV assembler to string")
         } else {
-            cause = String::from_utf8(assemble.stdout)
-                .expect("Failed to parse stdout from RISCV assembler to string");
-        }
+            String::from_utf8(assemble.stdout)
+                .expect("Failed to parse stdout from RISCV assembler to string")
+        };
 
         return Err(BuildError::AssemblyError(cause));
     }
@@ -98,7 +94,7 @@ fn link_binary_arm(testprogram: &TestProgram, arm_address: &Memory) -> Result<()
     let working_dir = testprogram.path.to_owned().join("arm/");
 
     // Check if object file exists
-    if !working_dir.to_owned().join("main.o").exists() {
+    if !working_dir.join("main.o").exists() {
         return Err(BuildError::ObjectFileNotFound);
     }
 
@@ -117,15 +113,13 @@ fn link_binary_arm(testprogram: &TestProgram, arm_address: &Memory) -> Result<()
         .expect("Failed to run the ARM linking process, is the arm-none-eabi-ld command accessible to the application?");
 
     if !link.status.success() {
-        let cause;
-
-        if !link.stderr.is_empty() {
-            cause = String::from_utf8(link.stderr)
-                .expect("Failed to parse stderr from ARM linker to string");
+        let cause = if !link.stderr.is_empty() {
+            String::from_utf8(link.stderr)
+                .expect("Failed to parse stderr from ARM linker to string")
         } else {
-            cause = String::from_utf8(link.stdout)
-                .expect("Failed to parse stdout from ARM linker to string");
-        }
+            String::from_utf8(link.stdout)
+                .expect("Failed to parse stdout from ARM linker to string")
+        };
 
         return Err(BuildError::LinkingError(cause));
     }
@@ -142,7 +136,7 @@ fn link_binary_riscv(testprogram: &TestProgram, riscv_address: &Memory) -> Resul
     let working_dir = testprogram.path.to_owned().join("riscv/");
 
     // Check if object file exists
-    if !working_dir.to_owned().join("main.o").exists() {
+    if !working_dir.join("main.o").exists() {
         return Err(BuildError::ObjectFileNotFound);
     }
 
@@ -163,15 +157,13 @@ fn link_binary_riscv(testprogram: &TestProgram, riscv_address: &Memory) -> Resul
         .expect("Failed to run the RISCV linking process, is the riscv-none-embed-ld command accessible to the application?");
 
     if !link.status.success() {
-        let cause;
-
-        if !link.stderr.is_empty() {
-            cause = String::from_utf8(link.stderr)
-                .expect("Failed to parse stderr from RISCV linker to string");
+        let cause = if !link.stderr.is_empty() {
+            String::from_utf8(link.stderr)
+                .expect("Failed to parse stderr from RISCV linker to string")
         } else {
-            cause = String::from_utf8(link.stdout)
-                .expect("Failed to parse stdout from RISCV linker to string");
-        }
+            String::from_utf8(link.stdout)
+                .expect("Failed to parse stdout from RISCV linker to string")
+        };
 
         return Err(BuildError::LinkingError(cause));
     }

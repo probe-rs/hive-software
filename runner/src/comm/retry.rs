@@ -86,13 +86,13 @@ where
         .clone()
         .request(clone_request(&request.0, request.1.as_ref()))
         .await
-        .map_err(|err| RequestError::Network(err))?;
+        .map_err(RequestError::Network)?;
 
     if response.status().is_success() {
         let message = IpcMessage::from_response(response)
             .await
-            .map_err(|err| RequestError::Parse(err))?;
-        return Ok(message);
+            .map_err(RequestError::Parse)?;
+        Ok(message)
     } else {
         Err(RequestError::BadStatus(response.status()))
     }
@@ -114,8 +114,8 @@ fn clone_request(request: &Request<Body>, body: Option<&Vec<u8>>) -> Request<Bod
         )
         .uri(request.uri().clone())
         .body((|| {
-            if body.is_some() {
-                return Body::from(body.unwrap().clone());
+            if let Some(body) = body {
+                return Body::from(body.clone());
             }
             Body::empty()
         })())

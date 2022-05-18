@@ -106,9 +106,9 @@ impl CborDb for Tree {
 
         let prev_val = self.insert(key, bytes)?;
 
-        if prev_val.is_some() {
-            let prev_val: T = from_reader(&*prev_val.unwrap())
-                .expect("Failed to deserialize the existing DB value to CBOR");
+        if let Some(val) = prev_val {
+            let prev_val: T =
+                from_reader(&*val).expect("Failed to deserialize the existing DB value to CBOR");
             return Ok(Some(prev_val));
         }
 
@@ -121,9 +121,8 @@ impl CborDb for Tree {
     {
         let val = self.get(key)?;
 
-        if val.is_some() {
-            let val =
-                from_reader(&*val.unwrap()).expect("Failed to deserialize the DB value to CBOR");
+        if let Some(val) = val {
+            let val = from_reader(&*val).expect("Failed to deserialize the DB value to CBOR");
             return Ok(Some(val));
         }
 

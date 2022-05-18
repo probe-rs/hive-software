@@ -64,8 +64,8 @@ fn main() {
     let db = Arc::new(HiveDb::open());
 
     match cli_args.mode {
-        ApplicationMode::Init => mode::init::run_init_mode(db.clone()),
-        ApplicationMode::Standalone => mode::standalone::run_standalone_mode(db.clone()),
+        ApplicationMode::Init => mode::init::run_init_mode(db),
+        ApplicationMode::Standalone => mode::standalone::run_standalone_mode(db),
         ApplicationMode::ClusterSlave => todo!(),
         ApplicationMode::ClusterMaster => todo!(),
     }

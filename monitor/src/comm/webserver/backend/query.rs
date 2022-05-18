@@ -60,11 +60,10 @@ impl BackendQuery {
         target_data
             .into_iter()
             .map(|target_data| {
-                if target_data.is_some() {
+                if let Some(target_data) = target_data {
                     let flat_data: [FlatTargetState; 4] = target_data
-                        .unwrap()
                         .into_iter()
-                        .map(|target_state| FlatTargetState::from(target_state))
+                        .map(FlatTargetState::from)
                         .collect::<Vec<FlatTargetState>>()
                         .try_into()
                         .unwrap();
@@ -88,7 +87,7 @@ impl BackendQuery {
             .unwrap()
             .expect("DB not initialized")
             .into_iter()
-            .map(|probe| FlatProbeState::from(probe))
+            .map(FlatProbeState::from)
             .collect::<Vec<FlatProbeState>>()
             .try_into()
             .unwrap()

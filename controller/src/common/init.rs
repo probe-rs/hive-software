@@ -45,8 +45,8 @@ pub fn initialize_target_data(
     }
 
     for (idx, targets) in data.into_iter().enumerate().filter_map(|(idx, data)| {
-        if data.is_some() {
-            return Some((idx, data.unwrap()));
+        if let Some(data) = data {
+            return Some((idx, data));
         }
         None
     }) {

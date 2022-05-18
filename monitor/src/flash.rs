@@ -130,9 +130,9 @@ pub(crate) fn flash_testbinaries(db: Arc<HiveDb>) {
             }
         }
 
-        if targets.is_some() {
+        if let Some(targets) = targets {
             // save updated targets back to tss
-            tss.set_targets(targets.unwrap());
+            tss.set_targets(targets);
         }
     }
 
@@ -184,16 +184,16 @@ fn flash_target(
         probe_info.identifier
     );
 
-    let flash_result = retry_flash(&testchannel, target_info, probe_info, |mut session| {
+    let flash_result = retry_flash(testchannel, target_info, probe_info, |mut session| {
         let mut download_options = DownloadOptions::default();
         download_options.do_chip_erase = true;
 
         let path = match target_info.architecture.as_ref().unwrap() {
             Architecture::ARM => {
-                testprogram.get_elf_path_arm(&target_info.memory_address.as_ref().unwrap())
+                testprogram.get_elf_path_arm(target_info.memory_address.as_ref().unwrap())
             }
             Architecture::RISCV => {
-                testprogram.get_elf_path_riscv(&target_info.memory_address.as_ref().unwrap())
+                testprogram.get_elf_path_riscv(target_info.memory_address.as_ref().unwrap())
             }
         };
 
@@ -217,7 +217,7 @@ fn flash_target(
             result_sender.send(FlashStatus {
             tss_pos,
             target_name: target_info.name.clone(),
-            result: Err(format!("{}: {}",err.to_string(), source)),
+            result: Err(format!("{}: {}", err, source)),
         }).expect("Failed to send results to main thread, the receiver might have been dropped unexpectedly.")},
     }
 
@@ -248,8 +248,8 @@ where
     let _ = probe.set_speed(8000);
     let session = probe.attach(&target_info.name);
 
-    if session.is_ok() {
-        let flash_result = flash(session.unwrap());
+    if let Ok(session) = session {
+        let flash_result = flash(session);
         match flash_result {
             Ok(_) => return Ok(()),
             Err(err) => log::warn!(

@@ -91,7 +91,7 @@ pub(super) async fn require_csrf_token<B>(
         Some(cookie) => verify_csrf_cookie(&cookie)?,
         None => {
             // No csrf cookie has been provided, therefore we set a new valid csrf cookie and reject the request.
-            add_new_csrf_cookie(&req_cookies).await;
+            add_new_csrf_cookie(req_cookies).await;
 
             return Err(CsrfError::MissingCsrfCookie);
         }
@@ -108,14 +108,14 @@ pub(super) async fn require_csrf_token<B>(
                 return Ok(next.run(req).await);
             } else {
                 // Csrf tokens do not match. Add a new csrf cookie and reject the request
-                add_new_csrf_cookie(&req_cookies).await;
+                add_new_csrf_cookie(req_cookies).await;
 
-                return Err(CsrfError::InvalidCsrfToken);
+                Err(CsrfError::InvalidCsrfToken)
             }
         }
         None => {
             // No csrf header is provided, this is considered a bad request as the header is mandatory in csrf protected routes
-            return Err(CsrfError::MissingCsrfHeader);
+            Err(CsrfError::MissingCsrfHeader)
         }
     }
 }
@@ -155,7 +155,7 @@ fn sign_csrf_token(token: String) -> String {
 fn verify_csrf_cookie(csrf_cookie: &Cookie) -> Result<String, CsrfError> {
     let signed_token = csrf_cookie.value();
 
-    let parts: Vec<&str> = signed_token.split(".").collect();
+    let parts: Vec<&str> = signed_token.split('.').collect();
 
     if parts.len() != 2 {
         return Err(CsrfError::InvalidCsrfCookie);

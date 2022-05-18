@@ -34,7 +34,7 @@ impl BackendMutation {
             .expect("DB not initialized");
 
         if assigned[tss_pos].is_none() {
-            return Err(anyhow!("Cannot assign target to tss without daughterboard"))?;
+            return Err(anyhow!("Cannot assign target to tss without daughterboard").into());
         }
 
         let target_state: TargetState = target_name.clone().into();
@@ -66,8 +66,8 @@ impl BackendMutation {
             .unwrap()
             .expect("DB not initialized");
 
-        if probe_state.state == State::Known {
-            if assigned.iter().any(|assigned_probe| {
+        if probe_state.state == State::Known
+            && assigned.iter().any(|assigned_probe| {
                 if let ProbeState::Known(assigned_probe_info) = assigned_probe {
                     return assigned_probe_info.identifier
                         == probe_state.data.as_ref().unwrap().identifier
@@ -75,11 +75,12 @@ impl BackendMutation {
                             == probe_state.data.as_ref().unwrap().serial_number;
                 }
                 false
-            }) {
-                return Err(anyhow!(
-                    "Cannot reassign a probe which is already assigned to a testchannel"
-                ))?;
-            }
+            })
+        {
+            return Err(anyhow!(
+                "Cannot reassign a probe which is already assigned to a testchannel"
+            )
+            .into());
         }
 
         if probe_state.state == State::Known {
@@ -101,7 +102,7 @@ impl BackendMutation {
             }
 
             if !probe_found {
-                return Err(anyhow!("Could not detect the provided probe"))?;
+                return Err(anyhow!("Could not detect the provided probe").into());
             }
         } else {
             assigned[probe_pos] = match probe_state.state {

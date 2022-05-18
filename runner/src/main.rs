@@ -82,7 +82,6 @@ fn main() {
             );
 
             comm_sender
-                .clone()
                 .blocking_send(comm::Message::InitError(err))
                 .unwrap();
 

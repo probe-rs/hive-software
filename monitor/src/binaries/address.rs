@@ -31,8 +31,8 @@ pub(crate) fn get_and_init_target_address_ranges() -> BaseAddressRanges {
 
         let targets = tss.get_targets().as_ref().unwrap().clone();
 
-        for idx in 0..targets.len() {
-            if let TargetState::Known(target_info) = &targets[idx] {
+        for (idx, target) in targets.iter().enumerate() {
+            if let TargetState::Known(target_info) = target {
                 let target = match config::get_target_by_name(&target_info.name) {
                     Ok(target) => target,
                     Err(err) => {
@@ -74,23 +74,20 @@ pub(crate) fn get_and_init_target_address_ranges() -> BaseAddressRanges {
                 tss.set_target_info(idx, new_target_info);
 
                 if target.architecture() == Architecture::Arm {
-                    if addresses
+                    if !addresses
                         .arm
                         .iter()
-                        .find(|address_range| **address_range == new_address)
-                        .is_none()
+                        .any(|address_range| *address_range == new_address)
                     {
                         addresses.arm.push(new_address);
                     }
-                } else if target.architecture() == Architecture::Riscv {
-                    if addresses
+                } else if target.architecture() == Architecture::Riscv
+                    && !addresses
                         .riscv
                         .iter()
-                        .find(|address_range| **address_range == new_address)
-                        .is_none()
-                    {
-                        addresses.riscv.push(new_address);
-                    }
+                        .any(|address_range| *address_range == new_address)
+                {
+                    addresses.riscv.push(new_address);
                 }
             }
         }
@@ -111,10 +108,8 @@ fn get_nvm_address(target: Target) -> Result<Range<u32>, ()> {
         .iter()
         .filter(|region| {
             if let MemoryRegion::Nvm(nvm) = region {
-                if nvm.is_boot_memory {
-                    if nvm.cores[0] == cores[0].name {
-                        return true;
-                    }
+                if nvm.is_boot_memory && nvm.cores[0] == cores[0].name {
+                    return true;
                 }
             }
             false
@@ -123,7 +118,7 @@ fn get_nvm_address(target: Target) -> Result<Range<u32>, ()> {
 
     if bootable_nvm.is_empty() {
         // Failed to determine NVM address
-        return Err(());
+        Err(())
     } else if bootable_nvm.len() == 1 {
         if let MemoryRegion::Nvm(region) = bootable_nvm[0] {
             return Ok(region.range.clone());
@@ -175,7 +170,7 @@ fn get_ram_address(target: Target) -> Result<Range<u32>, ()> {
 
     if available_ram.is_empty() {
         // Failed to determine RAM address
-        return Err(());
+        Err(())
     } else if available_ram.len() == 1 {
         if let MemoryRegion::Ram(region) = available_ram[0] {
             return Ok(region.range.clone());

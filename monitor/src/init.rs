@@ -34,10 +34,8 @@ pub(crate) fn check_uninit(db: Arc<HiveDb>) {
         .c_get::<Vec<DbUser>>(keys::credentials::USERS)
         .unwrap();
 
-    if users.is_some() {
-        if !users.unwrap().is_empty() {
-            return;
-        }
+    if users.is_some() && !users.unwrap().is_empty() {
+        return;
     }
 
     println!("Failed to find a user in the DB. Please register the first user by running the program in init-mode: 'monitor init'");
@@ -83,7 +81,7 @@ pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
                     log::warn!("Found testprogram '{}' in DB but failed to locate the complete program files on the disk. Removing corrupted testprogram...", programs[idx].name);
 
                     // try to remove the program folder (in case only parts of the testprogram folder structure were missing)
-                    let _ = fs::remove_dir_all(programs[idx].path.to_owned());
+                    let _ = fs::remove_dir_all(&programs[idx].path);
 
                     programs.remove(idx);
                     db.config_tree

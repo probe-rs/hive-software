@@ -96,10 +96,12 @@ async fn init_socket_file(socket_path: &Path) {
             .expect("Provided socket path is already root or prefix"),
     )
     .await
-    .expect(&format!(
-        "Failed to create missing folders in path: {:?} Please check the permissions.",
-        socket_path
-    ));
+    .unwrap_or_else(|_| {
+        panic!(
+            "Failed to create missing folders in path: {:?} Please check the permissions.",
+            socket_path
+        )
+    });
     let _ = tokio::fs::remove_file(socket_path).await;
 }
 
