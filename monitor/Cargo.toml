@@ -42,6 +42,7 @@ clap-verbosity-flag = "1.0"
 dialoguer = "0.10"
 rand_chacha = "0.3"
 base64 = "0.13"
+ring = "0.16"
 
 # Only used for dummy functions
 colored = "2.0"

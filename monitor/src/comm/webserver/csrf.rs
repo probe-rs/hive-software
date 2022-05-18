@@ -18,14 +18,18 @@ use axum::{
     middleware::Next,
     response::IntoResponse,
 };
-use base64::encode;
+use base64::{decode, encode};
 use cookie::{time::Duration, SameSite};
 use lazy_static::lazy_static;
 use rand_chacha::rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaChaRng;
+use ring::{
+    hmac::{self, Key, HMAC_SHA256},
+    rand,
+};
 use thiserror::Error;
 use tokio::sync::Mutex;
-use tower_cookies::{Cookie, Cookies, Key, SignedCookies};
+use tower_cookies::{Cookie, Cookies};
 
 const COOKIE_CSRF_TOKEN_KEY: &str = "CSRF-TOKEN";
 const HEADER_CSRF_TOKEN_KEY: &str = "X-CSRF-TOKEN";
@@ -34,7 +38,10 @@ const COOKIE_TTL: u64 = 600; // 10min
 
 lazy_static! {
     /// Random cryptographically secure key which is generated during runtime to sign cookies
-    static ref COOKIE_KEY: Key = Key::generate();
+    static ref COOKIE_SIGNING_KEY: Key = {
+        let rng = rand::SystemRandom::new();
+        Key::generate(HMAC_SHA256, &rng).unwrap()
+    };
     /// ChaCha20 rng which is seeded by os rng
     static ref CHACHA_RNG: Mutex<ChaChaRng> = Mutex::new(ChaChaRng::from_entropy());
 }
@@ -45,6 +52,8 @@ pub(super) enum CsrfError {
     MissingCsrfCookie,
     #[error("Missing csrf header")]
     MissingCsrfHeader,
+    #[error("The signature of the csrf cookie is invalid")]
+    InvalidCsrfCookie,
     #[error("Csrf tokens do not match")]
     InvalidCsrfToken,
     #[error("Failed to parse csrf header value")]
@@ -58,6 +67,7 @@ impl IntoResponse for CsrfError {
             CsrfError::MissingCsrfHeader => StatusCode::BAD_REQUEST,
             CsrfError::InvalidCsrfToken => StatusCode::FORBIDDEN,
             CsrfError::InvalidCsrfHeader => StatusCode::BAD_REQUEST,
+            CsrfError::InvalidCsrfCookie => StatusCode::FORBIDDEN,
         };
 
         (status, self.to_string()).into_response()
@@ -75,15 +85,13 @@ pub(super) async fn require_csrf_token<B>(
         .get::<Cookies>()
         .expect("Failed to get extracted cookies. This middleware can only be called after the request cookies have been extracted.");
 
-    let signed_cookies = req_cookies.signed(&*COOKIE_KEY);
-
-    let cookie_csrf_token = signed_cookies.get(COOKIE_CSRF_TOKEN_KEY);
+    let cookie_csrf_token = req_cookies.get(COOKIE_CSRF_TOKEN_KEY);
 
     let cookie_csrf_token = match cookie_csrf_token {
-        Some(token) => token,
+        Some(cookie) => verify_csrf_cookie(&cookie)?,
         None => {
-            // Either no csrf cookie was provided or it has been modified, therefore we set a new valid csrf cookie and reject the request.
-            add_new_csrf_cookie(&signed_cookies).await;
+            // No csrf cookie has been provided, therefore we set a new valid csrf cookie and reject the request.
+            add_new_csrf_cookie(&req_cookies).await;
 
             return Err(CsrfError::MissingCsrfCookie);
         }
@@ -94,13 +102,13 @@ pub(super) async fn require_csrf_token<B>(
             if csrf_header
                 .to_str()
                 .map_err(|_| CsrfError::InvalidCsrfHeader)?
-                == cookie_csrf_token.value()
+                == cookie_csrf_token
             {
                 // Csrf tokens match
                 return Ok(next.run(req).await);
             } else {
                 // Csrf tokens do not match. Add a new csrf cookie and reject the request
-                add_new_csrf_cookie(&signed_cookies).await;
+                add_new_csrf_cookie(&req_cookies).await;
 
                 return Err(CsrfError::InvalidCsrfToken);
             }
@@ -113,14 +121,17 @@ pub(super) async fn require_csrf_token<B>(
 }
 
 /// Adds a new csrf cookie (containing a new csrf token) to the provided cookie jar
-async fn add_new_csrf_cookie(signed_cookies: &SignedCookies<'_>) {
-    let new_csrf_cookie = Cookie::build(COOKIE_CSRF_TOKEN_KEY, generate_csrf_token().await)
-        .max_age(Duration::seconds(COOKIE_TTL as i64))
-        .secure(true)
-        .same_site(SameSite::Strict)
-        .finish();
+async fn add_new_csrf_cookie(cookie_jar: &Cookies) {
+    let new_csrf_cookie = Cookie::build(
+        COOKIE_CSRF_TOKEN_KEY,
+        sign_csrf_token(generate_csrf_token().await),
+    )
+    .max_age(Duration::seconds(COOKIE_TTL as i64))
+    .secure(true)
+    .same_site(SameSite::Strict)
+    .finish();
 
-    signed_cookies.add(new_csrf_cookie);
+    cookie_jar.add(new_csrf_cookie);
 }
 
 /// Generates a 32 Byte base64 encoded csrf token, by using [`ChaChaRng`]
@@ -132,6 +143,31 @@ async fn generate_csrf_token() -> String {
     drop(rng);
 
     encode(csrf_token)
+}
+
+/// Signs the csrf token with HS256 in the format: `<csrf_token>.<tag>`
+fn sign_csrf_token(token: String) -> String {
+    let tag = hmac::sign(&*COOKIE_SIGNING_KEY, token.as_bytes());
+    return format!("{}.{}", token, encode(tag.as_ref()));
+}
+
+/// Verifies the csrf cookie value signature and returns the csrf token, if valid
+fn verify_csrf_cookie(csrf_cookie: &Cookie) -> Result<String, CsrfError> {
+    let signed_token = csrf_cookie.value();
+
+    let parts: Vec<&str> = signed_token.split(".").collect();
+
+    if parts.len() != 2 {
+        return Err(CsrfError::InvalidCsrfCookie);
+    }
+
+    let token = parts[0];
+    let tag = decode(parts[1]).map_err(|_| CsrfError::InvalidCsrfCookie)?;
+
+    hmac::verify(&COOKIE_SIGNING_KEY, token.as_bytes(), &tag)
+        .map_err(|_| CsrfError::InvalidCsrfCookie)?;
+
+    Ok(token.to_owned())
 }
 
 #[cfg(test)]
@@ -157,6 +193,34 @@ mod tests {
 
     async fn get_handler() -> String {
         "passed csrf check".to_owned()
+    }
+
+    #[tokio::test]
+    async fn signing_cookie() {
+        let csrf_token = super::generate_csrf_token().await;
+
+        let signed_token = super::sign_csrf_token(csrf_token.clone());
+
+        let signed_cookie = Cookie::build("signed", signed_token).finish();
+
+        let retrieved_token = super::verify_csrf_cookie(&signed_cookie).unwrap();
+
+        assert_eq!(csrf_token, retrieved_token);
+    }
+
+    #[tokio::test]
+    async fn signing_cookie_modified() {
+        let csrf_token = super::generate_csrf_token().await;
+        let csrf_token_modified = super::generate_csrf_token().await;
+
+        let signed_token = super::sign_csrf_token(csrf_token.clone());
+
+        let parts: Vec<&str> = signed_token.split(".").collect();
+
+        let modified_cookie =
+            Cookie::build("signed", format!("{}.{}", csrf_token_modified, parts[1])).finish();
+
+        assert!(super::verify_csrf_cookie(&modified_cookie).is_err());
     }
 
     #[tokio::test]
@@ -246,7 +310,7 @@ mod tests {
         let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
         assert_eq!(
             body_text,
-            CsrfError::MissingCsrfCookie.to_string().as_bytes()
+            CsrfError::InvalidCsrfCookie.to_string().as_bytes()
         );
     }
 
@@ -323,6 +387,8 @@ mod tests {
             .unwrap();
 
         let cookies = res.headers().get(header::SET_COOKIE).unwrap().clone();
+        let modified_token_parts: Vec<&str> = csrf_cookie.value().split(".").collect();
+        let modified_token = modified_token_parts[0];
 
         let ipc_server = app();
         // Second request with appended csrf cookie containing the modified token as header
@@ -334,7 +400,7 @@ mod tests {
                     // Cookies from new request
                     .header(header::COOKIE, cookies)
                     // Signed and unmodified csrf token from old cookie
-                    .header(HEADER_CSRF_TOKEN_KEY, csrf_cookie.value())
+                    .header(HEADER_CSRF_TOKEN_KEY, modified_token)
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -347,5 +413,47 @@ mod tests {
             body_text,
             CsrfError::InvalidCsrfToken.to_string().as_bytes()
         );
+    }
+
+    #[tokio::test]
+    async fn correct_csrf_token() {
+        let ipc_server = app();
+
+        // Initial request which should fail and contain a new csrf cookie
+        let res = ipc_server
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let cookies = res.headers().get(header::SET_COOKIE).unwrap().clone();
+        let csrf_cookie = Cookie::parse(cookies.to_str().unwrap()).unwrap();
+
+        let token_parts: Vec<&str> = csrf_cookie.value().split(".").collect();
+        let token = token_parts[0];
+
+        let ipc_server = app();
+        // Second request with appended csrf cookie containing the signed token as header
+        let res = ipc_server
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/")
+                    .header(header::COOKIE, cookies.clone())
+                    .header(HEADER_CSRF_TOKEN_KEY, token)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::OK);
+        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        assert_eq!(body_text, "passed csrf check".to_owned().as_bytes());
     }
 }
