@@ -6,6 +6,7 @@ use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::Extension;
 use axum::response::Response;
 use comm_types::auth::JwtClaims;
+use tower_cookies::Cookies;
 
 use crate::database::HiveDb;
 
@@ -74,8 +75,12 @@ pub(super) async fn graphql_backend(
 
 pub(super) async fn graphql_backend_auth(
     Extension(db): Extension<Arc<HiveDb>>,
+    Extension(cookies): Extension<Cookies>,
     schema: Extension<BackendAuthSchema>,
     req: GraphQLRequest,
 ) -> GraphQLResponse {
-    schema.execute(req.into_inner().data(db)).await.into()
+    schema
+        .execute(req.into_inner().data(db).data(cookies))
+        .await
+        .into()
 }

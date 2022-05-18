@@ -2,7 +2,6 @@
 use std::sync::Arc;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use axum::http::{header, HeaderValue};
 use axum::response::Response;
 use axum::Extension;
 use comm_types::auth::{AuthRequest, AuthResponse, DbUser, JwtClaims};
@@ -13,12 +12,14 @@ use jsonwebtoken::{get_current_timestamp, DecodingKey, EncodingKey, Header, Vali
 use lazy_static::lazy_static;
 use rand_chacha::rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaChaRng;
+use tower_cookies::Cookies;
 use tower_http::auth::AuthorizeRequest;
 
 use crate::database::{keys, CborDb, HiveDb};
 
 const ISSUER: &str = "probe-rs hive";
 const TOKEN_EXPIRE_TIME: u64 = 30; // 30s
+pub(crate) const AUTH_COOKIE_KEY: &str = "AUTH";
 
 lazy_static! {
     static ref JWT_SECRET: [u8; 64] = {
@@ -47,7 +48,7 @@ pub(super) async fn ws_auth_handler(
 
 /// Implements custom jwt authentication in [`tower_http`] auth middleware.
 ///
-/// The jwt needs to be supplied in the authorization header in the form of: `Bearer <jwt>`
+/// The jwt needs to be supplied in a http-only, secure cookie with key [`AUTH_COOKIE_KEY`]
 #[derive(Clone, Copy)]
 pub(super) struct HiveAuth;
 
@@ -55,55 +56,22 @@ impl<B> AuthorizeRequest<B> for HiveAuth {
     type ResponseBody = UnsyncBoxBody<axum::body::Bytes, axum::Error>;
 
     fn authorize(&mut self, request: &mut Request<B>) -> Result<(), Response<Self::ResponseBody>> {
-        let auth_header = request.headers().get(header::AUTHORIZATION);
+        let req_cookies = request
+        .extensions()
+        .get::<Cookies>()
+        .expect("Failed to get extracted cookies. This middleware can only be called after the request cookies have been extracted.");
 
-        if auth_header.is_none() {
-            return Err(Response::builder()
-                .status(StatusCode::BAD_REQUEST)
-                .body(UnsyncBoxBody::default())
-                .unwrap());
-        }
-
-        let auth_header = auth_header.unwrap();
-
-        match check_jwt(auth_header) {
-            Ok(claims) => {
-                request.extensions_mut().insert(claims);
-
-                return Ok(());
-            }
-            Err(_) => {
+        let auth_cookie = match req_cookies.get(AUTH_COOKIE_KEY) {
+            Some(cookie) => cookie,
+            None => {
                 return Err(Response::builder()
-                    .status(StatusCode::UNAUTHORIZED)
+                    .status(StatusCode::BAD_REQUEST)
                     .body(UnsyncBoxBody::default())
-                    .unwrap());
+                    .unwrap())
             }
-        }
-    }
-}
+        };
 
-/// Implements custom jwt authentication in [`tower_http`] auth middleware which includes a csrf token check using "double cookie" method.
-///
-/// The jwt needs to be supplied in the authorization header in the form of: `Bearer <jwt>`
-#[derive(Clone, Copy)]
-pub(super) struct HiveAuthCsrf;
-
-impl<B> AuthorizeRequest<B> for HiveAuthCsrf {
-    type ResponseBody = UnsyncBoxBody<axum::body::Bytes, axum::Error>;
-
-    fn authorize(&mut self, request: &mut Request<B>) -> Result<(), Response<Self::ResponseBody>> {
-        let auth_header = request.headers().get(header::AUTHORIZATION);
-
-        if auth_header.is_none() {
-            return Err(Response::builder()
-                .status(StatusCode::BAD_REQUEST)
-                .body(UnsyncBoxBody::default())
-                .unwrap());
-        }
-
-        let auth_header = auth_header.unwrap();
-
-        match check_jwt(auth_header) {
+        match check_jwt(auth_cookie.value()) {
             Ok(claims) => {
                 request.extensions_mut().insert(claims);
 
@@ -183,60 +151,76 @@ pub(crate) fn check_password(
 }
 
 /// Checks if the provided jwt is valid and returns the contained [`Role`] if it is.
-fn check_jwt(auth_header: &HeaderValue) -> Result<JwtClaims, ()> {
-    let auth_header = auth_header.to_str().map_err(|_| ())?;
+fn check_jwt(token: &str) -> Result<JwtClaims, ()> {
+    let mut validator = Validation::new(jsonwebtoken::Algorithm::HS256);
+    validator.set_issuer(&[ISSUER]);
+    validator.leeway = 0;
+    validator.set_required_spec_claims(&["exp", "iss"]);
+    validator.validate_exp = true;
 
-    let mut parts = auth_header.split_ascii_whitespace();
+    let payload = jsonwebtoken::decode::<JwtClaims>(
+        token,
+        &DecodingKey::from_secret(&*JWT_SECRET),
+        &validator,
+    )
+    .map_err(|_| ())?;
 
-    let bearer = parts.next();
-    let token = parts.next();
-
-    if bearer.is_some() && token.is_some() {
-        if bearer.unwrap() == "Bearer" {
-            let mut validator = Validation::new(jsonwebtoken::Algorithm::HS256);
-            validator.set_issuer(&[ISSUER]);
-            validator.leeway = 0;
-            validator.set_required_spec_claims(&["exp", "iss"]);
-            validator.validate_exp = true;
-
-            let payload = jsonwebtoken::decode::<JwtClaims>(
-                token.unwrap(),
-                &DecodingKey::from_secret(&*JWT_SECRET),
-                &validator,
-            )
-            .map_err(|_| ())?;
-
-            return Ok(payload.claims);
-        }
-    }
-
-    Err(())
+    Ok(payload.claims)
 }
 
 #[cfg(test)]
 mod tests {
-    use axum::http::HeaderValue;
+    use std::sync::Arc;
+
+    use argon2::password_hash::SaltString;
+    use argon2::Argon2;
+    use argon2::PasswordHasher;
+    use axum::routing::get;
+    use axum::Router;
+    use comm_types::auth::DbUser;
     use comm_types::auth::JwtClaims;
     use comm_types::auth::Role;
+    use cookie::SameSite;
+    use hyper::header;
+    use hyper::Body;
+    use hyper::Method;
+    use hyper::Request;
+    use hyper::StatusCode;
     use jsonwebtoken::{get_current_timestamp, EncodingKey, Header};
+    use lazy_static::lazy_static;
+    use rand_chacha::rand_core::OsRng;
     use serde::Deserialize;
     use serde::Serialize;
+    use tower::{ServiceBuilder, ServiceExt};
+    use tower_cookies::Cookie;
+    use tower_cookies::CookieManagerLayer;
+    use tower_http::auth::RequireAuthorizationLayer;
+
+    use crate::database::{keys, CborDb, HiveDb};
 
     use super::check_jwt;
+    use super::check_password;
+    use super::generate_jwt;
+    use super::HiveAuth;
+    use super::AUTH_COOKIE_KEY;
     use super::ISSUER;
     use super::JWT_SECRET;
     use super::TOKEN_EXPIRE_TIME;
 
-    #[test]
-    fn jwt_wrong_auth_header() {
-        let auth_header = HeaderValue::from_str("Basic ABCDE").unwrap();
-        assert!(check_jwt(&auth_header).is_err());
+    lazy_static! {
+        static ref DB: Arc<HiveDb> = Arc::new(HiveDb::open_test());
+    }
 
-        let auth_header = HeaderValue::from_str("").unwrap();
-        assert!(check_jwt(&auth_header).is_err());
+    fn app() -> Router {
+        Router::new().route("/", get(get_handler)).layer(
+            ServiceBuilder::new()
+                .layer(CookieManagerLayer::new())
+                .layer(RequireAuthorizationLayer::custom(HiveAuth)),
+        )
+    }
 
-        let auth_header = HeaderValue::from_str("Bearer ABCDE").unwrap();
-        assert!(check_jwt(&auth_header).is_err());
+    async fn get_handler() -> String {
+        "successfully passed auth".to_owned()
     }
 
     #[test]
@@ -255,9 +239,7 @@ mod tests {
         )
         .unwrap();
 
-        let auth_header = HeaderValue::from_str(&format!("Bearer {}", new_token)).unwrap();
-
-        assert!(check_jwt(&auth_header).is_err());
+        assert!(check_jwt(&new_token).is_err());
     }
 
     #[test]
@@ -280,9 +262,7 @@ mod tests {
         )
         .unwrap();
 
-        let auth_header = HeaderValue::from_str(&format!("Bearer {}", new_token)).unwrap();
-
-        assert!(check_jwt(&auth_header).is_err());
+        assert!(check_jwt(&new_token).is_err());
     }
 
     #[test]
@@ -301,11 +281,193 @@ mod tests {
         )
         .unwrap();
 
-        let auth_header = HeaderValue::from_str(&format!("Bearer {}", new_token)).unwrap();
-
-        let result = check_jwt(&auth_header);
+        let result = check_jwt(&new_token);
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), claims);
+    }
+
+    #[test]
+    fn check_password_wrong_username() {
+        let dummy_users = vec![
+            DbUser {
+                username: "Geralt".to_owned(),
+                hash: "dummy hash".to_owned(),
+                role: Role::ADMIN,
+            },
+            DbUser {
+                username: "Ciri".to_owned(),
+                hash: "dummy hash".to_owned(),
+                role: Role::ADMIN,
+            },
+            DbUser {
+                username: "Vesemir".to_owned(),
+                hash: "dummy hash".to_owned(),
+                role: Role::ADMIN,
+            },
+        ];
+
+        DB.credentials_tree
+            .c_insert(keys::credentials::USERS, &dummy_users)
+            .unwrap();
+
+        assert!(
+            check_password(DB.clone(), "Yarpen".to_owned(), "dummy password".to_owned()).is_err()
+        );
+    }
+
+    #[test]
+    fn check_password_invalid_hash() {
+        let dummy_users = vec![DbUser {
+            username: "Aloy".to_owned(),
+            hash: "This is not a PHC hash string".to_owned(),
+            role: Role::ADMIN,
+        }];
+
+        DB.credentials_tree
+            .c_insert(keys::credentials::USERS, &dummy_users)
+            .unwrap();
+
+        assert!(
+            check_password(DB.clone(), "Aloy".to_owned(), "dummy password".to_owned()).is_err()
+        );
+    }
+
+    #[test]
+    fn check_password_wrong_password() {
+        let password = "Very strong password";
+
+        let hasher = Argon2::default();
+
+        let salt = SaltString::generate(&mut OsRng);
+
+        let hash = hasher.hash_password(password.as_bytes(), &salt).unwrap();
+
+        let dummy_users = vec![DbUser {
+            username: "Arthur Morgan".to_owned(),
+            hash: hash.to_string(),
+            role: Role::ADMIN,
+        }];
+
+        DB.credentials_tree
+            .c_insert(keys::credentials::USERS, &dummy_users)
+            .unwrap();
+
+        assert!(check_password(
+            DB.clone(),
+            "Arthur Morgan".to_owned(),
+            "Very wrong password".to_owned()
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn check_password_correct() {
+        let password = "Very strong password";
+
+        let hasher = Argon2::default();
+
+        let salt = SaltString::generate(&mut OsRng);
+
+        let hash = hasher.hash_password(password.as_bytes(), &salt).unwrap();
+
+        let dummy_users = vec![DbUser {
+            username: "Arthur Morgan".to_owned(),
+            hash: hash.to_string(),
+            role: Role::ADMIN,
+        }];
+
+        DB.credentials_tree
+            .c_insert(keys::credentials::USERS, &dummy_users)
+            .unwrap();
+
+        assert!(check_password(
+            DB.clone(),
+            "Arthur Morgan".to_owned(),
+            "Very strong password".to_owned()
+        )
+        .is_ok());
+    }
+
+    #[tokio::test]
+    async fn auth_middleware_no_cookie() {
+        let auth_server = app();
+
+        let res = auth_server
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn auth_middleware_invalid_jwt() {
+        let auth_server = app();
+
+        let jwt = generate_jwt(
+            DbUser {
+                username: "Thor".to_owned(),
+                hash: "dummy hash".to_owned(),
+                role: Role::ADMIN,
+            },
+            60,
+        );
+
+        let auth_cookie = Cookie::build(AUTH_COOKIE_KEY, jwt.to_ascii_uppercase())
+            .http_only(true)
+            .secure(true)
+            .same_site(SameSite::Strict)
+            .finish();
+
+        let res = auth_server
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/")
+                    .header(header::COOKIE, auth_cookie.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn auth_middleware_correct() {
+        let auth_server = app();
+
+        let jwt = generate_jwt(
+            DbUser {
+                username: "Thor".to_owned(),
+                hash: "dummy hash".to_owned(),
+                role: Role::ADMIN,
+            },
+            60,
+        );
+
+        let auth_cookie = Cookie::build(AUTH_COOKIE_KEY, jwt).finish();
+
+        let res = auth_server
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/")
+                    .header(header::COOKIE, auth_cookie.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::OK);
     }
 }

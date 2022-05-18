@@ -12,3 +12,4 @@
 - [ ] ~~Websocket verify origin, autoclose socket after certain duration~~
 - [X] Add auth to backend graphql server
 - [X] std::process::exit does not call drop which is a problem for the DB as dropping the db flushes the cache and makes changes persistent on the drive. A clean way to shutdown the program is required due to that.
+- [X] Implement hive auth to supply jwt in http only cookie
