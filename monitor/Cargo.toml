@@ -13,12 +13,12 @@ controller = {path = "../controller/"}
 simple-clap-logger = {git = "https://github.com/TeyKey1/simple-clap-logger.git", rev = "6371878"}
 log = "0.4"
 tokio = {version  = "1.17", features = ["rt", "sync", "fs"]}
-axum = {version = "0.5", features = ["ws"]}
+axum = {version = "0.5"}
 axum-server = { version = "0.4", features = ["tls-rustls"] }
 axum-macros = "0.2"
 hyper = "0.14"
 tower = "0.4"
-tower-http = {version = "0.3", features = ["fs", "auth"]}
+tower-http = {version = "0.3", features = ["fs"]}
 http-body = "0.4"
 tower-cookies = {version = "0.6", features = ["signed"]}
 cookie = "0.16"

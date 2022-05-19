@@ -6,8 +6,6 @@ mod model;
 mod mutation;
 mod query;
 
-const TOKEN_EXPIRE_TIME: u64 = 1800; // 30min
-
 pub(super) type BackendSchema =
     Schema<query::BackendQuery, mutation::BackendMutation, EmptySubscription>;
 

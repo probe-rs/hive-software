@@ -2,23 +2,26 @@
 use std::sync::Arc;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use axum::response::Response;
-use axum::Extension;
-use comm_types::auth::{AuthRequest, AuthResponse, DbUser, JwtClaims};
-use comm_types::cbor::Cbor;
-use http_body::combinators::UnsyncBoxBody;
-use hyper::{Request, StatusCode};
+use axum::extract::RequestParts;
+use axum::response::{IntoResponse, Response};
+use axum::{async_trait, extract};
+use comm_types::auth::{DbUser, JwtClaims};
+use cookie::{Cookie, SameSite};
+use hyper::StatusCode;
 use jsonwebtoken::{get_current_timestamp, DecodingKey, EncodingKey, Header, Validation};
 use lazy_static::lazy_static;
 use rand_chacha::rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaChaRng;
+use thiserror::Error;
 use tower_cookies::Cookies;
-use tower_http::auth::AuthorizeRequest;
 
 use crate::database::{keys, CborDb, HiveDb};
 
+use super::csrf;
+
 const ISSUER: &str = "probe-rs hive";
-const TOKEN_EXPIRE_TIME: u64 = 30; // 30s
+/// Expire time of the jwt
+const TOKEN_EXPIRE_TIME: u64 = 1800; // 30min
 pub(crate) const AUTH_COOKIE_KEY: &str = "AUTH";
 
 lazy_static! {
@@ -31,19 +34,49 @@ lazy_static! {
     };
 }
 
-/// Handles user authentication requests to obtain ws connection.
+#[derive(Error, Debug)]
+pub(super) enum AuthError {
+    #[error("No auth cookie provided")]
+    MissingCookie,
+    #[error("Invalid auth token")]
+    InvalidToken,
+}
+
+impl IntoResponse for AuthError {
+    fn into_response(self) -> Response {
+        (StatusCode::UNAUTHORIZED, self.to_string()).into_response()
+    }
+}
+
+/// Authenticates a user and sets the auth cookie and a new csrf cookie on success and returns [`Ok`]
 ///
-/// If authentication is successful it returns a JWT which contains the user role and is valid for [`TOKEN_EXPIRE_TIME`]. Which is then used by the client to open a websocket connection.
-pub(super) async fn ws_auth_handler(
-    Extension(db): Extension<Arc<HiveDb>>,
-    Cbor(request): Cbor<AuthRequest>,
-) -> Result<Cbor<AuthResponse>, StatusCode> {
-    let user = check_password(db, request.username, request.password)
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+/// Retuns an [`Err`] if authentication fails because of wrong credentials
+///
+/// # JWT
+/// The expire time of the jwt is set to [`TOKEN_EXPIRE_TIME`]
+///
+/// # CSRF
+/// The expire time of the csrf cookie is set to [`csrf::COOKIE_TTL`]
+pub(super) async fn authenticate_user(
+    db: Arc<HiveDb>,
+    username: String,
+    password: String,
+    cookies: &Cookies,
+) -> Result<(), ()> {
+    let user = check_password(db, username, password)?;
 
-    let token = generate_jwt(user, TOKEN_EXPIRE_TIME);
+    csrf::add_new_csrf_cookie(cookies).await;
 
-    Ok(Cbor(AuthResponse { token }))
+    let auth_cookie = Cookie::build(AUTH_COOKIE_KEY, generate_jwt(user, TOKEN_EXPIRE_TIME))
+        .http_only(true)
+        .secure(true)
+        .same_site(SameSite::Strict)
+        .path("/")
+        .finish();
+
+    cookies.add(auth_cookie);
+
+    Ok(())
 }
 
 /// Implements custom jwt authentication in [`tower_http`] auth middleware.
@@ -52,35 +85,31 @@ pub(super) async fn ws_auth_handler(
 #[derive(Clone, Copy)]
 pub(super) struct HiveAuth;
 
-impl<B> AuthorizeRequest<B> for HiveAuth {
-    type ResponseBody = UnsyncBoxBody<axum::body::Bytes, axum::Error>;
+#[async_trait]
+impl<B> extract::FromRequest<B> for HiveAuth
+where
+    B: Send,
+{
+    type Rejection = AuthError;
 
-    fn authorize(&mut self, request: &mut Request<B>) -> Result<(), Response<Self::ResponseBody>> {
-        let req_cookies = request
+    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
+        let req_cookies = req
         .extensions()
         .get::<Cookies>()
         .expect("Failed to get extracted cookies. This middleware can only be called after the request cookies have been extracted.");
 
         let auth_cookie = match req_cookies.get(AUTH_COOKIE_KEY) {
             Some(cookie) => cookie,
-            None => {
-                return Err(Response::builder()
-                    .status(StatusCode::BAD_REQUEST)
-                    .body(UnsyncBoxBody::default())
-                    .unwrap())
-            }
+            None => return Err(AuthError::MissingCookie),
         };
 
         match check_jwt(auth_cookie.value()) {
             Ok(claims) => {
-                request.extensions_mut().insert(claims);
+                req.extensions_mut().insert(claims);
 
-                Ok(())
+                Ok(Self)
             }
-            Err(_) => Err(Response::builder()
-                .status(StatusCode::UNAUTHORIZED)
-                .body(UnsyncBoxBody::default())
-                .unwrap()),
+            Err(_) => Err(AuthError::InvalidToken),
         }
     }
 }
@@ -172,6 +201,7 @@ mod tests {
     use argon2::password_hash::SaltString;
     use argon2::Argon2;
     use argon2::PasswordHasher;
+    use axum::extract::extractor_middleware;
     use axum::routing::get;
     use axum::Router;
     use comm_types::auth::DbUser;
@@ -191,13 +221,13 @@ mod tests {
     use tower::{ServiceBuilder, ServiceExt};
     use tower_cookies::Cookie;
     use tower_cookies::CookieManagerLayer;
-    use tower_http::auth::RequireAuthorizationLayer;
 
     use crate::database::{keys, CborDb, HiveDb};
 
     use super::check_jwt;
     use super::check_password;
     use super::generate_jwt;
+    use super::AuthError;
     use super::HiveAuth;
     use super::AUTH_COOKIE_KEY;
     use super::ISSUER;
@@ -212,7 +242,7 @@ mod tests {
         Router::new().route("/", get(get_handler)).layer(
             ServiceBuilder::new()
                 .layer(CookieManagerLayer::new())
-                .layer(RequireAuthorizationLayer::custom(HiveAuth)),
+                .layer(extractor_middleware::<HiveAuth>()),
         )
     }
 
@@ -401,7 +431,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+
+        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        assert_eq!(body_text, AuthError::MissingCookie.to_string().as_bytes());
     }
 
     #[tokio::test]
@@ -436,6 +469,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+
+        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        assert_eq!(body_text, AuthError::InvalidToken.to_string().as_bytes());
     }
 
     #[tokio::test]

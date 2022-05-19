@@ -2,13 +2,13 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::routing::{self, get, post};
+use axum::extract::extractor_middleware;
+use axum::routing::{self, post};
 use axum::{middleware, Extension, Router};
 use axum_server::tls_rustls::RustlsConfig;
 use hyper::StatusCode;
 use tower::ServiceBuilder;
 use tower_cookies::CookieManagerLayer;
-use tower_http::auth::RequireAuthorizationLayer;
 use tower_http::services::ServeDir;
 
 use crate::database::HiveDb;
@@ -39,18 +39,13 @@ pub(super) async fn web_server(db: Arc<HiveDb>) {
 
 /// Builds the webserver with all endpoints
 fn app(db: Arc<HiveDb>) -> Router {
-    let ws_routes = Router::new().route(
-        "/backend",
-        get(handlers::backend_ws_handler).layer(RequireAuthorizationLayer::custom(auth::HiveAuth)),
-    );
-
     let graphql_routes = Router::new()
         .route("/backend", post(handlers::graphql_backend))
         .layer(
             ServiceBuilder::new()
                 .layer(CookieManagerLayer::new())
                 .layer(middleware::from_fn(csrf::require_csrf_token))
-                .layer(RequireAuthorizationLayer::custom(auth::HiveAuth))
+                .layer(extractor_middleware::<auth::HiveAuth>())
                 .layer(Extension(db.clone()))
                 .layer(Extension(backend::build_schema())),
         );
@@ -65,12 +60,6 @@ fn app(db: Arc<HiveDb>) -> Router {
                 .layer(middleware::from_fn(csrf::require_csrf_token))
                 .layer(Extension(db.clone()))
                 .layer(Extension(backend::auth::build_schema())),
-        )
-        .route("/ws", post(auth::ws_auth_handler))
-        .layer(
-            ServiceBuilder::new()
-                .layer(Extension(db))
-                .layer(Extension(backend::auth::build_schema())),
         );
 
     Router::new()
@@ -82,10 +71,9 @@ fn app(db: Arc<HiveDb>) -> Router {
                 format!("Failed to fetch static files, this is likely due to a bug in the software or wrong software setup: {}", error),
             )
         },
-    ))
+    ).layer(middleware::from_fn(csrf::provide_csrf_token)))
     // Auth handlers
     .nest("/auth", auth_routes)
-    // Websocket handler for backend UI
-    .nest("/ws", ws_routes)
+    // Graphql handlers
     .nest("/graphql", graphql_routes)
 }

@@ -6,17 +6,11 @@ use async_graphql::{
     Context, EmptyMutation, EmptySubscription, ErrorExtensions, Object, Result as GraphQlResult,
     Schema,
 };
-use cookie::SameSite;
-use tower_cookies::{Cookie, Cookies};
+use tower_cookies::Cookies;
 
-use crate::{
-    comm::webserver::auth::{check_password, generate_jwt},
-    database::HiveDb,
-};
+use crate::database::HiveDb;
 
-use crate::comm::webserver::auth::AUTH_COOKIE_KEY;
-
-use super::TOKEN_EXPIRE_TIME;
+use crate::comm::webserver::auth;
 
 pub(in crate::comm::webserver) type BackendAuthSchema =
     Schema<BackendAuthQuery, EmptyMutation, EmptySubscription>;
@@ -39,16 +33,9 @@ impl BackendAuthQuery {
         let db = ctx.data::<Arc<HiveDb>>().unwrap();
         let cookies = ctx.data::<Cookies>().unwrap();
 
-        let user = check_password(db.clone(), username, password)
+        auth::authenticate_user(db.clone(), username, password, cookies)
+            .await
             .map_err(|_| anyhow!("Not authorized").extend_with(|_, e| e.set("code", 403)))?;
-
-        let auth_cookie = Cookie::build(AUTH_COOKIE_KEY, generate_jwt(user, TOKEN_EXPIRE_TIME))
-            .http_only(true)
-            .secure(true)
-            .same_site(SameSite::Strict)
-            .finish();
-
-        cookies.add(auth_cookie);
 
         Ok(true)
     }

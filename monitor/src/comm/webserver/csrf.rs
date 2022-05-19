@@ -34,7 +34,7 @@ use tower_cookies::{Cookie, Cookies};
 const COOKIE_CSRF_TOKEN_KEY: &str = "CSRF-TOKEN";
 const HEADER_CSRF_TOKEN_KEY: &str = "X-CSRF-TOKEN";
 /// Cookie lifetime in seconds
-const COOKIE_TTL: u64 = 600; // 10min
+const COOKIE_TTL: u64 = 1800; // 30min
 
 lazy_static! {
     /// Random cryptographically secure key which is generated during runtime to sign cookies
@@ -74,7 +74,28 @@ impl IntoResponse for CsrfError {
     }
 }
 
-/// Middleware function which checks the provided csrf token validity and rejects the request in case it is not valid. In that case a new token is added as a cookie.
+/// Middleware function which provides a fresh csrf token as cookie, if the cookie does not already exist.
+///
+/// # Usage
+/// This middleware should only be used on public routes where the csrf token acts as a pre session token to avoid login csrf.
+/// After successful authentication a new csrf token cookie should be set in order to prevent any session fixation attacks.
+pub(super) async fn provide_csrf_token<B>(req: Request<B>, next: Next<B>) {
+    let req_cookies = req
+        .extensions()
+        .get::<Cookies>()
+        .expect("Failed to get extracted cookies. This middleware can only be called after the request cookies have been extracted.");
+
+    let cookie_csrf_token = req_cookies.get(COOKIE_CSRF_TOKEN_KEY);
+
+    if cookie_csrf_token.is_none() {
+        // No csrf cookie has been provided, therefore we set a new valid csrf cookie
+        add_new_csrf_cookie(req_cookies).await;
+    }
+
+    next.run(req).await;
+}
+
+/// Middleware function which checks the provided csrf token validity and rejects the request in case it is not valid.
 pub(super) async fn require_csrf_token<B>(
     req: Request<B>,
     next: Next<B>,
@@ -90,9 +111,7 @@ pub(super) async fn require_csrf_token<B>(
     let cookie_csrf_token = match cookie_csrf_token {
         Some(cookie) => verify_csrf_cookie(&cookie)?,
         None => {
-            // No csrf cookie has been provided, therefore we set a new valid csrf cookie and reject the request.
-            add_new_csrf_cookie(req_cookies).await;
-
+            // No csrf cookie has been provided
             return Err(CsrfError::MissingCsrfCookie);
         }
     };
@@ -107,9 +126,7 @@ pub(super) async fn require_csrf_token<B>(
                 // Csrf tokens match
                 return Ok(next.run(req).await);
             } else {
-                // Csrf tokens do not match. Add a new csrf cookie and reject the request
-                add_new_csrf_cookie(req_cookies).await;
-
+                // Csrf tokens do not match.
                 Err(CsrfError::InvalidCsrfToken)
             }
         }
@@ -121,7 +138,7 @@ pub(super) async fn require_csrf_token<B>(
 }
 
 /// Adds a new csrf cookie (containing a new csrf token) to the provided cookie jar
-async fn add_new_csrf_cookie(cookie_jar: &Cookies) {
+pub(super) async fn add_new_csrf_cookie(cookie_jar: &Cookies) {
     let new_csrf_cookie = Cookie::build(
         COOKIE_CSRF_TOKEN_KEY,
         sign_csrf_token(generate_csrf_token().await),
@@ -129,6 +146,7 @@ async fn add_new_csrf_cookie(cookie_jar: &Cookies) {
     .max_age(Duration::seconds(COOKIE_TTL as i64))
     .secure(true)
     .same_site(SameSite::Strict)
+    .path("/")
     .finish();
 
     cookie_jar.add(new_csrf_cookie);
