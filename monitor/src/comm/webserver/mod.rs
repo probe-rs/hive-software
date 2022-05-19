@@ -43,7 +43,6 @@ fn app(db: Arc<HiveDb>) -> Router {
         .route("/backend", post(handlers::graphql_backend))
         .layer(
             ServiceBuilder::new()
-                .layer(CookieManagerLayer::new())
                 .layer(middleware::from_fn(csrf::require_csrf_token))
                 .layer(extractor_middleware::<auth::HiveAuth>())
                 .layer(Extension(db.clone()))
@@ -56,13 +55,16 @@ fn app(db: Arc<HiveDb>) -> Router {
         .route("/backend", post(handlers::graphql_backend_auth))
         .layer(
             ServiceBuilder::new()
-                .layer(CookieManagerLayer::new())
                 .layer(middleware::from_fn(csrf::require_csrf_token))
                 .layer(Extension(db.clone()))
                 .layer(Extension(backend::auth::build_schema())),
         );
 
     Router::new()
+    // Auth handlers
+    .nest("/auth", auth_routes)
+    // Graphql handlers
+    .nest("/graphql", graphql_routes)
     // Static fileserver used to host the hive-backend-ui Vue app
     .fallback(routing::get_service(ServeDir::new(STATIC_FILES)).handle_error(
         |error: std::io::Error| async move {
@@ -71,9 +73,11 @@ fn app(db: Arc<HiveDb>) -> Router {
                 format!("Failed to fetch static files, this is likely due to a bug in the software or wrong software setup: {}", error),
             )
         },
-    ).layer(middleware::from_fn(csrf::provide_csrf_token)))
-    // Auth handlers
-    .nest("/auth", auth_routes)
-    // Graphql handlers
-    .nest("/graphql", graphql_routes)
+    ))
+    // Global layers
+    .layer(
+        ServiceBuilder::new()
+        .layer(CookieManagerLayer::new())
+        .layer(middleware::from_fn(csrf::provide_csrf_token))
+    )
 }

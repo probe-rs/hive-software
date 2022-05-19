@@ -10,9 +10,7 @@
 //! The csrf cookie is signed by the server to avoid any clientside manipulation. It has a lifetime of [`COOKIE_TTL`] after which a new csrf token has to be issued.
 //!
 //! # Obtaining a csrf token
-//! A csrf token is automatically obtained by requesting a resource on a route protected by this middleware. In this case the first request will always fail, as no cookie with a csrf token is present.
-//! Each time a request fails (Except for a bad request, in case the csrf header is missing completely) the middleware sets a new csrf cookie which can then be used by the client to populate the csrf header.
-//! It is up to the client to ensure that requests are retried in order to obtain a token before getting an actual response.
+//! A csrf token is automatically obtained by visiting routes which have the [`provide_csrf_token`] middleware. The token is renewed once the user sucessfully authenticates by using the [`super::auth::authenticate_user`] function.
 use axum::{
     http::{Request, StatusCode},
     middleware::Next,
@@ -34,7 +32,7 @@ use tower_cookies::{Cookie, Cookies};
 const COOKIE_CSRF_TOKEN_KEY: &str = "CSRF-TOKEN";
 const HEADER_CSRF_TOKEN_KEY: &str = "X-CSRF-TOKEN";
 /// Cookie lifetime in seconds
-const COOKIE_TTL: u64 = 1800; // 30min
+const COOKIE_TTL: u64 = 600; // 10min
 
 lazy_static! {
     /// Random cryptographically secure key which is generated during runtime to sign cookies
@@ -79,7 +77,7 @@ impl IntoResponse for CsrfError {
 /// # Usage
 /// This middleware should only be used on public routes where the csrf token acts as a pre session token to avoid login csrf.
 /// After successful authentication a new csrf token cookie should be set in order to prevent any session fixation attacks.
-pub(super) async fn provide_csrf_token<B>(req: Request<B>, next: Next<B>) {
+pub(super) async fn provide_csrf_token<B>(req: Request<B>, next: Next<B>) -> impl IntoResponse {
     let req_cookies = req
         .extensions()
         .get::<Cookies>()
@@ -92,7 +90,7 @@ pub(super) async fn provide_csrf_token<B>(req: Request<B>, next: Next<B>) {
         add_new_csrf_cookie(req_cookies).await;
     }
 
-    next.run(req).await;
+    next.run(req).await
 }
 
 /// Middleware function which checks the provided csrf token validity and rejects the request in case it is not valid.
