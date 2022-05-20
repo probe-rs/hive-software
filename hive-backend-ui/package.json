@@ -19,6 +19,7 @@
     "@vuetify/vite-plugin": "^1.0.0-alpha.10",
     "graphql": "^16.4.0",
     "graphql-tag": "^2.12.6",
+    "js-cookie": "^3.0.1",
     "konva": "^8.3.5",
     "pinia": "^2.0.13",
     "pinia-plugin-persistedstate": "^1.5.1",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.1.0",
+    "@types/js-cookie": "^3.0.2",
     "@types/jsdom": "^16.2.14",
     "@types/node": "^16.11.27",
     "@vitejs/plugin-vue": "^2.3.1",

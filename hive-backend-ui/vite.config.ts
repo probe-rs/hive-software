@@ -24,6 +24,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      "/auth/backend": {
+        target: "https://192.168.1.85:4356",
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });

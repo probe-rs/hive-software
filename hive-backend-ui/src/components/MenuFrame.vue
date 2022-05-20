@@ -3,11 +3,26 @@ import { ref } from "vue";
 import AppSettings from "@/components/AppSettings.vue";
 import Navigation from "@/components/Navigation.vue";
 import hiveLogo from "@/assets/probe-rs-icon.png";
+import { useMutation } from "@vue/apollo-composable";
+import gql from "graphql-tag";
+import { useRouter } from "vue-router";
 
+const router = useRouter();
 const showNavigation = ref(true);
+
+const { mutate: requestLogout } = useMutation(gql`
+mutation {
+      logout
+    }
+`, { fetchPolicy: "no-cache" });
 
 function toggleNavigation() {
   showNavigation.value = !showNavigation.value;
+}
+
+function logout() {
+  requestLogout();
+  router.push("login");
 }
 </script>
 
@@ -17,10 +32,7 @@ function toggleNavigation() {
       <v-img :src="hiveLogo" alt="menu" />
     </v-btn>
 
-    <p
-      style="font-family: Poppins; font-size: 27pt; color: white"
-      class="font-weight-bold pl-2"
-    >
+    <p style="font-family: Poppins; font-size: 27pt; color: white" class="font-weight-bold pl-2">
       Hive
     </p>
 
@@ -33,7 +45,7 @@ function toggleNavigation() {
       </template>
       <AppSettings />
     </v-menu>
-    <v-btn icon rounded="0">
+    <v-btn icon rounded="0" @click="logout">
       <v-tooltip anchor="bottom end" activator="parent">Log out</v-tooltip>
       <v-icon> mdi-logout </v-icon>
     </v-btn>
