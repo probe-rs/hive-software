@@ -4,14 +4,21 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use async_graphql::{Context, Object, Result as GraphQlResult};
 use comm_types::{
+    auth::{DbUser, JwtClaims},
     hardware::{ProbeInfo, ProbeState, TargetState},
     ipc::{HiveProbeData, HiveTargetData},
 };
 use probe_rs::Probe;
+use tower_cookies::Cookies;
 
-use crate::database::{keys, CborDb, HiveDb};
+use crate::{
+    comm::webserver::auth,
+    database::{keys, CborDb, HiveDb},
+};
 
-use super::model::{AssignProbeResponse, AssignTargetResponse, FlatProbeState, State};
+use super::model::{
+    AssignProbeResponse, AssignTargetResponse, FlatProbeState, State, UserResponse,
+};
 
 pub(in crate::comm::webserver) struct BackendMutation;
 
@@ -52,6 +59,7 @@ impl BackendMutation {
         })
     }
 
+    /// Assigns a probe to a given position. This does only update the data in the DB. To apply the changes into the runtime use the update mutation to reinitialize the testrack
     async fn assign_probe<'ctx>(
         &self,
         ctx: &Context<'ctx>,
@@ -120,5 +128,58 @@ impl BackendMutation {
             probe_pos: probe_pos as u8,
             data: probe_state,
         })
+    }
+
+    /// Change the username of the authenticated user
+    async fn change_username<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+        #[graphql(validator(chars_min_length = 4))] username: String,
+    ) -> GraphQlResult<UserResponse> {
+        let db = ctx.data::<Arc<HiveDb>>().unwrap();
+        let cookies = ctx.data::<Cookies>().unwrap();
+        let claims = ctx.data::<JwtClaims>().unwrap();
+
+        if username.contains(' ') {
+            return Err(anyhow!("Whitespaces are not allowed in the username").into());
+        }
+
+        let mut users: Vec<DbUser> = db
+            .credentials_tree
+            .c_get(keys::credentials::USERS)
+            .unwrap()
+            .expect("DB not initialized");
+
+        let user = users
+            .iter_mut()
+            .enumerate()
+            .find(|(_, user)| user.username == claims.username);
+
+        if let Some((idx, _)) = user {
+            users[idx].username = username.clone();
+
+            db.credentials_tree
+                .c_insert(keys::credentials::USERS, &users)
+                .unwrap();
+
+            // As jwt claims changed due to the username change we refresh the jwt auth cookie
+            auth::refresh_auth_token(&users[idx], cookies);
+
+            Ok(UserResponse {
+                username,
+                role: claims.role,
+            })
+        } else {
+            Err(anyhow!("Failed to find user").into())
+        }
+    }
+
+    /// Log the currently authenticated user out by deleting the auth jwt cookie
+    async fn logout<'ctx>(&self, ctx: &Context<'ctx>) -> GraphQlResult<bool> {
+        let cookies = ctx.data::<Cookies>().unwrap();
+
+        auth::logout(cookies);
+
+        Ok(true)
     }
 }

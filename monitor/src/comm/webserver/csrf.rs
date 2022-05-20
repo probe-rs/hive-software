@@ -62,7 +62,7 @@ impl IntoResponse for CsrfError {
     fn into_response(self) -> axum::response::Response {
         let status = match self {
             CsrfError::MissingCsrfCookie => StatusCode::FORBIDDEN,
-            CsrfError::MissingCsrfHeader => StatusCode::BAD_REQUEST,
+            CsrfError::MissingCsrfHeader => StatusCode::FORBIDDEN,
             CsrfError::InvalidCsrfToken => StatusCode::FORBIDDEN,
             CsrfError::InvalidCsrfHeader => StatusCode::BAD_REQUEST,
             CsrfError::InvalidCsrfCookie => StatusCode::FORBIDDEN,

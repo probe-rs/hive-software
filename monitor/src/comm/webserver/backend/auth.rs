@@ -12,6 +12,8 @@ use crate::database::HiveDb;
 
 use crate::comm::webserver::auth;
 
+use super::model::UserResponse;
+
 pub(in crate::comm::webserver) type BackendAuthSchema =
     Schema<BackendAuthQuery, EmptyMutation, EmptySubscription>;
 
@@ -29,14 +31,14 @@ impl BackendAuthQuery {
         ctx: &Context<'ctx>,
         username: String,
         password: String,
-    ) -> GraphQlResult<bool> {
+    ) -> GraphQlResult<UserResponse> {
         let db = ctx.data::<Arc<HiveDb>>().unwrap();
         let cookies = ctx.data::<Cookies>().unwrap();
 
-        auth::authenticate_user(db.clone(), username, password, cookies)
+        let user = auth::authenticate_user(db.clone(), &username, &password, cookies)
             .await
             .map_err(|_| anyhow!("Not authorized").extend_with(|_, e| e.set("code", 403)))?;
 
-        Ok(true)
+        Ok(user.into())
     }
 }

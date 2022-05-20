@@ -1,6 +1,9 @@
 //! Data models used for graphql
 use async_graphql::{Enum, InputObject, SimpleObject};
-use comm_types::hardware::{ProbeInfo as CommProbeInfo, ProbeState, TargetInfo, TargetState};
+use comm_types::{
+    auth::{DbUser, Role},
+    hardware::{ProbeInfo as CommProbeInfo, ProbeState, TargetInfo, TargetState},
+};
 use probe_rs::DebugProbeInfo;
 
 /// Flattened version of [`TargetState`] to use it in graphql api
@@ -100,4 +103,19 @@ pub(super) struct AssignTargetResponse {
 pub(super) struct AssignProbeResponse {
     pub probe_pos: u8,
     pub data: FlatProbeState,
+}
+
+#[derive(Debug, SimpleObject)]
+pub(super) struct UserResponse {
+    pub username: String,
+    pub role: Role,
+}
+
+impl From<DbUser> for UserResponse {
+    fn from(db_user: DbUser) -> Self {
+        Self {
+            username: db_user.username,
+            role: db_user.role,
+        }
+    }
 }

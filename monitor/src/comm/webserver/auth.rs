@@ -6,6 +6,7 @@ use axum::extract::RequestParts;
 use axum::response::{IntoResponse, Response};
 use axum::{async_trait, extract};
 use comm_types::auth::{DbUser, JwtClaims};
+use cookie::time::Duration;
 use cookie::{Cookie, SameSite};
 use hyper::StatusCode;
 use jsonwebtoken::{get_current_timestamp, DecodingKey, EncodingKey, Header, Validation};
@@ -59,15 +60,36 @@ impl IntoResponse for AuthError {
 /// The expire time of the csrf cookie is set to [`csrf::COOKIE_TTL`]
 pub(super) async fn authenticate_user(
     db: Arc<HiveDb>,
-    username: String,
-    password: String,
+    username: &str,
+    password: &str,
     cookies: &Cookies,
-) -> Result<(), ()> {
+) -> Result<DbUser, ()> {
     let user = check_password(db, username, password)?;
 
     csrf::add_new_csrf_cookie(cookies).await;
 
-    let auth_cookie = Cookie::build(AUTH_COOKIE_KEY, generate_jwt(user, TOKEN_EXPIRE_TIME))
+    set_auth_cookie(cookies, generate_jwt(&user, TOKEN_EXPIRE_TIME));
+
+    Ok(user)
+}
+
+/// Refreshes the jwt auth cookie for the provided user.
+///
+/// # Security
+/// This function does not check user credentials at all and simply generates a valid jwt for the provided user. It is intended to be used for authenticated users only, in case they change data which affects the [`JwtClaims`]. For example a username change.
+///
+/// # JWT
+/// The expire time of the jwt is set to [`TOKEN_EXPIRE_TIME`]
+pub(super) fn refresh_auth_token(user: &DbUser, cookies: &Cookies) {
+    set_auth_cookie(cookies, generate_jwt(user, TOKEN_EXPIRE_TIME));
+}
+
+/// Sets the auth cookie with the provided jwt.
+///
+/// # Cookie settings
+/// The cookie is `http-only`, `secure` and `same-site strict`. It has a session lifetime and is deleted once the browser closes or the client logs out using [`logout`].
+fn set_auth_cookie(cookies: &Cookies, jwt: String) {
+    let auth_cookie = Cookie::build(AUTH_COOKIE_KEY, jwt)
         .http_only(true)
         .secure(true)
         .same_site(SameSite::Strict)
@@ -75,8 +97,16 @@ pub(super) async fn authenticate_user(
         .finish();
 
     cookies.add(auth_cookie);
+}
 
-    Ok(())
+/// Logs the user out by resetting the jwt auth cookie. This does not invalidate the original jwt in any way. As it is a stateless implementation the jwt is invalidated once its expire time is reached.
+pub(super) fn logout(cookies: &Cookies) {
+    let expire_cookie = Cookie::build(AUTH_COOKIE_KEY, "")
+        .max_age(Duration::seconds(0))
+        .path("/")
+        .http_only(true)
+        .finish();
+    cookies.add(expire_cookie)
 }
 
 /// Implements custom jwt authentication in [`tower_http`] auth middleware.
@@ -115,11 +145,11 @@ where
 }
 
 /// Generates a new JWT for the provided user which expires after the provided amount in seconds
-pub(crate) fn generate_jwt(user: DbUser, expires_in_secs: u64) -> String {
+pub(crate) fn generate_jwt(user: &DbUser, expires_in_secs: u64) -> String {
     let claims = JwtClaims {
         iss: ISSUER.to_owned(),
         exp: (get_current_timestamp() + expires_in_secs) as usize,
-        username: user.username,
+        username: user.username.to_owned(),
         role: user.role,
     };
 
@@ -136,8 +166,8 @@ pub(crate) fn generate_jwt(user: DbUser, expires_in_secs: u64) -> String {
 /// This function only returns an [`Result::Ok`] value with the authenticated user if the provided user exists and the provided password is correct.
 pub(crate) fn check_password(
     db: Arc<HiveDb>,
-    username: String,
-    password: String,
+    username: &str,
+    password: &str,
 ) -> Result<DbUser, ()> {
     let users: Vec<DbUser> = db
         .credentials_tree
@@ -338,9 +368,7 @@ mod tests {
             .c_insert(keys::credentials::USERS, &dummy_users)
             .unwrap();
 
-        assert!(
-            check_password(DB.clone(), "Yarpen".to_owned(), "dummy password".to_owned()).is_err()
-        );
+        assert!(check_password(DB.clone(), "Yarpen", "dummy password").is_err());
     }
 
     #[test]
@@ -355,9 +383,7 @@ mod tests {
             .c_insert(keys::credentials::USERS, &dummy_users)
             .unwrap();
 
-        assert!(
-            check_password(DB.clone(), "Aloy".to_owned(), "dummy password".to_owned()).is_err()
-        );
+        assert!(check_password(DB.clone(), "Aloy", "dummy password").is_err());
     }
 
     #[test]
@@ -380,12 +406,7 @@ mod tests {
             .c_insert(keys::credentials::USERS, &dummy_users)
             .unwrap();
 
-        assert!(check_password(
-            DB.clone(),
-            "Arthur Morgan".to_owned(),
-            "Very wrong password".to_owned()
-        )
-        .is_err());
+        assert!(check_password(DB.clone(), "Arthur Morgan", "Very wrong password").is_err());
     }
 
     #[test]
@@ -408,12 +429,7 @@ mod tests {
             .c_insert(keys::credentials::USERS, &dummy_users)
             .unwrap();
 
-        assert!(check_password(
-            DB.clone(),
-            "Arthur Morgan".to_owned(),
-            "Very strong password".to_owned()
-        )
-        .is_ok());
+        assert!(check_password(DB.clone(), "Arthur Morgan", "Very strong password").is_ok());
     }
 
     #[tokio::test]
@@ -442,7 +458,7 @@ mod tests {
         let auth_server = app();
 
         let jwt = generate_jwt(
-            DbUser {
+            &DbUser {
                 username: "Thor".to_owned(),
                 hash: "dummy hash".to_owned(),
                 role: Role::ADMIN,
@@ -479,7 +495,7 @@ mod tests {
         let auth_server = app();
 
         let jwt = generate_jwt(
-            DbUser {
+            &DbUser {
                 username: "Thor".to_owned(),
                 hash: "dummy hash".to_owned(),
                 role: Role::ADMIN,

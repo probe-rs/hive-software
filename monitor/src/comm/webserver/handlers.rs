@@ -13,12 +13,13 @@ use super::backend::BackendSchema;
 
 pub(super) async fn graphql_backend(
     Extension(db): Extension<Arc<HiveDb>>,
+    Extension(cookies): Extension<Cookies>,
     schema: Extension<BackendSchema>,
     req: GraphQLRequest,
     Extension(claims): Extension<JwtClaims>,
 ) -> GraphQLResponse {
     schema
-        .execute(req.into_inner().data(claims).data(db))
+        .execute(req.into_inner().data(claims).data(db).data(cookies))
         .await
         .into()
 }
