@@ -1,8 +1,9 @@
 //! Authentication related types
+use async_graphql::Enum;
 use serde::{Deserialize, Serialize};
 
 /// The possible roles a user can have
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, Deserialize, Serialize, PartialEq, Enum)]
 pub enum Role {
     /// Can create / delete users
     ADMIN,
