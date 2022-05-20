@@ -13,3 +13,8 @@
 - [X] Add auth to backend graphql server
 - [X] std::process::exit does not call drop which is a problem for the DB as dropping the db flushes the cache and makes changes persistent on the drive. A clean way to shutdown the program is required due to that.
 - [X] Implement hive auth to supply jwt in http only cookie
+- [ ] authenticate_user Function in webserver auth is very slow, fix performance
+- [ ] consider switching to base64 ct encoding instead of base64 for tokens etc.
+
+## Hive Backend UI
+- [ ] Current appollo retrylink is useless as it does not call fetch function to change headers. Write own retry function which tries to append csrf header on each retry
