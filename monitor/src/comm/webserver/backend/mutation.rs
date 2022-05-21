@@ -13,7 +13,7 @@ use tower_cookies::Cookies;
 
 use crate::{
     comm::webserver::auth,
-    database::{keys, CborDb, HiveDb},
+    database::{hasher, keys, CborDb, HiveDb},
 };
 
 use super::model::{
@@ -169,6 +169,43 @@ impl BackendMutation {
                 username,
                 role: claims.role,
             })
+        } else {
+            Err(anyhow!("Failed to find user").into())
+        }
+    }
+
+    /// Change the password of the authenticated user
+    async fn change_password<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+        old_password: String,
+        #[graphql(validator(chars_min_length = 6))] new_password: String,
+    ) -> GraphQlResult<bool> {
+        let db = ctx.data::<Arc<HiveDb>>().unwrap();
+        let claims = ctx.data::<JwtClaims>().unwrap();
+
+        hasher::check_password(db.clone(), &claims.username, &old_password)
+            .map_err(|_| anyhow!("Old password is incorrect"))?;
+
+        let mut users: Vec<DbUser> = db
+            .credentials_tree
+            .c_get(keys::credentials::USERS)
+            .unwrap()
+            .expect("DB not initialized");
+
+        let user = users
+            .iter_mut()
+            .enumerate()
+            .find(|(_, user)| user.username == claims.username);
+
+        if let Some((idx, _)) = user {
+            users[idx].hash = hasher::hash_password(&new_password);
+
+            db.credentials_tree
+                .c_insert(keys::credentials::USERS, &users)
+                .unwrap();
+
+            Ok(true)
         } else {
             Err(anyhow!("Failed to find user").into())
         }

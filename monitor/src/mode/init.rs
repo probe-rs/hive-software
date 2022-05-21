@@ -4,14 +4,10 @@
 use std::process;
 use std::sync::Arc;
 
-use argon2::{
-    password_hash::{rand_core::OsRng, SaltString},
-    Argon2, PasswordHasher,
-};
 use comm_types::auth::{DbUser, Role};
 use dialoguer::{theme::ColorfulTheme, Input, Password};
 
-use crate::database::{keys, CborDb, HiveDb};
+use crate::database::{hasher, keys, CborDb, HiveDb};
 
 pub(crate) fn run_init_mode(db: Arc<HiveDb>) {
     let users = db
@@ -51,17 +47,11 @@ pub(crate) fn run_init_mode(db: Arc<HiveDb>) {
         .interact()
         .unwrap();
 
-    let hasher = Argon2::default();
-
-    let salt = SaltString::generate(&mut OsRng);
-
-    let hash = hasher
-        .hash_password(password_input.as_bytes(), &salt)
-        .unwrap();
+    let hash = hasher::hash_password(&password_input);
 
     let users = vec![DbUser {
         username: username_input.clone(),
-        hash: hash.to_string(),
+        hash: hash,
         role: Role::ADMIN,
     }];
 

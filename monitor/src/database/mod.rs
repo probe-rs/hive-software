@@ -6,6 +6,7 @@ use ciborium::ser::into_writer;
 use serde::{Deserialize, Serialize};
 use sled::{Config, Db, Mode, Result as SledResult, Tree};
 
+pub(crate) mod hasher;
 pub(crate) mod keys;
 pub(crate) mod sync;
 
