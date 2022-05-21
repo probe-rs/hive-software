@@ -3,17 +3,27 @@ import { useUserStore } from "@/stores/userStore";
 import { useMutation } from "@vue/apollo-composable";
 import gql from "graphql-tag";
 import { ref, watch } from "vue";
-import SuccessSnackbar from "@/components/SuccessSnackbar.vue";
+import SuccessSnackbar from "./SuccessSnackbar.vue";
 
 const emit = defineEmits(["closeEvent"]);
 
 const userStore = useUserStore();
 
-const dataChanged = ref(false);
+const usernameChanged = ref(false);
+const passwordChanged = ref(false);
 const localUsername = ref(userStore.username);
+const showChangePassword = ref(false);
+const showPassword = ref(false);
+const oldPassword = ref("");
+const newPassword = ref("");
+const newPasswordConfirm = ref("");
 
-const isError = ref(false);
-const errorMessage = ref("")
+const isUsernameError = ref(false);
+const usernameErrorMessage = ref("");
+
+const isPasswordError = ref(false);
+const isPasswordSuccess = ref(false);
+const passwordErrorMessage = ref("");
 
 const { loading, mutate: changeUsername, onError: onUsernameChangeError, onDone: onUsernameChangeDone } = useMutation(
   gql`
@@ -28,31 +38,79 @@ const { loading, mutate: changeUsername, onError: onUsernameChangeError, onDone:
   },
 );
 
+const { loading: passwordLoading, mutate: changePassword, onError: onPasswordChangeError, onDone: onPasswordChangeDone } = useMutation(
+  gql`
+    mutation ($oldPassword: String!, $newPassword: String!) {
+      changePassword(oldPassword: $oldPassword, newPassword: $newPassword)
+    }
+  `,
+  {
+    fetchPolicy: "no-cache",
+  },
+);
+
 watch(localUsername, () => {
-  dataChanged.value = true;
+  usernameChanged.value = true;
 });
 
-async function submitData() {
-  if (dataChanged.value) {
+watch(oldPassword, () => {
+  passwordChanged.value = true;
+})
+
+watch(newPassword, () => {
+  passwordChanged.value = true;
+})
+
+watch(newPasswordConfirm, () => {
+  passwordChanged.value = true;
+})
+
+function submitData() {
+  if (usernameChanged.value) {
     changeUsername({ username: localUsername.value });
   } else {
     emit("closeEvent");
   }
 }
 
+function submitPassword() {
+  if (!passwordChanged.value) {
+    return;
+  }
+
+  if (newPassword.value !== newPasswordConfirm.value) {
+    isPasswordError.value = true;
+    passwordErrorMessage.value = "Passwords do not match";
+    return;
+  }
+
+  changePassword({ oldPassword: oldPassword.value, newPassword: newPassword.value });
+}
+
 onUsernameChangeError((error) => {
-  isError.value = true;
-  errorMessage.value = error.message;
+  isUsernameError.value = true;
+  usernameErrorMessage.value = error.message;
 });
+
+onPasswordChangeError((error) => {
+  isPasswordError.value = true;
+  passwordErrorMessage.value = error.message;
+})
 
 onUsernameChangeDone(({ data }) => {
   const newUsername = data.changeUsername.username;
   localUsername.value = newUsername;
   userStore.username = newUsername;
 
-  dataChanged.value = false;
+  usernameChanged.value = false;
 
   emit("closeEvent");
+})
+
+onPasswordChangeDone(() => {
+  passwordChanged.value = false;
+  showChangePassword.value = false;
+  isPasswordSuccess.value = true;
 })
 
 </script>
@@ -65,10 +123,22 @@ onUsernameChangeDone(({ data }) => {
 
     <v-card-text>
       <v-form>
-        <v-text-field v-model="localUsername" label="Username" :error="isError"
-          :error-messages="isError ? errorMessage : undefined" />
-        <v-text-field label="Role" v-model="userStore.role" disabled />
-        <v-btn color="info"> Change Password </v-btn>
+        <v-text-field v-model="localUsername" label="Username" :error="isUsernameError" variant="underlined"
+          density="compact" :error-messages="isUsernameError ? usernameErrorMessage : undefined" />
+        <v-text-field label="Role" v-model="userStore.role" disabled variant="underlined" density="compact" />
+        <template v-if="showChangePassword">
+          <v-text-field v-model="oldPassword" variant="underlined" density="compact"
+            :type="showPassword ? 'text' : 'password'" label="Old Password" :error="isPasswordError" />
+          <v-text-field v-model="newPassword" variant="underlined" density="compact"
+            :type="showPassword ? 'text' : 'password'" label="New Password" :error="isPasswordError" />
+          <v-text-field v-model="newPasswordConfirm" variant="underlined" density="compact"
+            :append-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'" :type="showPassword ? 'text' : 'password'"
+            label="New Password Confirm" :error="isPasswordError"
+            :error-messages="isPasswordError ? passwordErrorMessage : undefined" :loading="passwordLoading"
+            @click:append="showPassword = !showPassword" />
+        </template>
+        <v-btn v-if="!showChangePassword" color="info" @click="showChangePassword = true"> Change Password </v-btn>
+        <v-btn v-if="showChangePassword" color="info" @click="submitPassword"> Confirm New Password </v-btn>
       </v-form>
     </v-card-text>
 
@@ -85,4 +155,7 @@ onUsernameChangeDone(({ data }) => {
       <v-progress-circular size="80" color="secondary" indeterminate />
     </v-overlay>
   </v-card>
+
+  <SuccessSnackbar :isSuccess="isPasswordSuccess" @closeEvent="isPasswordSuccess = false"
+    message="Successfully changed the password" />
 </template>
