@@ -84,11 +84,11 @@ const authErrorLink = onError((error) => {
 
 // Create the apollo client
 export const apolloClient = new ApolloClient({
-  link: errorLink.concat(csrfLink).concat(csrfRetry).concat(httpLink),
+  link: errorLink.concat(csrfRetry).concat(csrfLink).concat(httpLink),
   cache,
 });
 
 export const authApolloClient = new ApolloClient({
-  link: authErrorLink.concat(csrfLink).concat(csrfRetry).concat(authHttpLink),
+  link: authErrorLink.concat(csrfRetry).concat(csrfLink).concat(authHttpLink),
   cache,
 });

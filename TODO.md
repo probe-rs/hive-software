@@ -17,4 +17,4 @@
 - [ ] consider switching to base64 ct encoding instead of base64 for tokens etc.
 
 ## Hive Backend UI
-- [ ] Current appollo retrylink is useless as it does not call fetch function to change headers. Write own retry function which tries to append csrf header on each retry
+- [X] Current appollo retrylink is useless as it does not call fetch function to change headers. Write own retry function which tries to append csrf header on each retry
