@@ -10,7 +10,6 @@ use lazy_static::lazy_static;
 use log::Level;
 use rppal::i2c::I2c;
 use shared_bus::BusManager;
-use simple_clap_logger::Logger;
 use tokio::sync::broadcast::{self, Sender};
 
 mod binaries;
@@ -18,6 +17,7 @@ mod comm;
 mod database;
 mod flash;
 mod init;
+mod logger;
 mod mode;
 mod testprogram;
 
@@ -59,7 +59,7 @@ struct Args {
 
 fn main() {
     let cli_args = Args::parse();
-    Logger::init_with_level(get_log_level(&cli_args.verbose.log_level()));
+    logger::init_logging(get_log_level(&cli_args.verbose.log_level()));
 
     let db = Arc::new(HiveDb::open());
 
