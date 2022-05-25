@@ -1,11 +1,20 @@
 //! Password hashing functions used to check and create new hashes
 use std::sync::Arc;
 
-use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use argon2::{
+    password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
+    PasswordVerifier, Version,
+};
 use comm_types::auth::DbUser;
+use lazy_static::lazy_static;
 use rand_chacha::rand_core::OsRng;
 
 use super::{keys, CborDb, HiveDb};
+
+lazy_static! {
+    static ref HASHER_SETTINGS: Params =
+        Params::new(8192, 3, 1, Some(Params::DEFAULT_OUTPUT_LEN)).unwrap();
+}
 
 /// Re-hashes the provided password and checks it against the userdata in the DB, if the user exists.
 ///
@@ -32,7 +41,11 @@ pub(crate) fn check_password(
             .find(|user| user.username == username)
             .unwrap();
 
-        let hasher = Argon2::default();
+        let hasher = Argon2::new(
+            Algorithm::default(),
+            Version::default(),
+            HASHER_SETTINGS.clone(),
+        );
 
         // Parse PHC string from DB
         let db_password_hash = match PasswordHash::new(&user.hash) {
@@ -54,7 +67,11 @@ pub(crate) fn check_password(
 
 /// Hashes the provided password and returns the PHC-String containing the hashed password
 pub(crate) fn hash_password(password: &str) -> String {
-    let hasher = Argon2::default();
+    let hasher = Argon2::new(
+        Algorithm::default(),
+        Version::default(),
+        HASHER_SETTINGS.clone(),
+    );
 
     let salt = SaltString::generate(&mut OsRng);
 
