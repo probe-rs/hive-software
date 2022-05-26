@@ -11,9 +11,6 @@ readme = "README.md"
 comm-types = {path = "../comm-types/", features = ["cbor", "ipc", "auth"]}
 controller = {path = "../controller/"}
 log = "0.4"
-log4rs = {version = "1.1", features=["console_appender", "rolling_file_appender", "threshold_filter"] }
-chrono = "0.4"
-colored = "2.0"
 tokio = {version  = "1.17", features = ["rt", "sync", "fs"]}
 axum = {version = "0.5"}
 axum-server = { version = "0.4", features = ["tls-rustls"] }
@@ -45,6 +42,9 @@ dialoguer = "0.10"
 rand_chacha = "0.3"
 base64 = "0.13"
 ring = "0.16"
+
+#dummy function dependency
+colored = "2.0"
 
 [dev-dependencies]
 serial_test = "0.6"

@@ -1,31 +1,34 @@
+use std::path::Path;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
-use controller::common::init;
 use controller::common::{
-    create_expanders, create_shareable_testchannels, create_shareable_tss, CombinedTestChannel,
-    TargetStackShield,
+    create_expanders, create_shareable_testchannels, create_shareable_tss, init,
+    CombinedTestChannel, TargetStackShield,
 };
+use controller::logger;
 use controller::HiveIoExpander;
 use hurdles::Barrier;
 use lazy_static::lazy_static;
 use log::Level;
 use rppal::i2c::I2c;
 use shared_bus::BusManager;
-use simple_clap_logger::Logger;
 use test::TEST_FUNCTIONS;
 use tokio::runtime::Builder;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::oneshot;
 use tokio::sync::Notify;
 
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
-
 use crate::comm::Message;
 
 mod comm;
 mod hive_tests;
 mod test;
+
+const LOGFILE_PATH: &str = "/mnt/hivetmp/runner.log";
+const MAX_LOGFILE_SIZE: u64 = 50_000_000; // 50MB
 
 lazy_static! {
     static ref SHARED_I2C: &'static BusManager<Mutex<I2c>> = {
@@ -39,7 +42,11 @@ lazy_static! {
 }
 
 fn main() {
-    Logger::init_with_level(Level::Info);
+    logger::init_logging(
+        &Path::new(LOGFILE_PATH),
+        MAX_LOGFILE_SIZE,
+        Level::Info.to_level_filter(),
+    );
     log::info!("starting the runner");
 
     initialize_statics();

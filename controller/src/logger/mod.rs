@@ -1,7 +1,7 @@
-//! The monitor logger which manages all logs
+//! The standard hive logger which manages all logs
 use std::path::Path;
 
-use log::{Level, LevelFilter};
+use log::LevelFilter;
 use log4rs::append::console::{ConsoleAppender, Target};
 use log4rs::append::rolling_file::policy::compound::roll::delete::DeleteRoller;
 use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
@@ -15,10 +15,11 @@ mod encoders;
 use encoders::cbor::CborEncoder;
 use encoders::console::ConsoleEncoder;
 
-pub(crate) const LOGGER_RAMDISK_PATH: &str = "/mnt/hivetmp/";
-const MAX_LOGFILE_SIZE: u64 = 50_000_000; // 50MB
-
-pub(super) fn init_logging(console_log_level: Level) {
+pub fn init_logging(
+    logfile_path: &Path,
+    logfile_max_size_bytes: u64,
+    console_log_level_filter: LevelFilter,
+) {
     let console_appender = ConsoleAppender::builder()
         .target(Target::Stdout)
         .encoder(Box::new(ConsoleEncoder::new()))
@@ -26,9 +27,9 @@ pub(super) fn init_logging(console_log_level: Level) {
     let file_appender = RollingFileAppender::builder()
         .encoder(Box::new(CborEncoder::new()))
         .build(
-            Path::new(LOGGER_RAMDISK_PATH).join("monitor.log"),
+            logfile_path,
             Box::new(CompoundPolicy::new(
-                Box::new(SizeTrigger::new(MAX_LOGFILE_SIZE)),
+                Box::new(SizeTrigger::new(logfile_max_size_bytes)),
                 Box::new(DeleteRoller::new()),
             )),
         )
@@ -37,9 +38,7 @@ pub(super) fn init_logging(console_log_level: Level) {
     let log_config = Config::builder()
         .appender(
             Appender::builder()
-                .filter(Box::new(ThresholdFilter::new(
-                    console_log_level.to_level_filter(),
-                )))
+                .filter(Box::new(ThresholdFilter::new(console_log_level_filter)))
                 .build("console", Box::new(console_appender)),
         )
         .appender(Appender::builder().build("monitor file", Box::new(file_appender)))

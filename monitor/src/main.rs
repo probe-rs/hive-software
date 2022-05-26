@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use clap::{ArgEnum, Parser};
@@ -5,6 +6,7 @@ use controller::common::{
     create_expanders, create_shareable_testchannels, create_shareable_tss, CombinedTestChannel,
     TargetStackShield,
 };
+use controller::logger;
 use controller::HiveIoExpander;
 use lazy_static::lazy_static;
 use log::Level;
@@ -17,11 +19,13 @@ mod comm;
 mod database;
 mod flash;
 mod init;
-mod logger;
 mod mode;
 mod testprogram;
 
 use database::HiveDb;
+
+const LOGFILE_PATH: &str = "/mnt/hivetmp/monitor.log";
+const MAX_LOGFILE_SIZE: u64 = 50_000_000; // 50MB
 
 lazy_static! {
     static ref SHARED_I2C: &'static BusManager<Mutex<I2c>> = {
@@ -59,7 +63,11 @@ struct Args {
 
 fn main() {
     let cli_args = Args::parse();
-    logger::init_logging(get_log_level(&cli_args.verbose.log_level()));
+    logger::init_logging(
+        &Path::new(LOGFILE_PATH),
+        MAX_LOGFILE_SIZE,
+        get_log_level(&cli_args.verbose.log_level()).to_level_filter(),
+    );
 
     let db = Arc::new(HiveDb::open());
 
