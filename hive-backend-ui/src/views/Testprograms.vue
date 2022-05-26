@@ -30,12 +30,7 @@ const selectedTestprogram = ref("Default");
       {{ selectedTestprogram }}
       <v-menu activator="parent">
         <v-list>
-          <v-list-item
-            v-for="item in items"
-            :key="item"
-            :value="item"
-            @click="selectedTestprogram = item"
-          >
+          <v-list-item v-for="item in items" :key="item" :value="item" @click="selectedTestprogram = item">
             <v-list-item-title>{{ item }}</v-list-item-title>
           </v-list-item>
         </v-list>
@@ -43,9 +38,7 @@ const selectedTestprogram = ref("Default");
     </v-btn>
 
     <v-btn icon="mdi-plus">
-      <v-tooltip activator="parent" anchor="bottom end"
-        >Add testprogram</v-tooltip
-      >
+      <v-tooltip activator="parent" anchor="bottom end">Add testprogram</v-tooltip>
     </v-btn>
   </v-toolbar>
 
@@ -57,22 +50,15 @@ const selectedTestprogram = ref("Default");
 
   <v-row>
     <v-col style="height: 30vh" lg="8">
-      <Terminal />
+      <Terminal content="Assembler & Linker output:" />
     </v-col>
     <v-col lg="4">
       <v-card elevation="1">
         <v-card-title> Upload </v-card-title>
 
         <v-card-content>
-          <v-file-input
-            style="max-width: 300px"
-            density="compact"
-            class="align-self-start"
-            accept=".o,.S"
-            label="Upload Testprogram"
-            persistent-hint
-            hint="Accepted files are Assembly and Objectfiles"
-          />
+          <v-file-input style="max-width: 300px" density="compact" class="align-self-start" accept=".o,.S"
+            label="Upload Testprogram" persistent-hint hint="Accepted files are Assembly and Objectfiles" />
         </v-card-content>
       </v-card>
     </v-col>

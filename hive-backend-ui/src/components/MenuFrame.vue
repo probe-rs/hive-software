@@ -20,6 +20,10 @@ function toggleNavigation() {
   showNavigation.value = !showNavigation.value;
 }
 
+function resizeEvent() {
+  window.dispatchEvent(new Event('resize'));
+}
+
 function logout() {
   requestLogout();
   router.push("login");
@@ -27,7 +31,7 @@ function logout() {
 </script>
 
 <template>
-  <v-app-bar color="primary" clipped-left app>
+  <v-app-bar color="primary" app>
     <v-btn icon rounded="0" dark class="ml-1 pa-1" @click="toggleNavigation">
       <v-img :src="hiveLogo" alt="menu" />
     </v-btn>
@@ -51,12 +55,12 @@ function logout() {
     </v-btn>
   </v-app-bar>
 
-  <v-navigation-drawer clipped :model-value="showNavigation" app>
+  <v-navigation-drawer clipped :model-value="showNavigation" app @transitionend="resizeEvent">
     <Navigation />
   </v-navigation-drawer>
 
   <v-main>
-    <v-container fluid>
+    <v-container fluid class="fill-height">
       <slot />
     </v-container>
   </v-main>

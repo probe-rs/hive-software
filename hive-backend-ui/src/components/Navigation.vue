@@ -15,6 +15,11 @@ const menu = [
     icon: "mdi-desktop-classic",
     url: "/testprograms",
   },
+  {
+    title: "Logs",
+    icon: "mdi-console",
+    url: "/logs",
+  },
 ];
 </script>
 

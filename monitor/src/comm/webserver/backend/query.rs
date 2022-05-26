@@ -1,14 +1,20 @@
 //! The graphql query
-use std::sync::Arc;
+use std::fs::File;
+use std::{path::Path, sync::Arc};
 
-use async_graphql::{Context, Object};
+use async_graphql::{Context, Object, Result as GrapqlResult};
+use ciborium::de::from_reader;
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
+use controller::logger::LogEntry;
+use log::Level;
 use probe_rs::config::search_chips;
 use probe_rs::Probe;
 
 use crate::database::{keys, CborDb, HiveDb};
 
-use super::model::{FlatProbeState, FlatTargetState, ProbeInfo};
+use super::model::{Application, FlatProbeState, FlatTargetState, LogLevel, ProbeInfo};
+
+const RUNNER_LOGFILE_PATH: &str = "/mnt/hivetmp/runner.log";
 
 pub(in crate::comm::webserver) struct BackendQuery;
 
@@ -107,5 +113,40 @@ impl BackendQuery {
             .into_iter()
             .map(|probe| probe.into())
             .collect()
+    }
+
+    /// Return the log data of the provided application (either runner or monitor)
+    async fn application_log(
+        &self,
+        application: Application,
+        level: LogLevel,
+    ) -> GrapqlResult<Vec<String>> {
+        let filepath = match application {
+            Application::Monitor => Path::new(crate::LOGFILE_PATH),
+            Application::Runner => Path::new(RUNNER_LOGFILE_PATH),
+        };
+
+        if !filepath.exists() {
+            return Ok(vec![]);
+        }
+
+        let logfile = File::open(filepath)?;
+
+        let mut log_entries = vec![];
+
+        while let Ok(entry) = from_reader::<LogEntry, _>(&logfile) {
+            log_entries.push(entry);
+        }
+
+        let entries: Vec<String> = log_entries
+            .into_iter()
+            .filter(|entry| entry.level <= <LogLevel as Into<Level>>::into(level))
+            .take(100)
+            .map(|entry| entry.message)
+            .collect();
+
+        println!("{:#?}", entries);
+
+        Ok(entries)
     }
 }

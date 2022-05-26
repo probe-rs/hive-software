@@ -12,6 +12,8 @@ use log4rs::filter::threshold::ThresholdFilter;
 
 mod encoders;
 
+pub use encoders::cbor::LogEntry;
+
 use encoders::cbor::CborEncoder;
 use encoders::console::ConsoleEncoder;
 
@@ -46,7 +48,7 @@ pub fn init_logging(
             Root::builder()
                 .appender("monitor file")
                 .appender("console")
-                .build(LevelFilter::Trace),
+                .build(LevelFilter::Debug),
         )
         .unwrap();
 

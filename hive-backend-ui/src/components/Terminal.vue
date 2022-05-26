@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeMount, onUnmounted } from "vue";
+import { ref, onMounted, onBeforeMount, onUnmounted, watch } from "vue";
 import { Terminal } from "xterm";
 import "xterm/css/xterm.css";
 import { FitAddon } from "xterm-addon-fit";
 // @ts-ignore
 import * as XtermWebfont from "xterm-webfont";
+
+const props = defineProps({
+  content: {
+    type: String,
+    required: true,
+  },
+});
 
 const terminalParent = ref(null);
 const terminal = new Terminal({
@@ -15,11 +22,17 @@ const terminal = new Terminal({
   theme: {
     background: "#282a36",
   },
+  convertEol: true,
 });
 const terminalFit = new FitAddon();
 terminal.loadAddon(terminalFit);
 terminal.loadAddon(new XtermWebfont());
-terminal.writeln("Assembler & Linker output:");
+terminal.write(props.content)
+
+watch(() => props.content, (newVal) => {
+  terminal.reset()
+  terminal.write(newVal)
+})
 
 onBeforeMount(() => {
   window.addEventListener("resize", updateTerminalSize);

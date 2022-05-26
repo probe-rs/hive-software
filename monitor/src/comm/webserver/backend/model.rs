@@ -4,7 +4,9 @@ use comm_types::{
     auth::{DbUser, Role},
     hardware::{ProbeInfo as CommProbeInfo, ProbeState, TargetInfo, TargetState},
 };
+use log::Level;
 use probe_rs::DebugProbeInfo;
+use serde::{Deserialize, Serialize};
 
 /// Flattened version of [`TargetState`] to use it in graphql api
 #[derive(SimpleObject, Debug)]
@@ -116,6 +118,47 @@ impl From<DbUser> for UserResponse {
         Self {
             username: db_user.username,
             role: db_user.role,
+        }
+    }
+}
+
+/// The main applications of Hive
+#[derive(Enum, PartialEq, Eq, Clone, Copy)]
+pub(super) enum Application {
+    Monitor,
+    Runner,
+}
+
+/// Wrapper for [`log::Level`] to use it in graphql api
+#[derive(Enum, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+pub(super) enum LogLevel {
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
+impl From<Level> for LogLevel {
+    fn from(level: Level) -> Self {
+        match level {
+            Level::Error => Self::Error,
+            Level::Warn => Self::Warn,
+            Level::Info => Self::Info,
+            Level::Debug => Self::Debug,
+            Level::Trace => Self::Trace,
+        }
+    }
+}
+
+impl Into<Level> for LogLevel {
+    fn into(self) -> Level {
+        match self {
+            LogLevel::Error => Level::Error,
+            LogLevel::Warn => Level::Warn,
+            LogLevel::Info => Level::Info,
+            LogLevel::Debug => Level::Debug,
+            LogLevel::Trace => Level::Trace,
         }
     }
 }

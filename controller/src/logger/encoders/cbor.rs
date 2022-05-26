@@ -46,14 +46,12 @@ impl Encode for CborEncoder {
 
         into_writer(&entry, &mut *w)?;
 
-        //w.write_all(b"\n")?;
-
         Ok(())
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct LogEntry {
-    level: Level,
-    message: String,
+pub struct LogEntry {
+    pub level: Level,
+    pub message: String,
 }
