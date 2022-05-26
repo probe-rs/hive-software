@@ -145,8 +145,6 @@ impl BackendQuery {
             .map(|entry| entry.message)
             .collect();
 
-        println!("{:#?}", entries);
-
         Ok(entries)
     }
 }
