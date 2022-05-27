@@ -134,17 +134,14 @@ impl BackendQuery {
 
         let mut log_entries = vec![];
 
+        let mut entry_count = 0;
         while let Ok(entry) = from_reader::<LogEntry, _>(&logfile) {
-            log_entries.push(entry);
+            if entry.level <= <LogLevel as Into<Level>>::into(level) && entry_count < 100 {
+                log_entries.push(entry.message);
+                entry_count += 1;
+            }
         }
 
-        let entries: Vec<String> = log_entries
-            .into_iter()
-            .filter(|entry| entry.level <= <LogLevel as Into<Level>>::into(level))
-            .take(100)
-            .map(|entry| entry.message)
-            .collect();
-
-        Ok(entries)
+        Ok(log_entries)
     }
 }
