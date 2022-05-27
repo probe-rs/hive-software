@@ -42,6 +42,7 @@ dialoguer = "0.10"
 rand_chacha = "0.3"
 base64 = "0.13"
 ring = "0.16"
+crossbeam-utils = "0.8"
 
 #dummy function dependency
 colored = "2.0"

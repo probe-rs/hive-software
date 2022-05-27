@@ -2,11 +2,8 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use clap::{ArgEnum, Parser};
-use controller::common::{
-    create_expanders, create_shareable_testchannels, create_shareable_tss, CombinedTestChannel,
-    TargetStackShield,
-};
-use controller::logger;
+use controller::common::hardware::{self, HiveHardware};
+use controller::common::logger;
 use controller::HiveIoExpander;
 use lazy_static::lazy_static;
 use log::Level;
@@ -33,9 +30,10 @@ lazy_static! {
             .expect("Failed to acquire I2C bus. It might still be blocked by another process");
         shared_bus::new_std!(I2c = i2c).unwrap()
     };
-    static ref EXPANDERS: [HiveIoExpander; 8] = create_expanders(&SHARED_I2C);
-    static ref TSS: Vec<Mutex<TargetStackShield>> = create_shareable_tss(&SHARED_I2C, &EXPANDERS);
-    static ref TESTCHANNELS: [Mutex<CombinedTestChannel>; 4] = create_shareable_testchannels();
+    static ref EXPANDERS: [HiveIoExpander; 8] = hardware::create_expanders(&SHARED_I2C);
+    // HiveHardware is wrapped in a mutex in order to ensure that no hardware modifications are done concurrently (For example to avoid that the hardware is reinitialized in the monitor while the runner is running tests)
+    static ref HARDWARE: Mutex<HiveHardware> =
+        Mutex::new(HiveHardware::new(&SHARED_I2C, &EXPANDERS));
     static ref SHUTDOWN_SIGNAL: Sender<()> = {
         let (sender, _) = broadcast::channel::<()>(1);
         sender
@@ -64,7 +62,7 @@ struct Args {
 fn main() {
     let cli_args = Args::parse();
     logger::init_logging(
-        &Path::new(LOGFILE_PATH),
+        Path::new(LOGFILE_PATH),
         MAX_LOGFILE_SIZE,
         get_log_level(&cli_args.verbose.log_level()).to_level_filter(),
     );
@@ -97,7 +95,9 @@ fn shutdown_application() {
 
 // Current dummy implementation of unlocking the debug probes, so the runner can take over control. Only used for testing/demo purposes
 fn dummy_unlock_probes() {
-    for testchannel in TESTCHANNELS.iter() {
+    let hardware = HARDWARE.lock().unwrap();
+
+    for testchannel in hardware.testchannels.iter() {
         let testchannel = testchannel.lock().unwrap();
 
         if testchannel.is_ready() {

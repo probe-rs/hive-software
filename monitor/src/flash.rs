@@ -4,17 +4,17 @@ use std::sync::mpsc;
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 use std::sync::RwLock;
-use std::thread;
 
 use comm_types::hardware::{Architecture, TargetInfo, TargetState};
-use controller::common::CombinedTestChannel;
+use controller::common::hardware::CombinedTestChannel;
 use probe_rs::flashing::Format;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions};
 use probe_rs::DebugProbeInfo;
 use probe_rs::Session;
+use crossbeam_utils::thread;
 
 use crate::database::{keys, CborDb, HiveDb};
-use crate::{TESTCHANNELS, TSS};
+use crate::{HARDWARE};
 use crate::testprogram::TestProgram;
 
 #[derive(Debug)]
@@ -26,6 +26,8 @@ struct FlashStatus {
 
 /// Tries to flash the testbinaries onto all available targets.
 pub(crate) fn flash_testbinaries(db: Arc<HiveDb>) {
+    let hardware = HARDWARE.lock().unwrap();
+
     let active_testprogram: Arc<TestProgram> = Arc::new(db.config_tree.c_get(keys::config::ACTIVE_TESTPROGRAM).unwrap().expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known"));
 
     // A buffersize of 0 enforces that the RwLock flash_results vector does not slowly get out of sync due to read locks.
@@ -34,58 +36,64 @@ pub(crate) fn flash_testbinaries(db: Arc<HiveDb>) {
     let (result_sender, result_receiver) = mpsc::sync_channel::<FlashStatus>(0);
 
     // As we don't know if some probes will work for flashing certain targets, we just try out every available probe until we reach a successful flash or a definitive failure. The logic used here is very similar to the test runner logic.
-    let mut flashing_threads = vec![];
     let flash_results = Arc::new(RwLock::new(vec![]));
 
-    for (idx, test_channel) in TESTCHANNELS.iter().enumerate() {
-        let channel = test_channel.lock().unwrap();
+    let tss = &hardware.tss;
 
-        if channel.is_ready() {
-            drop(channel);
-            let result_sender = result_sender.clone();
-            let active_testprogram = active_testprogram.clone();
-            let flash_results = flash_results.clone();
+    // Spawn scoped threads which can access tss reference. It gurantees that the hardware Mutexguard lives longer than the threads spawned within this scope
+    thread::scope(|s|{
+        let mut flashing_threads = vec![];
 
-            flashing_threads.push(
-                thread::Builder::new()
-                    .name(format!("flashing thread {}", idx).to_owned())
-                    .spawn(move || {
-                        let mut channel = test_channel.lock().unwrap();
-                        let sender = result_sender;
-
-                        channel.connect_all_available_and_execute(
-                            &TSS,
-                            |test_channel, target_info, tss_pos| {
-                                flash_target(
-                                    test_channel,
-                                    target_info,
-                                    tss_pos,
-                                    &sender,
-                                    &*active_testprogram,
-                                    &flash_results,
-                                );
-                            },
-                        );
-                    })
-                    .unwrap(),
-            );
+        for (idx, test_channel) in hardware.testchannels.iter().enumerate() {
+            let channel = test_channel.lock().unwrap();
+    
+            if channel.is_ready() {
+                drop(channel);
+                let result_sender = result_sender.clone();
+                let active_testprogram = active_testprogram.clone();
+                let flash_results = flash_results.clone();
+                
+                flashing_threads.push(
+                    s.builder()
+                        .name(format!("flashing thread {}", idx).to_owned())
+                        .spawn(move |_| {
+                            let mut channel = test_channel.lock().unwrap();
+                            let sender = result_sender;
+    
+                            channel.connect_all_available_and_execute(
+                                tss,
+                                |test_channel, target_info, tss_pos| {
+                                    flash_target(
+                                        test_channel,
+                                        target_info,
+                                        tss_pos,
+                                        &sender,
+                                        &*active_testprogram,
+                                        &flash_results,
+                                    );
+                                },
+                            );
+                        })
+                        .unwrap(),
+                );
+            }
         }
-    }
-
-    // Drop local owned sender, so the while loop exits once all senders in the flashing thread have been dropped
-    drop(result_sender);
-
-    while let Ok(received) = result_receiver.recv() {
-        let mut flash_results = flash_results.write().unwrap();
-        flash_results.push(received);
-    }
-
-    for thread in flashing_threads {
-        thread.join().unwrap();
-    }
+    
+        // Drop local owned sender, so the while loop exits once all senders in the flashing thread have been dropped
+        drop(result_sender);
+    
+        while let Ok(received) = result_receiver.recv() {
+            let mut flash_results = flash_results.write().unwrap();
+            flash_results.push(received);
+        }
+    
+        for thread in flashing_threads {
+            thread.join().unwrap();
+        }
+    }).unwrap();
 
     // Update tss targets with the flash results
-    for tss in TSS.iter() {
+    for tss in hardware.tss.iter() {
         let mut tss = tss.lock().unwrap();
 
         if tss.get_targets().is_none() {

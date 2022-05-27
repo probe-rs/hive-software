@@ -30,6 +30,7 @@ pub struct CombinedTestChannel {
 }
 
 impl CombinedTestChannel {
+    /// Creates and returns all testchannels which are able to be shared across threads
     pub(crate) fn new() -> [Mutex<Self>; 4] {
         [
             Mutex::new(CombinedTestChannel {

@@ -5,7 +5,7 @@ use std::{path::Path, sync::Arc};
 use async_graphql::{Context, Object, Result as GrapqlResult};
 use ciborium::de::from_reader;
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
-use controller::logger::LogEntry;
+use controller::common::logger::LogEntry;
 use log::Level;
 use probe_rs::config::search_chips;
 use probe_rs::Probe;

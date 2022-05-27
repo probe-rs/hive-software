@@ -1379,6 +1379,7 @@ dependencies = [
  "comm-types",
  "controller",
  "cookie",
+ "crossbeam-utils",
  "dialoguer",
  "futures",
  "http-body",

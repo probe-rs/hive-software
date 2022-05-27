@@ -6,7 +6,7 @@ use std::panic::{self, PanicInfo};
 use antidote::Mutex as PoisonFreeMutex;
 use comm_types::hardware::TargetInfo;
 use comm_types::results::{TestResult, TestStatus};
-use controller::common::CombinedTestChannel;
+use controller::common::hardware::CombinedTestChannel;
 use controller::runner::TestChannelHandle;
 use hive_test::HiveTestFunction;
 use lazy_static::lazy_static;

@@ -6,20 +6,18 @@ use std::sync::Arc;
 
 use comm_types::auth::DbUser;
 use comm_types::hardware::{Architecture, TargetState};
-use controller::common::init;
-use controller::common::TargetStackShield;
+use controller::common::hardware::{HiveHardware, InitError, TargetStackShield};
 use probe_rs::config;
 
 use crate::binaries;
 use crate::database::{keys, CborDb, HiveDb};
 use crate::testprogram::{TestProgram, TESTPROGRAM_PATH};
-use crate::{EXPANDERS, SHARED_I2C, TESTCHANNELS, TSS};
+use crate::{EXPANDERS, HARDWARE, SHARED_I2C};
 
 pub(crate) fn initialize_statics() {
     lazy_static::initialize(&SHARED_I2C);
     lazy_static::initialize(&EXPANDERS);
-    lazy_static::initialize(&TSS);
-    lazy_static::initialize(&TESTCHANNELS);
+    lazy_static::initialize(&HARDWARE);
 }
 
 /// Checks if there is at least one user registered in the database, otherwise exit the process, as the application has to be run in init-mode first to register a user.
@@ -42,15 +40,15 @@ pub(crate) fn check_uninit(db: Arc<HiveDb>) {
     process::exit(1);
 }
 
-/// Detect all connected TSS and update DB data
-pub(crate) fn init_tss(db: Arc<HiveDb>) {
-    let detected = TargetStackShield::detect_connected_tss(SHARED_I2C.acquire_i2c());
+/// Initializes the entire testrack hardware with the data contained in the DB
+pub(crate) fn init_hardware(db: Arc<HiveDb>) -> Result<(), InitError> {
+    let hardware = HARDWARE.lock().unwrap();
 
-    let detected = detected.map(|e| e.is_some());
+    init_tss(db.clone());
+    init_hardware_from_db_data(db, &hardware)?;
+    init_target_info_from_registry(&hardware);
 
-    db.config_tree
-        .c_insert(keys::config::TSS, &detected)
-        .unwrap();
+    Ok(())
 }
 
 /// Checks if existing testprograms in the DB are still available on the disk and ready for use, removes them otherwise
@@ -125,22 +123,33 @@ pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
     }
 }
 
+/// Detect all connected TSS and update DB data
+fn init_tss(db: Arc<HiveDb>) {
+    let detected = TargetStackShield::detect_connected_tss(SHARED_I2C.acquire_i2c());
+
+    let detected = detected.map(|e| e.is_some());
+
+    db.config_tree
+        .c_insert(keys::config::TSS, &detected)
+        .unwrap();
+}
+
 /// Initializes the TSS and TESTCHANNELS statics according to the data provided by the DB. This function fails if the data in the DB is not in sync with the detected hardware.
 ///
 /// # Panics
 /// If the data in the DB has not been initialized.
-pub(crate) fn init_hardware_from_db_data(db: Arc<HiveDb>) -> Result<(), init::InitError> {
+fn init_hardware_from_db_data(db: Arc<HiveDb>, hardware: &HiveHardware) -> Result<(), InitError> {
     let target_data = db.config_tree.c_get(keys::config::ASSIGNED_TARGETS).unwrap().expect("Failed to get the target data in the DB. This function can only be called once the target data has been initialized in the DB.");
     let probe_data = db.config_tree.c_get(keys::config::ASSIGNED_PROBES).unwrap().expect("Failed to get the probe data in the DB. This function can only be called once the probe data has been initialized in the DB.");
 
-    init::initialize_target_data(&TSS, target_data)?;
-    init::initialize_probe_data(&TESTCHANNELS, probe_data)
+    hardware.initialize_target_data(target_data)?;
+    hardware.initialize_probe_data(probe_data)
 }
 
 /// Initializes [`TargetInfo`] on each known target connected to the tss using the [`probe_rs::config::get_target_by_name()`] function. If the target is not found in the probe-rs registry, its [`TargetInfo`] status field is set to a [`Result::Err`] value.
 /// Targets which are not found in the registry are thus being ignored for any subsequent initialization steps, such as flashing the testbinaries for example.
-pub(crate) fn init_target_info_from_registry() {
-    for tss in TSS.iter() {
+fn init_target_info_from_registry(hardware: &HiveHardware) {
+    for tss in hardware.tss.iter() {
         let mut tss = tss.lock().unwrap();
 
         let mut targets = tss.get_targets().clone();

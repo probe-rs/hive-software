@@ -7,7 +7,7 @@ use probe_rs::{
     Architecture, Target,
 };
 
-use crate::TSS;
+use crate::HARDWARE;
 
 pub(crate) struct BaseAddressRanges {
     pub arm: Vec<Memory>,
@@ -16,12 +16,14 @@ pub(crate) struct BaseAddressRanges {
 
 /// Returns all required address ranges for the currently connected targets. And updates the TargetInfo of each individual target to the correct range
 pub(crate) fn get_and_init_target_address_ranges() -> BaseAddressRanges {
+    let hardware = HARDWARE.lock().unwrap();
+
     let mut addresses = BaseAddressRanges {
         arm: vec![],
         riscv: vec![],
     };
 
-    for tss in TSS.iter() {
+    for tss in hardware.tss.iter() {
         let mut tss = tss.lock().unwrap();
 
         if tss.get_targets().is_none() {

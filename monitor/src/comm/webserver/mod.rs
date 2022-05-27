@@ -56,7 +56,7 @@ fn app(db: Arc<HiveDb>) -> Router {
         .layer(
             ServiceBuilder::new()
                 .layer(middleware::from_fn(csrf::require_csrf_token))
-                .layer(Extension(db.clone()))
+                .layer(Extension(db))
                 .layer(Extension(backend::auth::build_schema())),
         );
 

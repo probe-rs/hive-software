@@ -4,11 +4,8 @@ use std::thread;
 use std::time::Duration;
 
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
-use controller::common::{
-    create_expanders, create_shareable_testchannels, create_shareable_tss, init,
-    CombinedTestChannel, TargetStackShield,
-};
-use controller::logger;
+use controller::common::hardware::{self, HiveHardware, InitError};
+use controller::common::logger;
 use controller::HiveIoExpander;
 use hurdles::Barrier;
 use lazy_static::lazy_static;
@@ -36,14 +33,13 @@ lazy_static! {
             .expect("Failed to acquire I2C bus. It might still be blocked by another process");
         shared_bus::new_std!(I2c = i2c).unwrap()
     };
-    static ref EXPANDERS: [HiveIoExpander; 8] = create_expanders(&SHARED_I2C);
-    static ref TSS: Vec<Mutex<TargetStackShield>> = create_shareable_tss(&SHARED_I2C, &EXPANDERS);
-    static ref TESTCHANNELS: [Mutex<CombinedTestChannel>; 4] = create_shareable_testchannels();
+    static ref EXPANDERS: [HiveIoExpander; 8] = hardware::create_expanders(&SHARED_I2C);
+    static ref HARDWARE: HiveHardware = HiveHardware::new(&SHARED_I2C, &EXPANDERS);
 }
 
 fn main() {
     logger::init_logging(
-        &Path::new(LOGFILE_PATH),
+        Path::new(LOGFILE_PATH),
         MAX_LOGFILE_SIZE,
         Level::Info.to_level_filter(),
     );
@@ -99,7 +95,7 @@ fn main() {
 
     let mut panic_hook_sync = Barrier::new(get_available_channel_count() + 1);
 
-    for (idx, test_channel) in TESTCHANNELS.iter().enumerate() {
+    for (idx, test_channel) in HARDWARE.testchannels.iter().enumerate() {
         let channel = test_channel.lock().unwrap();
 
         let mut panic_hook_sync = panic_hook_sync.clone();
@@ -122,7 +118,7 @@ fn main() {
                         panic_hook_sync.wait();
 
                         channel.connect_all_available_and_execute(
-                            &TSS,
+                            &HARDWARE.tss,
                             |test_channel, target_info, tss_pos| {
                                 test::run_tests(test_channel, target_info, tss_pos, &sender);
                             },
@@ -159,16 +155,15 @@ fn main() {
 fn init_hardware_from_monitor_data(
     target_data: HiveTargetData,
     probe_data: HiveProbeData,
-) -> Result<(), init::InitError> {
-    init::initialize_target_data(&TSS, target_data)?;
-    init::initialize_probe_data(&TESTCHANNELS, probe_data)
+) -> Result<(), InitError> {
+    HARDWARE.initialize_target_data(target_data)?;
+    HARDWARE.initialize_probe_data(probe_data)
 }
 
 pub(crate) fn initialize_statics() {
     lazy_static::initialize(&SHARED_I2C);
     lazy_static::initialize(&EXPANDERS);
-    lazy_static::initialize(&TSS);
-    lazy_static::initialize(&TESTCHANNELS);
+    lazy_static::initialize(&HARDWARE);
     lazy_static::initialize(&TEST_FUNCTIONS);
 }
 
@@ -176,7 +171,7 @@ pub(crate) fn initialize_statics() {
 fn get_available_channel_count() -> usize {
     let mut available_channels = 0;
 
-    for test_channel in TESTCHANNELS.iter() {
+    for test_channel in HARDWARE.testchannels.iter() {
         let channel = test_channel.lock().unwrap();
         if channel.is_ready() {
             available_channels += 1;

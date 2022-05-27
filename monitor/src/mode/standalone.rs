@@ -12,9 +12,8 @@ pub(crate) fn run_standalone_mode(db: Arc<HiveDb>) {
 
     init::initialize_statics();
 
-    init::init_tss(db.clone());
-    init::init_hardware_from_db_data(db.clone()).expect("TODO, stop initialization and enter 'NOT READY' state which should tell the user to provide the initialization in the backend UI");
-    init::init_target_info_from_registry();
+    init::init_hardware(db.clone()).expect("TODO Do someting if data is desynced");
+
     init::init_testprograms(db.clone());
 
     flash::flash_testbinaries(db.clone());

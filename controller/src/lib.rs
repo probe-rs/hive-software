@@ -11,6 +11,5 @@ pub type HiveIoExpander =
     IoExpander<ShareableI2c, Pca9535Immediate<ShareableI2c>, Mutex<Pca9535Immediate<ShareableI2c>>>;
 
 pub mod common;
-pub mod logger;
 #[cfg(feature = "runner")]
 pub mod runner;

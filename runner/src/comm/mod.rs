@@ -8,6 +8,7 @@ use std::{io, pin::Pin};
 use axum::http::Uri;
 use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
 use comm_types::results::TestResult;
+use controller::common::hardware::InitError;
 use hyper::client::connect::{Connected, Connection};
 use hyper::{Body, Client};
 use lazy_static::lazy_static;
@@ -15,8 +16,6 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::oneshot::Sender;
 use tokio::sync::{Mutex, Notify};
 use tokio::{net::UnixStream, sync::mpsc::Receiver};
-
-use crate::init::InitError;
 
 mod requests;
 mod retry;
