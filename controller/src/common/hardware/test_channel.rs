@@ -15,7 +15,7 @@ use probe_rs::{Probe, DebugProbeInfo};
 #[cfg(feature = "runner")]
 use probe_rs_test::{Probe, DebugProbeInfo};
 
-use super::TargetStackShield;
+use super::{TargetStackShield, MAX_DAUGHTERBOARD_TARGETS};
 
 const FIXED_RETRY_DELAY_MS: u64 = 10;
 const CONNECT_RETRY_LIMIT: usize = 3;
@@ -31,7 +31,7 @@ pub struct CombinedTestChannel {
 
 impl CombinedTestChannel {
     /// Creates and returns all testchannels which are able to be shared across threads
-    pub(crate) fn new() -> [Mutex<Self>; 4] {
+    pub(crate) fn new() -> [Mutex<Self>; MAX_DAUGHTERBOARD_TARGETS] {
         [
             Mutex::new(CombinedTestChannel {
                 channel: TestChannel::Channel0,
@@ -64,6 +64,12 @@ impl CombinedTestChannel {
     pub fn bind_probe(&self, probe: Probe, probe_info: DebugProbeInfo) {
         *self.probe.lock() = Some(probe);
         *self.probe_info.lock() = Some(probe_info);
+    }
+
+    // Removes a probe and the associated probe_info from this testchannel, if existing
+    pub fn remove_probe(&self) {
+        *self.probe.lock() = None;
+        *self.probe_info.lock() = None;
     }
 
     pub fn get_probe_info(&self) -> &PoisonFreeMutex<Option<DebugProbeInfo>> {
@@ -113,8 +119,8 @@ impl CombinedTestChannel {
     }
 
     /// Loops through all available TSS and connects the testchannel to each available target, while executing the provided function on each connection.
-    pub fn connect_all_available_and_execute<F>(&mut self, tss: &[Mutex<TargetStackShield>], mut function: F) where F: FnMut(&mut Self, &TargetInfo, u8) {
-        let mut unprocessed_tss_queue: Vec<&Mutex<TargetStackShield>> = tss.iter().collect();
+    pub fn connect_all_available_and_execute<F>(&mut self, tss: &[Option<Mutex<TargetStackShield>>], mut function: F) where F: FnMut(&mut Self, &TargetInfo, u8) {
+        let mut unprocessed_tss_queue: Vec<&Mutex<TargetStackShield>> = tss.iter().filter_map(|tss| tss.as_ref()).collect();
 
         while !unprocessed_tss_queue.is_empty() {
             match unprocessed_tss_queue[0].try_lock() {

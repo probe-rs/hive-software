@@ -2,9 +2,8 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use clap::{ArgEnum, Parser};
-use controller::common::hardware::{self, HiveHardware};
+use controller::common::hardware::{self, HiveHardware, HiveIoExpander, MAX_TSS};
 use controller::common::logger;
-use controller::HiveIoExpander;
 use lazy_static::lazy_static;
 use log::Level;
 use rppal::i2c::I2c;
@@ -17,6 +16,7 @@ mod database;
 mod flash;
 mod init;
 mod mode;
+mod test;
 mod testprogram;
 
 use database::HiveDb;
@@ -30,7 +30,7 @@ lazy_static! {
             .expect("Failed to acquire I2C bus. It might still be blocked by another process");
         shared_bus::new_std!(I2c = i2c).unwrap()
     };
-    static ref EXPANDERS: [HiveIoExpander; 8] = hardware::create_expanders(&SHARED_I2C);
+    static ref EXPANDERS: [HiveIoExpander; MAX_TSS] = hardware::create_expanders(&SHARED_I2C);
     // HiveHardware is wrapped in a mutex in order to ensure that no hardware modifications are done concurrently (For example to avoid that the hardware is reinitialized in the monitor while the runner is running tests)
     static ref HARDWARE: Mutex<HiveHardware> =
         Mutex::new(HiveHardware::new(&SHARED_I2C, &EXPANDERS));

@@ -6,12 +6,12 @@ use std::sync::Arc;
 
 use comm_types::auth::DbUser;
 use comm_types::hardware::{Architecture, TargetState};
-use controller::common::hardware::{HiveHardware, InitError, TargetStackShield};
+use controller::common::hardware::{HardwareStatus, HiveHardware, TargetStackShield};
 use probe_rs::config;
 
-use crate::binaries;
 use crate::database::{keys, CborDb, HiveDb};
 use crate::testprogram::{TestProgram, TESTPROGRAM_PATH};
+use crate::{binaries, database};
 use crate::{EXPANDERS, HARDWARE, SHARED_I2C};
 
 pub(crate) fn initialize_statics() {
@@ -41,14 +41,17 @@ pub(crate) fn check_uninit(db: Arc<HiveDb>) {
 }
 
 /// Initializes the entire testrack hardware with the data contained in the DB
-pub(crate) fn init_hardware(db: Arc<HiveDb>) -> Result<(), InitError> {
-    let hardware = HARDWARE.lock().unwrap();
+pub(crate) fn init_hardware(db: Arc<HiveDb>) {
+    let mut hardware = HARDWARE.lock().unwrap();
 
     init_tss(db.clone());
-    init_hardware_from_db_data(db, &hardware)?;
+    init_hardware_from_db_data(db.clone(), &hardware);
     init_target_info_from_registry(&hardware);
 
-    Ok(())
+    // Synchronize the target data in the DB with the runtime data in case any data desyncs were encountered
+    database::sync::sync_tss_target_data(db, &hardware);
+
+    hardware.hardware_status = HardwareStatus::Ready;
 }
 
 /// Checks if existing testprograms in the DB are still available on the disk and ready for use, removes them otherwise
@@ -134,46 +137,50 @@ fn init_tss(db: Arc<HiveDb>) {
         .unwrap();
 }
 
-/// Initializes the TSS and TESTCHANNELS statics according to the data provided by the DB. This function fails if the data in the DB is not in sync with the detected hardware.
+/// Initializes the provided [`HiveHardware`] according to the data provided by the DB. This function fails if the data in the DB is not in sync with the detected hardware.
 ///
 /// # Panics
 /// If the data in the DB has not been initialized.
-fn init_hardware_from_db_data(db: Arc<HiveDb>, hardware: &HiveHardware) -> Result<(), InitError> {
+fn init_hardware_from_db_data(db: Arc<HiveDb>, hardware: &HiveHardware) {
     let target_data = db.config_tree.c_get(keys::config::ASSIGNED_TARGETS).unwrap().expect("Failed to get the target data in the DB. This function can only be called once the target data has been initialized in the DB.");
     let probe_data = db.config_tree.c_get(keys::config::ASSIGNED_PROBES).unwrap().expect("Failed to get the probe data in the DB. This function can only be called once the probe data has been initialized in the DB.");
 
-    hardware.initialize_target_data(target_data)?;
-    hardware.initialize_probe_data(probe_data)
+    // Ignore desync error as it is autoresolved by the function
+    let _ = hardware.initialize_target_data(target_data);
+    let _ = hardware.initialize_probe_data(probe_data);
 }
 
 /// Initializes [`TargetInfo`] on each known target connected to the tss using the [`probe_rs::config::get_target_by_name()`] function. If the target is not found in the probe-rs registry, its [`TargetInfo`] status field is set to a [`Result::Err`] value.
 /// Targets which are not found in the registry are thus being ignored for any subsequent initialization steps, such as flashing the testbinaries for example.
 fn init_target_info_from_registry(hardware: &HiveHardware) {
     for tss in hardware.tss.iter() {
-        let mut tss = tss.lock().unwrap();
+        if let Some(tss) = tss.as_ref() {
+            let mut tss = tss.lock().unwrap();
+            let targets = tss.get_targets_mut();
 
-        let mut targets = tss.get_targets().clone();
+            if targets.is_some() {
+                for target in targets.as_mut().unwrap().iter_mut() {
+                    if let TargetState::Known(target_info) = target {
+                        match config::get_target_by_name(&target_info.name) {
+                            Ok(probe_rs_target) => {
+                                // Set the architecture field
+                                let architecture = match probe_rs_target.architecture() {
+                                    probe_rs::Architecture::Arm => Architecture::ARM,
+                                    probe_rs::Architecture::Riscv => Architecture::RISCV,
+                                };
+                                target_info.architecture = Some(architecture);
 
-        if targets.is_some() {
-            for target in targets.as_mut().unwrap().iter_mut() {
-                if let TargetState::Known(target_info) = target {
-                    match config::get_target_by_name(&target_info.name) {
-                        Ok(probe_rs_target) => {
-                            // Set the architecture field
-                            let architecture = match probe_rs_target.architecture() {
-                                probe_rs::Architecture::Arm => Architecture::ARM,
-                                probe_rs::Architecture::Riscv => Architecture::RISCV,
-                            };
-                            target_info.architecture = Some(architecture);
-
-                            target_info.status = Ok(());
+                                target_info.status = Ok(());
+                            }
+                            Err(err) => target_info.status = Err(err.to_string()),
                         }
-                        Err(err) => target_info.status = Err(err.to_string()),
                     }
                 }
-            }
 
-            tss.set_targets(targets.unwrap());
+                // Desync errors are ignored
+                /*todo!("Try to implement this without calling set_targets as it causes an unnecessary hardware check");
+                let _ = tss.set_targets(targets);*/
+            }
         }
     }
 }

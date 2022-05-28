@@ -7,6 +7,7 @@ use std::sync::RwLock;
 
 use comm_types::hardware::{Architecture, TargetInfo, TargetState};
 use controller::common::hardware::CombinedTestChannel;
+use controller::common::hardware::HardwareStatus;
 use probe_rs::flashing::Format;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions};
 use probe_rs::DebugProbeInfo;
@@ -25,8 +26,14 @@ struct FlashStatus {
 }
 
 /// Tries to flash the testbinaries onto all available targets.
+/// 
+/// This function does nothing in case the [`HARDWARE`] static is not [`HardwareStatus::Ready`]
 pub(crate) fn flash_testbinaries(db: Arc<HiveDb>) {
     let hardware = HARDWARE.lock().unwrap();
+
+    if hardware.hardware_status != HardwareStatus::Ready {
+        return;
+    }
 
     let active_testprogram: Arc<TestProgram> = Arc::new(db.config_tree.c_get(keys::config::ACTIVE_TESTPROGRAM).unwrap().expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known"));
 
@@ -93,7 +100,7 @@ pub(crate) fn flash_testbinaries(db: Arc<HiveDb>) {
     }).unwrap();
 
     // Update tss targets with the flash results
-    for tss in hardware.tss.iter() {
+    for tss in hardware.tss.iter().filter_map(|tss| tss.as_ref()) {
         let mut tss = tss.lock().unwrap();
 
         if tss.get_targets().is_none() {
@@ -138,9 +145,9 @@ pub(crate) fn flash_testbinaries(db: Arc<HiveDb>) {
             }
         }
 
-        if let Some(targets) = targets {
-            // save updated targets back to tss
-            tss.set_targets(targets);
+        if targets.is_some() {
+            // save updated targets back to tss and ignore any data desyncs
+            let _ = tss.set_targets(targets);
         }
     }
 

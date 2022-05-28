@@ -2,17 +2,15 @@
 use std::sync::Arc;
 
 use comm_types::ipc::HiveTargetData;
+use controller::common::hardware::HiveHardware;
 
 use super::{keys, CborDb, HiveDb};
-use crate::HARDWARE;
 
-/// Synchronize the DB target data with the current target data in the runtime [`TSS`].
-pub(crate) fn sync_tss_target_data(db: Arc<HiveDb>) {
-    let hardware = HARDWARE.lock().unwrap();
-
+/// Synchronize the DB target data with the provided [`HiveHardware`] data.
+pub(crate) fn sync_tss_target_data(db: Arc<HiveDb>, hardware: &HiveHardware) {
     let mut target_data: HiveTargetData = Default::default();
 
-    for tss in hardware.tss.iter() {
+    for tss in hardware.tss.iter().filter_map(|tss| tss.as_ref()) {
         let tss = tss.lock().unwrap();
 
         if tss.get_targets().is_none() {

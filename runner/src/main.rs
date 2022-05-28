@@ -4,9 +4,8 @@ use std::thread;
 use std::time::Duration;
 
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
-use controller::common::hardware::{self, HiveHardware, InitError};
+use controller::common::hardware::{self, HiveHardware, HiveIoExpander, InitError, MAX_TSS};
 use controller::common::logger;
-use controller::HiveIoExpander;
 use hurdles::Barrier;
 use lazy_static::lazy_static;
 use log::Level;
@@ -33,7 +32,7 @@ lazy_static! {
             .expect("Failed to acquire I2C bus. It might still be blocked by another process");
         shared_bus::new_std!(I2c = i2c).unwrap()
     };
-    static ref EXPANDERS: [HiveIoExpander; 8] = hardware::create_expanders(&SHARED_I2C);
+    static ref EXPANDERS: [HiveIoExpander; MAX_TSS] = hardware::create_expanders(&SHARED_I2C);
     static ref HARDWARE: HiveHardware = HiveHardware::new(&SHARED_I2C, &EXPANDERS);
 }
 

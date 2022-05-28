@@ -23,7 +23,7 @@ pub(crate) fn get_and_init_target_address_ranges() -> BaseAddressRanges {
         riscv: vec![],
     };
 
-    for tss in hardware.tss.iter() {
+    for tss in hardware.tss.iter().filter_map(|tss| tss.as_ref()) {
         let mut tss = tss.lock().unwrap();
 
         if tss.get_targets().is_none() {

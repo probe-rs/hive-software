@@ -4,7 +4,7 @@ use std::thread;
 
 use tokio::runtime::Builder;
 
-use crate::database::{self, HiveDb};
+use crate::database::HiveDb;
 use crate::{comm, dummy_unlock_probes, flash, init};
 
 pub(crate) fn run_standalone_mode(db: Arc<HiveDb>) {
@@ -12,14 +12,11 @@ pub(crate) fn run_standalone_mode(db: Arc<HiveDb>) {
 
     init::initialize_statics();
 
-    init::init_hardware(db.clone()).expect("TODO Do someting if data is desynced");
+    init::init_hardware(db.clone());
 
     init::init_testprograms(db.clone());
 
     flash::flash_testbinaries(db.clone());
-
-    // Synchronize the target data in the DB with the runtime data so that the runner receives valid data.
-    database::sync::sync_tss_target_data(db.clone());
 
     let rt = Builder::new_current_thread()
         .enable_io()

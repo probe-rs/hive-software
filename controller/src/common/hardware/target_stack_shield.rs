@@ -7,62 +7,62 @@ use pca9535::Register;
 use rppal::i2c::I2c;
 use shared_bus::BusManagerStd;
 
-use crate::{HiveIoExpander, ShareableI2c, PCA9535_BASE_ADDR};
+use super::{HiveIoExpander, ShareableI2c, MAX_DAUGHTERBOARD_TARGETS, MAX_TSS, PCA9535_BASE_ADDR};
 
 pub struct TargetStackShield {
     pub inner: RefCell<Shield<'static, ShareableI2c, HiveIoExpander>>,
     position: u8,
-    targets: Option<[TargetState; 4]>,
+    targets: Option<[TargetState; MAX_DAUGHTERBOARD_TARGETS]>,
 }
 
 impl TargetStackShield {
-    /// Creates and returns all tss which are connected and successfully initialized
-    pub fn create_present_and_init(
+    /// Creates and returns all tss, and initializes the connected tss
+    pub fn new(
         i2c_bus: &'static BusManagerStd<I2c>,
-        io_expander: &'static [HiveIoExpander; 8],
-    ) -> Vec<Mutex<Self>> {
+        io_expander: &'static [HiveIoExpander; MAX_TSS],
+    ) -> [Option<Mutex<Self>>; MAX_TSS] {
         let i2c: ShareableI2c = i2c_bus.acquire_i2c();
         let detected_tss = Self::detect_connected_tss(i2c);
 
-        let mut created = vec![];
+        let mut created = [None, None, None, None, None, None, None, None];
 
-        for detected_addr in detected_tss.iter().filter_map(|tss| tss.as_ref()) {
-            let tss = Self {
-                inner: RefCell::new(Shield::new(
-                    &io_expander[(*detected_addr - PCA9535_BASE_ADDR) as usize],
-                )),
-                position: *detected_addr - PCA9535_BASE_ADDR,
-                targets: None,
-            };
+        for (idx, detected_addr) in detected_tss.iter().enumerate() {
+            if let Some(addr) = detected_addr {
+                let new_tss = Self {
+                    inner: RefCell::new(Shield::new(
+                        &io_expander[(*addr - PCA9535_BASE_ADDR) as usize],
+                    )),
+                    position: *addr - PCA9535_BASE_ADDR,
+                    targets: None,
+                };
 
-            created.push(Mutex::new(tss));
-        }
+                // Try to initialize tss, and add to created array if successful
+                let mut init_success = true;
+                new_tss
+                    .inner
+                    .borrow_mut()
+                    .init_pins()
+                    .unwrap_or_else(|err| {
+                        if let Some(source) = err.source() {
+                            log::warn!(
+                                "Failed to initialize TSS at position {}: {}\nCaused by:\n{}",
+                                new_tss.position,
+                                err,
+                                source
+                            );
+                        } else {
+                            log::warn!(
+                                "Failed to initialize TSS at position {}: {}",
+                                new_tss.position,
+                                err
+                            );
+                        }
 
-        let mut i = 0;
-        while i < created.len() {
-            let tss = created[i].lock().unwrap();
-            let mut inner = tss.inner.borrow_mut();
-            match inner.init_pins() {
-                Ok(_) => i += 1,
-                Err(err) => {
-                    if let Some(source) = err.source() {
-                        log::warn!(
-                            "Failed to initialize TSS at position {}: {}\nCaused by:\n{}",
-                            tss.position,
-                            err,
-                            source
-                        );
-                    } else {
-                        log::warn!(
-                            "Failed to initialize TSS at position {}: {}",
-                            tss.position,
-                            err
-                        );
-                    }
-                    drop(inner);
-                    drop(tss); // unlock mutex
+                        init_success = false;
+                    });
 
-                    created.remove(i);
+                if init_success {
+                    created[idx] = Some(Mutex::new(new_tss));
                 }
             }
         }
@@ -70,9 +70,17 @@ impl TargetStackShield {
         created
     }
 
-    /// Sets the currently connected target states, if a daughterboard is connected
-    pub fn set_targets(&mut self, targets: [TargetState; 4]) {
-        let is_connected = match self.inner.borrow_mut().daughterboard_is_connected() {
+    /// Sets the currently connected targets. [`None`] means that no daughterboard is connected.
+    ///
+    /// # Data desync
+    /// This function internally checks if a daughterboard is actually connected or not. In case the user input differs from the actually detected state on the hardware
+    /// (For example if the user provides [`None`] but there is a daughterboard connected) this function fails with an [`Err`] and resets the targets field of the struct to the appropriate default value.
+    pub fn set_targets(
+        &mut self,
+        targets: Option<[TargetState; MAX_DAUGHTERBOARD_TARGETS]>,
+    ) -> Result<(), ()> {
+        let daughterboard_is_connected = match self.inner.borrow_mut().daughterboard_is_connected()
+        {
             Ok(connected) => connected,
             Err(err) => {
                 if let Some(source) = err.source() {
@@ -94,9 +102,29 @@ impl TargetStackShield {
             }
         };
 
-        if is_connected {
-            self.targets = Some(targets);
+        // Check for data desync
+        if daughterboard_is_connected && targets.is_none()
+            || !daughterboard_is_connected && targets.is_some()
+        {
+            // Apply defaults
+            match daughterboard_is_connected {
+                true => {
+                    self.targets = Some([
+                        TargetState::Unknown,
+                        TargetState::Unknown,
+                        TargetState::Unknown,
+                        TargetState::Unknown,
+                    ])
+                }
+                false => self.targets = None,
+            }
+
+            return Err(());
         }
+
+        self.targets = targets;
+
+        Ok(())
     }
 
     /// Sets the target info of given target index.
@@ -120,16 +148,20 @@ impl TargetStackShield {
         self.position
     }
 
-    pub fn get_targets(&self) -> &Option<[TargetState; 4]> {
+    pub fn get_targets(&self) -> &Option<[TargetState; MAX_DAUGHTERBOARD_TARGETS]> {
         &self.targets
     }
 
+    pub fn get_targets_mut(&mut self) -> &mut Option<[TargetState; MAX_DAUGHTERBOARD_TARGETS]> {
+        &mut self.targets
+    }
+
     /// Detects all connected TSS by trying to read an IO-Expander register on each possible i2c address. Returns the detected i2c addresses or [`None`]
-    pub fn detect_connected_tss(mut i2c: ShareableI2c) -> [Option<u8>; 8] {
-        let mut detected: [Option<u8>; 8] = Default::default();
-        for i in 0..=7 {
+    pub fn detect_connected_tss(mut i2c: ShareableI2c) -> [Option<u8>; MAX_TSS] {
+        let mut detected: [Option<u8>; MAX_TSS] = Default::default();
+        for i in 0..MAX_TSS {
             match i2c.write_read(
-                PCA9535_BASE_ADDR + i,
+                PCA9535_BASE_ADDR + i as u8,
                 &[Register::ConfigurationPort0 as u8],
                 &mut [0],
             ) {
@@ -142,7 +174,7 @@ impl TargetStackShield {
 
                     detected[i as usize] = None;
                 }
-                Ok(_) => detected[i as usize] = Some(PCA9535_BASE_ADDR + i),
+                Ok(_) => detected[i as usize] = Some(PCA9535_BASE_ADDR + i as u8),
             }
         }
 
