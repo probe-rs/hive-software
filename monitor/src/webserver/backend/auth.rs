@@ -10,18 +10,18 @@ use tower_cookies::Cookies;
 
 use crate::database::HiveDb;
 
-use crate::comm::webserver::auth;
+use crate::webserver::auth;
 
 use super::model::UserResponse;
 
-pub(in crate::comm::webserver) type BackendAuthSchema =
+pub(in crate::webserver) type BackendAuthSchema =
     Schema<BackendAuthQuery, EmptyMutation, EmptySubscription>;
 
-pub(in crate::comm::webserver) fn build_schema() -> BackendAuthSchema {
+pub(in crate::webserver) fn build_schema() -> BackendAuthSchema {
     Schema::build(BackendAuthQuery, EmptyMutation, EmptySubscription).finish()
 }
 
-pub(in crate::comm::webserver) struct BackendAuthQuery;
+pub(in crate::webserver) struct BackendAuthQuery;
 
 #[Object]
 impl BackendAuthQuery {

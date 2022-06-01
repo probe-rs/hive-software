@@ -7,10 +7,12 @@ use std::task::Poll;
 use axum::extract::connect_info;
 use axum::routing::{get, post};
 use axum::{BoxError, Extension, Router, Server};
+use comm_types::results::TestResults;
 use futures::ready;
 use hyper::server::accept::Accept;
 use tokio::net::unix::UCred;
 use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
+use tokio::sync::mpsc::Sender;
 
 use crate::database::HiveDb;
 use crate::SHUTDOWN_SIGNAL;
@@ -54,7 +56,7 @@ impl connect_info::Connected<&UnixStream> for IpcConnectionInfo {
 }
 
 /// Starts the IPC server and listens for incoming connections
-pub(super) async fn ipc_server(db: Arc<HiveDb>) {
+pub(super) async fn ipc_server(db: Arc<HiveDb>, test_result_sender: Sender<TestResults>) {
     let socket_path = Path::new(SOCKET_PATH);
 
     init_socket_file(socket_path).await;
@@ -62,7 +64,7 @@ pub(super) async fn ipc_server(db: Arc<HiveDb>) {
     let listener = UnixListener::bind(socket_path).expect("TODO");
 
     let server_handle = tokio::spawn(async move {
-        let route = app(db);
+        let route = app(db, test_result_sender);
 
         let server = Server::builder(IpcStreamListener { listener })
             .serve(route.into_make_service_with_connect_info::<IpcConnectionInfo>());
@@ -79,12 +81,14 @@ pub(super) async fn ipc_server(db: Arc<HiveDb>) {
 }
 
 /// Builds the IPC server with all endpoints
-fn app(db: Arc<HiveDb>) -> Router {
+fn app(db: Arc<HiveDb>, test_result_sender: Sender<TestResults>) -> Router {
     Router::new()
         .route("/data/probe", get(handlers::probe_handler))
         .route("/data/target", get(handlers::target_handler))
-        .route("/runner/log", post(handlers::runner_log_handler))
-        .route("/runner/results", post(handlers::test_result_handler))
+        .route(
+            "/runner/results",
+            post(handlers::test_result_handler).layer(Extension(test_result_sender)),
+        )
         .layer(Extension(db))
 }
 
@@ -114,7 +118,9 @@ mod tests {
     use ciborium::de::from_reader;
     use comm_types::hardware::{ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
+    use comm_types::results::TestResults;
     use lazy_static::lazy_static;
+    use tokio::sync::mpsc::Sender;
     use tower::ServiceExt;
 
     use crate::database::{keys, CborDb, HiveDb};
@@ -130,6 +136,10 @@ mod tests {
             db.config_tree.c_insert(keys::config::ASSIGNED_TARGETS, &*TARGET_DATA).unwrap();
 
             Arc::new(db)
+        };
+        static ref DUMMY_TEST_RESULT_SENDER: Sender<TestResults> = {
+            let (sender, _) = tokio::sync::mpsc::channel(1);
+            sender
         };
         static ref PROBE_DATA: HiveProbeData = [
             ProbeState::Known(ProbeInfo {
@@ -243,7 +253,7 @@ mod tests {
 
     #[tokio::test]
     async fn wrong_rest_method() {
-        let ipc_server = app(DB.clone());
+        let ipc_server = app(DB.clone(), DUMMY_TEST_RESULT_SENDER.clone());
 
         let res = ipc_server
             .oneshot(
@@ -262,7 +272,7 @@ mod tests {
 
     #[tokio::test]
     async fn probe_endpoint() {
-        let ipc_server = app(DB.clone());
+        let ipc_server = app(DB.clone(), DUMMY_TEST_RESULT_SENDER.clone());
 
         let res = ipc_server
             .oneshot(
@@ -305,7 +315,7 @@ mod tests {
 
     #[tokio::test]
     async fn target_endpoint() {
-        let ipc_server = app(DB.clone());
+        let ipc_server = app(DB.clone(), DUMMY_TEST_RESULT_SENDER.clone());
 
         let res = ipc_server
             .oneshot(

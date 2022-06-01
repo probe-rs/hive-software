@@ -5,33 +5,41 @@ use std::thread;
 use tokio::runtime::Builder;
 
 use crate::database::HiveDb;
-use crate::{comm, dummy_unlock_probes, flash, init};
+use crate::test::{self, TestManager};
+use crate::{flash, init, webserver, HARDWARE};
 
-pub(crate) fn run_standalone_mode(db: Arc<HiveDb>) {
+pub(crate) fn run_standalone_mode(db: Arc<HiveDb>, mut test_manager: TestManager) {
     init::check_uninit(db.clone());
 
     init::initialize_statics();
 
-    init::init_hardware(db.clone());
+    let mut hardware = HARDWARE.lock().unwrap();
+    init::init_hardware(db.clone(), &mut hardware);
+    drop(hardware);
 
     init::init_testprograms(db.clone());
 
     flash::flash_testbinaries(db.clone());
 
-    let rt = Builder::new_current_thread()
-        .enable_io()
-        .enable_time()
-        .build()
-        .unwrap();
-    let comm_tread = thread::spawn(move || {
-        rt.block_on(async {
-            comm::serve(db.clone()).await;
+    let rt = Arc::new(
+        Builder::new_current_thread()
+            .enable_io()
+            .enable_time()
+            .build()
+            .unwrap(),
+    );
+
+    let rt_async = rt.clone();
+    let db_async = db.clone();
+    let test_task_sender = test_manager.get_task_sender();
+    let async_tread = thread::spawn(move || {
+        rt_async.block_on(async {
+            webserver::web_server(db_async, test_task_sender).await;
         });
     });
 
-    dummy_unlock_probes();
-    log::info!("Dropped the debug probes... runner can now be started.");
+    test_manager.run(db, rt);
 
-    // Wait for comm thread to shutdown
-    comm_tread.join().unwrap();
+    // Wait for async thread to shutdown
+    async_tread.join().unwrap();
 }

@@ -16,7 +16,7 @@ use super::model::{Application, FlatProbeState, FlatTargetState, LogLevel, Probe
 
 const RUNNER_LOGFILE_PATH: &str = "/mnt/hivetmp/runner.log";
 
-pub(in crate::comm::webserver) struct BackendQuery;
+pub(in crate::webserver) struct BackendQuery;
 
 #[Object]
 impl BackendQuery {

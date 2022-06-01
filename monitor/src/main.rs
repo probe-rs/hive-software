@@ -11,13 +11,13 @@ use shared_bus::BusManager;
 use tokio::sync::broadcast::{self, Sender};
 
 mod binaries;
-mod comm;
 mod database;
 mod flash;
 mod init;
 mod mode;
 mod test;
 mod testprogram;
+mod webserver;
 
 use database::HiveDb;
 
@@ -69,9 +69,11 @@ fn main() {
 
     let db = Arc::new(HiveDb::open());
 
+    let test_manager = test::TestManager::new(db.clone());
+
     match cli_args.mode {
         ApplicationMode::Init => mode::init::run_init_mode(db),
-        ApplicationMode::Standalone => mode::standalone::run_standalone_mode(db),
+        ApplicationMode::Standalone => mode::standalone::run_standalone_mode(db, test_manager),
         ApplicationMode::ClusterSlave => todo!(),
         ApplicationMode::ClusterMaster => todo!(),
     }
@@ -91,17 +93,4 @@ fn shutdown_application() {
     SHUTDOWN_SIGNAL
         .send(())
         .expect("No receivers available to send the shutdown signal to.");
-}
-
-// Current dummy implementation of unlocking the debug probes, so the runner can take over control. Only used for testing/demo purposes
-fn dummy_unlock_probes() {
-    let hardware = HARDWARE.lock().unwrap();
-
-    for testchannel in hardware.testchannels.iter() {
-        let testchannel = testchannel.lock().unwrap();
-
-        if testchannel.is_ready() {
-            testchannel.take_probe_owned(); // We just drop the probe to make it available to the runner
-        }
-    }
 }

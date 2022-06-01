@@ -44,9 +44,6 @@ base64 = "0.13"
 ring = "0.16"
 crossbeam-utils = "0.8"
 
-#dummy function dependency
-colored = "2.0"
-
 [dev-dependencies]
 serial_test = "0.6"
 tower = "0.4"

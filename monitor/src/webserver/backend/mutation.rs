@@ -12,15 +12,15 @@ use probe_rs::Probe;
 use tower_cookies::Cookies;
 
 use crate::{
-    comm::webserver::auth,
     database::{hasher, keys, CborDb, HiveDb},
+    webserver::auth,
 };
 
 use super::model::{
     AssignProbeResponse, AssignTargetResponse, FlatProbeState, State, UserResponse,
 };
 
-pub(in crate::comm::webserver) struct BackendMutation;
+pub(in crate::webserver) struct BackendMutation;
 
 #[Object]
 impl BackendMutation {

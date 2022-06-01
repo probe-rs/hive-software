@@ -7,11 +7,13 @@ use axum::routing::{self, post};
 use axum::{middleware, Extension, Router};
 use axum_server::tls_rustls::RustlsConfig;
 use hyper::StatusCode;
+use tokio::sync::mpsc::Sender;
 use tower::ServiceBuilder;
 use tower_cookies::CookieManagerLayer;
 use tower_http::services::ServeDir;
 
 use crate::database::HiveDb;
+use crate::test::TestTask;
 use crate::SHUTDOWN_SIGNAL;
 
 mod auth;
@@ -23,7 +25,7 @@ const STATIC_FILES: &str = "data/webserver/static/";
 const PEM_CERT: &str = "data/webserver/cert/cert.pem";
 const PEM_KEY: &str = "data/webserver/cert/key.pem";
 
-pub(super) async fn web_server(db: Arc<HiveDb>) {
+pub(crate) async fn web_server(db: Arc<HiveDb>, test_task_sender: Sender<TestTask>) {
     let app = app(db);
     let addr = SocketAddr::from(([0, 0, 0, 0], 4356));
     let tls_config = RustlsConfig::from_pem_file(PEM_CERT, PEM_KEY).await.unwrap_or_else(|_| panic!("Failed to find the PEM certificate file. It should be stored in the application data folder: Cert: {} Key: {}", PEM_CERT, PEM_KEY));

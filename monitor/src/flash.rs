@@ -6,12 +6,9 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 use comm_types::hardware::{Architecture, TargetInfo, TargetState};
-use controller::common::hardware::CombinedTestChannel;
-use controller::common::hardware::HardwareStatus;
-use probe_rs::flashing::Format;
-use probe_rs::flashing::{download_file_with_options, DownloadOptions};
-use probe_rs::DebugProbeInfo;
-use probe_rs::Session;
+use controller::common::hardware::{CombinedTestChannel, HardwareStatus};
+use probe_rs::flashing::{download_file_with_options, DownloadOptions, Format};
+use probe_rs::{DebugProbeInfo, Session};
 use crossbeam_utils::thread;
 
 use crate::database::{keys, CborDb, HiveDb};
@@ -190,8 +187,7 @@ fn flash_target(
     }
     drop(flash_results); // Return lock
 
-    let probe_info_lock = testchannel.get_probe_info().lock();
-    let probe_info = probe_info_lock.as_ref().unwrap();
+    let probe_info = testchannel.get_probe_info().unwrap();
 
     log::info!(
         "Flashing testbinary onto target {} with probe {}",
@@ -199,7 +195,7 @@ fn flash_target(
         probe_info.identifier
     );
 
-    let flash_result = retry_flash(testchannel, target_info, probe_info, |mut session| {
+    let flash_result = retry_flash(testchannel, target_info, &probe_info, |mut session| {
         let mut download_options = DownloadOptions::default();
         download_options.do_chip_erase = true;
 
@@ -237,16 +233,13 @@ fn flash_target(
     }
 
     // reinitialize probe, and transfer ownership back to test_channel
-    match probe_info.open() {
-        Ok(probe) => testchannel.return_probe(probe),
-        Err(err) => {
-            log::warn!(
-                "Failed to reinitialize the debug probe connected to {}: {}. Skipping the remaining flash attempts on this Testchannel.",
-                testchannel.get_channel(),
-                err
-            )
-        }
-    }
+    testchannel.reinitialize_probe().unwrap_or_else(|err|{
+        log::warn!(
+            "Failed to reinitialize the debug probe connected to {}: {}. Skipping the remaining flash attempts on this Testchannel.",
+            testchannel.get_channel(),
+            err
+        )
+    })
 }
 
 /// Retries the provided flash function with option attach-under-reset if it fails without

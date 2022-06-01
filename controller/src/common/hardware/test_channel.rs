@@ -11,9 +11,9 @@ use antidote::Mutex as PoisonFreeMutex;
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
 #[cfg(not(feature = "runner"))]
-use probe_rs::{Probe, DebugProbeInfo};
+use probe_rs::{Probe, DebugProbeInfo, DebugProbeError};
 #[cfg(feature = "runner")]
-use probe_rs_test::{Probe, DebugProbeInfo};
+use probe_rs_test::{Probe, DebugProbeInfo, DebugProbeError};
 
 use super::{TargetStackShield, MAX_DAUGHTERBOARD_TARGETS};
 
@@ -66,14 +66,38 @@ impl CombinedTestChannel {
         *self.probe_info.lock() = Some(probe_info);
     }
 
-    // Removes a probe and the associated probe_info from this testchannel, if existing
+    /// Removes a probe and the associated probe_info from this testchannel, if existing
     pub fn remove_probe(&self) {
         *self.probe.lock() = None;
         *self.probe_info.lock() = None;
     }
 
-    pub fn get_probe_info(&self) -> &PoisonFreeMutex<Option<DebugProbeInfo>> {
-        &self.probe_info
+    /// Drops the probe instance to unlock it for other programs. This leaves the probe_info in place which can later be used to reinstantiate the probe.
+    pub fn unlock_probe(&self) {
+        *self.probe.lock() = None;
+    }
+
+    /// Reinitializes the probe based on the stored probe_info, and adds the newly initialized probe to the struct.
+    /// 
+    /// If probe_info is none, the function does nothing
+    pub fn reinitialize_probe(&self) -> Result<(), DebugProbeError>{
+        let probe_info = self.probe_info.lock();
+
+        if let Some(probe_info) = probe_info.as_ref(){
+            *self.probe.lock() = Some(probe_info.open()?);
+        }
+
+        Ok(())
+    }
+
+    /// Returns a cloned instance of the currently stored probe_info
+    pub fn get_probe_info(&self) -> Option<DebugProbeInfo> {
+        let probe_info = &self.probe_info.lock();
+
+        match probe_info.as_ref() {
+            Some(probe_info) => Some(probe_info.clone()),
+            None => None,
+        }
     }
 
     /// Check if testchannel has a probe attached and is ready to be used during testing

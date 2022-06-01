@@ -1750,7 +1750,6 @@ dependencies = [
  "ciborium",
  "clap 3.1.18",
  "clap-verbosity-flag",
- "colored",
  "comm-types",
  "controller",
  "cookie",

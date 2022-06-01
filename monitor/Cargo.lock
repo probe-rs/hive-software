@@ -1375,7 +1375,6 @@ dependencies = [
  "ciborium",
  "clap",
  "clap-verbosity-flag",
- "colored",
  "comm-types",
  "controller",
  "cookie",

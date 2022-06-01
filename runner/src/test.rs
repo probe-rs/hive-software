@@ -29,7 +29,7 @@ lazy_static! {
 use crate::comm::Message;
 
 pub(crate) fn run_tests(
-    test_channel: &mut CombinedTestChannel,
+    testchannel: &mut CombinedTestChannel,
     target_info: &TargetInfo,
     tss_pos: u8,
     comm_sender: &Sender<Message>,
@@ -38,11 +38,10 @@ pub(crate) fn run_tests(
         "Testing target {}, on tss {} with {}",
         target_info.name,
         tss_pos,
-        test_channel.get_channel()
+        testchannel.get_channel()
     );
 
-    let probe_info_lock = test_channel.get_probe_info().lock();
-    let probe_info = probe_info_lock.as_ref().unwrap();
+    let probe_info = testchannel.get_probe_info().unwrap();
     let probe_name = probe_info.identifier.clone();
     let probe_sn = match probe_info.serial_number.clone() {
         Some(number) => number,
@@ -50,7 +49,7 @@ pub(crate) fn run_tests(
     };
 
     // Check if Testchannel is ready, it might not be anymore in case probe reinitialization failed.
-    if !test_channel.is_ready() {
+    if !testchannel.is_ready() {
         skip_tests(
             comm_sender.clone(),
             &target_info.name,
@@ -73,7 +72,7 @@ pub(crate) fn run_tests(
         return;
     }
 
-    let probe = test_channel.take_probe_owned();
+    let probe = testchannel.take_probe_owned();
     match probe.attach(&target_info.name) {
         Ok(session) => {
             let session = PoisonFreeMutex::new(session);
@@ -81,7 +80,7 @@ pub(crate) fn run_tests(
             for test in TEST_FUNCTIONS.iter() {
                 match panic::catch_unwind(|| {
                     (test.test_fn)(
-                        &mut *test_channel.get_rpi().lock() as &mut dyn TestChannelHandle,
+                        &mut *testchannel.get_rpi().lock() as &mut dyn TestChannelHandle,
                         &mut session.lock(),
                     );
                 }) {
@@ -170,16 +169,13 @@ pub(crate) fn run_tests(
     }
 
     // reinitialize probe, and transfer ownership back to test_channel
-    match probe_info.open() {
-        Ok(probe) => test_channel.return_probe(probe),
-        Err(err) => {
-            log::warn!(
-                "Failed to reinitialize the debug probe connected to {}: {}. Skipping the remaining tests on this Testchannel.",
-                test_channel.get_channel(),
-                err
-            )
-        }
-    }
+    testchannel.reinitialize_probe().unwrap_or_else(|err|{
+        log::warn!(
+            "Failed to reinitialize the debug probe connected to {}: {}. Skipping the remaining tests on this Testchannel.",
+            testchannel.get_channel(),
+            err
+        )
+    })
 }
 
 /// Disables the printing of panics in this program, returns the previously used panic hook

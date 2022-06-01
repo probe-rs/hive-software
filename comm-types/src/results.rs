@@ -2,6 +2,12 @@
 
 use serde::{Deserialize, Serialize};
 
+/// A batch of [`TestResult`]s from an entire testrun
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TestResults {
+    pub results: Vec<TestResult>,
+}
+
 /// A single test result
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestResult {
