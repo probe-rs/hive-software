@@ -43,6 +43,7 @@ rand_chacha = "0.3"
 base64 = "0.13"
 ring = "0.16"
 crossbeam-utils = "0.8"
+tokio-tar = "0.3"
 
 [dev-dependencies]
 serial_test = "0.6"

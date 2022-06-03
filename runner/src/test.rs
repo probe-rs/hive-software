@@ -86,8 +86,8 @@ pub(crate) fn run_tests(
                 }) {
                     Ok(_) => {
                         let status = match test.should_panic {
-                            true => TestStatus::FAILED("Test function did not panic.".to_owned()),
-                            false => TestStatus::PASSED,
+                            true => TestStatus::Failed("Test function did not panic.".to_owned()),
+                            false => TestStatus::Passed,
                         };
 
                         let result = TestResult {
@@ -110,8 +110,8 @@ pub(crate) fn run_tests(
                         };
 
                         let status = match test.should_panic {
-                            true => TestStatus::PASSED,
-                            false => TestStatus::FAILED(cause),
+                            true => TestStatus::Passed,
+                            false => TestStatus::Failed(cause),
                         };
 
                         let result = TestResult {
@@ -196,7 +196,7 @@ fn skip_tests(
 ) {
     for test in TEST_FUNCTIONS.iter() {
         let result = TestResult {
-            status: TestStatus::SKIPPED(reason.to_owned()),
+            status: TestStatus::Skipped(reason.to_owned()),
             should_panic: test.should_panic,
             test_name: test.name.to_owned(),
             target_name: target_name.to_owned(),

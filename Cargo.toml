@@ -1,5 +1,4 @@
 [workspace]
-#resolver = "2"
 members = [
 	"ll-api",
 	"comm-types",
@@ -7,5 +6,6 @@ members = [
 	"hive-macro",
 	"hive-test",
 	"monitor",
-	"runner"
+	"runner",
+	"hive"
 ]

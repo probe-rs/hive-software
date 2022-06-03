@@ -20,13 +20,14 @@ mod auth;
 mod backend;
 mod csrf;
 mod handlers;
+mod test;
 
 const STATIC_FILES: &str = "data/webserver/static/";
 const PEM_CERT: &str = "data/webserver/cert/cert.pem";
 const PEM_KEY: &str = "data/webserver/cert/key.pem";
 
 pub(crate) async fn web_server(db: Arc<HiveDb>, test_task_sender: Sender<TestTask>) {
-    let app = app(db);
+    let app = app(db, test_task_sender);
     let addr = SocketAddr::from(([0, 0, 0, 0], 4356));
     let tls_config = RustlsConfig::from_pem_file(PEM_CERT, PEM_KEY).await.unwrap_or_else(|_| panic!("Failed to find the PEM certificate file. It should be stored in the application data folder: Cert: {} Key: {}", PEM_CERT, PEM_KEY));
 
@@ -40,7 +41,7 @@ pub(crate) async fn web_server(db: Arc<HiveDb>, test_task_sender: Sender<TestTas
 }
 
 /// Builds the webserver with all endpoints
-fn app(db: Arc<HiveDb>) -> Router {
+fn app(db: Arc<HiveDb>, test_task_sender: Sender<TestTask>) -> Router {
     let graphql_routes = Router::new()
         .route("/backend", post(handlers::graphql_backend))
         .layer(
@@ -49,6 +50,13 @@ fn app(db: Arc<HiveDb>) -> Router {
                 .layer(extractor_middleware::<auth::HiveAuth>())
                 .layer(Extension(db.clone()))
                 .layer(Extension(backend::build_schema())),
+        )
+        .route("/test", post(handlers::graphql_test))
+        .layer(
+            ServiceBuilder::new()
+                .layer(Extension(test_task_sender))
+                .layer(Extension(db.clone()))
+                .layer(Extension(test::build_schema())),
         );
 
     println!("{}", backend::build_schema().sdl());

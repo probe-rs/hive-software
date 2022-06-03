@@ -22,7 +22,7 @@ pub struct TestResult {
 /// Status of a test, failed and skipped contain the reason for the skipping/failure
 #[derive(Debug, Serialize, Deserialize)]
 pub enum TestStatus {
-    PASSED,
-    FAILED(String),
-    SKIPPED(String),
+    Passed,
+    Failed(String),
+    Skipped(String),
 }

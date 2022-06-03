@@ -3,9 +3,11 @@ use std::process::Command;
 use std::sync::Arc;
 
 use comm_types::results::TestResults;
+use tokio::fs::File;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver, Sender as MpscSender};
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
+use tokio_tar::Archive;
 
 use crate::database::HiveDb;
 use crate::{flash, init, HARDWARE, SHUTDOWN_SIGNAL};
@@ -26,14 +28,21 @@ pub(crate) struct TestManager {
 /// A test task which can be sent to a [`TestManager`]
 pub(crate) struct TestTask {
     result_sender: OneshotSender<TestResults>,
+    tarball: Archive<File>,
     //... other options like which targets to test etc should be implemented here
 }
 
 impl TestTask {
-    pub fn new() -> (Self, OneshotReceiver<TestResults>) {
+    pub fn new(tarball: Archive<File>) -> (Self, OneshotReceiver<TestResults>) {
         let (result_sender, result_receiver) = oneshot::channel();
 
-        (Self { result_sender }, result_receiver)
+        (
+            Self {
+                result_sender,
+                tarball,
+            },
+            result_receiver,
+        )
     }
 }
 
