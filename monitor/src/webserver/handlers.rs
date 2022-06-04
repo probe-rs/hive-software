@@ -8,7 +8,7 @@ use tokio::sync::mpsc::Sender;
 use tower_cookies::Cookies;
 
 use crate::database::HiveDb;
-use crate::test::TestTask;
+use crate::testmanager::{ReinitializationTask, TestTask};
 
 use super::backend::auth::BackendAuthSchema;
 use super::backend::BackendSchema;
@@ -16,13 +16,20 @@ use super::test::TestSchema;
 
 pub(super) async fn graphql_backend(
     Extension(db): Extension<Arc<HiveDb>>,
+    Extension(reinit_task_sender): Extension<Sender<ReinitializationTask>>,
     Extension(cookies): Extension<Cookies>,
     schema: Extension<BackendSchema>,
     req: GraphQLRequest,
     Extension(claims): Extension<JwtClaims>,
 ) -> GraphQLResponse {
     schema
-        .execute(req.into_inner().data(claims).data(db).data(cookies))
+        .execute(
+            req.into_inner()
+                .data(claims)
+                .data(db)
+                .data(reinit_task_sender)
+                .data(cookies),
+        )
         .await
         .into()
 }
@@ -41,7 +48,7 @@ pub(super) async fn graphql_backend_auth(
 
 pub(super) async fn graphql_test(
     Extension(db): Extension<Arc<HiveDb>>,
-    Extension(test_task_sender): Extension<Arc<Sender<TestTask>>>,
+    Extension(test_task_sender): Extension<Sender<TestTask>>,
     schema: Extension<TestSchema>,
     req: GraphQLRequest,
 ) -> GraphQLResponse {

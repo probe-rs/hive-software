@@ -9,13 +9,14 @@ use log::Level;
 use rppal::i2c::I2c;
 use shared_bus::BusManager;
 use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::Mutex as AsyncMutex;
 
 mod binaries;
 mod database;
 mod flash;
 mod init;
 mod mode;
-mod test;
+mod testmanager;
 mod testprogram;
 mod webserver;
 
@@ -34,6 +35,7 @@ lazy_static! {
     // HiveHardware is wrapped in a mutex in order to ensure that no hardware modifications are done concurrently (For example to avoid that the hardware is reinitialized in the monitor while the runner is running tests)
     static ref HARDWARE: Mutex<HiveHardware> =
         Mutex::new(HiveHardware::new(&SHARED_I2C, &EXPANDERS));
+    static ref HARDWARE_DB_DATA_CHANGED: AsyncMutex<bool> = AsyncMutex::new(false);
     static ref SHUTDOWN_SIGNAL: Sender<()> = {
         let (sender, _) = broadcast::channel::<()>(1);
         sender
@@ -69,7 +71,7 @@ fn main() {
 
     let db = Arc::new(HiveDb::open());
 
-    let test_manager = test::TestManager::new(db.clone());
+    let test_manager = testmanager::TestManager::new(db.clone());
 
     match cli_args.mode {
         ApplicationMode::Init => mode::init::run_init_mode(db),

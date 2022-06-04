@@ -3,6 +3,7 @@ use std::process::Command;
 use std::sync::Arc;
 
 use comm_types::results::TestResults;
+use controller::common::hardware::HiveHardware;
 use tokio::fs::File;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver, Sender as MpscSender};
@@ -10,7 +11,7 @@ use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotS
 use tokio_tar::Archive;
 
 use crate::database::HiveDb;
-use crate::{flash, init, HARDWARE, SHUTDOWN_SIGNAL};
+use crate::{flash, init, HARDWARE, HARDWARE_DB_DATA_CHANGED, SHUTDOWN_SIGNAL};
 
 mod ipc;
 
@@ -19,8 +20,10 @@ const TASK_CHANNEL_BUF_SIZE: usize = 10;
 
 /// The testmanager of the monitor accepts external test tasks and returns the test results to the requesting party
 pub(crate) struct TestManager {
-    task_sender: MpscSender<TestTask>,
-    task_receiver: MpscReceiver<TestTask>,
+    test_task_sender: MpscSender<TestTask>,
+    test_task_receiver: MpscReceiver<TestTask>,
+    reinit_task_sender: MpscSender<ReinitializationTask>,
+    reinit_task_receiver: MpscReceiver<ReinitializationTask>,
     test_result_receiver: Option<MpscReceiver<TestResults>>,
     db: Arc<HiveDb>,
 }
@@ -46,14 +49,35 @@ impl TestTask {
     }
 }
 
+/// A hardware reinitialization task which can be sent to a [`TestManager`]
+pub(crate) struct ReinitializationTask {
+    task_complete_sender: OneshotSender<()>,
+}
+
+impl ReinitializationTask {
+    pub fn new() -> (Self, OneshotReceiver<()>) {
+        let (task_complete_sender, task_complete_receiver) = oneshot::channel();
+
+        (
+            Self {
+                task_complete_sender,
+            },
+            task_complete_receiver,
+        )
+    }
+}
+
 impl TestManager {
     /// Create a new [`TestManager`]
     pub fn new(db: Arc<HiveDb>) -> Self {
-        let (task_sender, task_receiver) = mpsc::channel(TASK_CHANNEL_BUF_SIZE);
+        let (test_task_sender, test_task_receiver) = mpsc::channel(TASK_CHANNEL_BUF_SIZE);
+        let (reinit_task_sender, reinit_task_receiver) = mpsc::channel(1);
 
         Self {
-            task_sender,
-            task_receiver,
+            test_task_sender,
+            test_task_receiver,
+            reinit_task_sender,
+            reinit_task_receiver,
             test_result_receiver: None,
             db,
         }
@@ -73,7 +97,21 @@ impl TestManager {
 
             // Poll task receiver and shutdown receiver
             loop {
-                if let Ok(received_task) = self.task_receiver.try_recv() {
+                if let Ok(received_task) = self.reinit_task_receiver.try_recv() {
+                    let mut hardware = HARDWARE.lock().unwrap();
+
+                    // Check if a reinitialization is required due to changes to the hardware data in the DB, otherwise skip
+                    let mut data_changed = *HARDWARE_DB_DATA_CHANGED.blocking_lock();
+                    if data_changed {
+                        self.reinitialize_hardware(&mut hardware);
+                        data_changed = false;
+                    }
+                    drop(data_changed);
+
+                    received_task.task_complete_sender.send(()).expect("Failed to send reint task complete to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the reinitialization.")
+                }
+
+                if let Ok(received_task) = self.test_task_receiver.try_recv() {
                     // Save task and break out of the polling loop to complete the task
                     task = received_task;
                     break;
@@ -90,6 +128,14 @@ impl TestManager {
             }
 
             let mut hardware = HARDWARE.lock().unwrap();
+
+            // Check if a reinitialization is required due to changes to the hardware data in the DB
+            let mut data_changed = *HARDWARE_DB_DATA_CHANGED.blocking_lock();
+            if data_changed {
+                self.reinitialize_hardware(&mut hardware);
+                data_changed = false;
+            }
+            drop(data_changed);
 
             // Unlock probes
             for testchannel in hardware.testchannels.iter() {
@@ -119,28 +165,37 @@ impl TestManager {
                 },
             }
 
-            // Reinitialize hardware
-            init::init_hardware(self.db.clone(), &mut hardware);
-
-            // Reinitialize probes
-            for testchannel in hardware.testchannels.iter() {
-                let testchannel = testchannel.lock().unwrap();
-                testchannel.reinitialize_probe().unwrap_or_else(|err|{
-                    log::warn!(
-                        "Failed to reinitialize the debug probe connected to {}: {}. Skipping the remaining tests on this Testchannel.",
-                        testchannel.get_channel(),
-                        err
-                    )
-                })
-            }
-
-            // Reflash testprograms
-            flash::flash_testbinaries(self.db.clone());
+            self.reinitialize_hardware(&mut hardware);
         }
     }
 
     /// Returns a new task sender, which can then be used to send new [`TestTask`]s to the testmanager
-    pub fn get_task_sender(&self) -> MpscSender<TestTask> {
-        self.task_sender.clone()
+    pub fn get_test_task_sender(&self) -> MpscSender<TestTask> {
+        self.test_task_sender.clone()
+    }
+
+    /// Returns a new task sender, which can then be used to send new [`ReinitializationTask`]s to the testmanager
+    pub fn get_reinit_task_sender(&self) -> MpscSender<ReinitializationTask> {
+        self.reinit_task_sender.clone()
+    }
+
+    fn reinitialize_hardware(&self, hardware: &mut HiveHardware) {
+        // Reinitialize hardware
+        init::init_hardware(self.db.clone(), hardware);
+
+        // Reinitialize probes
+        for testchannel in hardware.testchannels.iter() {
+            let testchannel = testchannel.lock().unwrap();
+            testchannel.reinitialize_probe().unwrap_or_else(|err|{
+                log::warn!(
+                    "Failed to reinitialize the debug probe connected to {}: {}. Skipping the remaining tests on this Testchannel.",
+                    testchannel.get_channel(),
+                    err
+                )
+            })
+        }
+
+        // Reflash testprograms
+        flash::flash_testbinaries(self.db.clone());
     }
 }

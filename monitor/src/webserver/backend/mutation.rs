@@ -9,11 +9,14 @@ use comm_types::{
     ipc::{HiveProbeData, HiveTargetData},
 };
 use probe_rs::Probe;
+use tokio::sync::mpsc::Sender;
 use tower_cookies::Cookies;
 
 use crate::{
     database::{hasher, keys, CborDb, HiveDb},
+    testmanager::ReinitializationTask,
     webserver::auth,
+    HARDWARE_DB_DATA_CHANGED,
 };
 
 use super::model::{
@@ -51,6 +54,11 @@ impl BackendMutation {
         db.config_tree
             .c_insert(keys::config::ASSIGNED_TARGETS, &assigned)
             .unwrap();
+
+        // Set the data changed flag to notify the test manager to reinitialize the hardware before the next test run
+        let mut data_changed = HARDWARE_DB_DATA_CHANGED.lock().await;
+        *data_changed = true;
+        drop(data_changed);
 
         Ok(AssignTargetResponse {
             tss_pos: tss_pos as u8,
@@ -124,10 +132,28 @@ impl BackendMutation {
             .c_insert(keys::config::ASSIGNED_PROBES, &assigned)
             .unwrap();
 
+        // Set the data changed flag to notify the test manager to reinitialize the hardware before the next test run
+        let mut data_changed = HARDWARE_DB_DATA_CHANGED.lock().await;
+        *data_changed = true;
+        drop(data_changed);
+
         Ok(AssignProbeResponse {
             probe_pos: probe_pos as u8,
             data: probe_state,
         })
+    }
+
+    /// Manually reinitialize the hardware in the runtime
+    async fn reinitialize_hardware<'ctx>(&self, ctx: &Context<'ctx>) -> GraphQlResult<bool> {
+        let reinit_task_sender = ctx.data::<Sender<ReinitializationTask>>().unwrap();
+
+        let (task, completed_receiver) = ReinitializationTask::new();
+
+        reinit_task_sender.send(task).await?;
+
+        completed_receiver.await?;
+
+        Ok(true)
     }
 
     /// Change the username of the authenticated user

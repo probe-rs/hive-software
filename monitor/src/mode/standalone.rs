@@ -5,7 +5,7 @@ use std::thread;
 use tokio::runtime::Builder;
 
 use crate::database::HiveDb;
-use crate::test::{self, TestManager};
+use crate::testmanager::{self, TestManager};
 use crate::{flash, init, webserver, HARDWARE};
 
 pub(crate) fn run_standalone_mode(db: Arc<HiveDb>, mut test_manager: TestManager) {
@@ -31,10 +31,11 @@ pub(crate) fn run_standalone_mode(db: Arc<HiveDb>, mut test_manager: TestManager
 
     let rt_async = rt.clone();
     let db_async = db.clone();
-    let test_task_sender = test_manager.get_task_sender();
+    let test_task_sender = test_manager.get_test_task_sender();
+    let reinit_task_sender = test_manager.get_reinit_task_sender();
     let async_tread = thread::spawn(move || {
         rt_async.block_on(async {
-            webserver::web_server(db_async, test_task_sender).await;
+            webserver::web_server(db_async, test_task_sender, reinit_task_sender).await;
         });
     });
 

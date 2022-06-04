@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import ProbeOverview from "@/components/ProbeOverview.vue";
-import { useQuery } from "@vue/apollo-composable";
+import { useMutation, useQuery } from "@vue/apollo-composable";
 import gql from "graphql-tag";
-import { computed } from "vue";
+import { computed, ref } from "vue";
+import SuccessSnackbar from "./SuccessSnackbar.vue";
 
 type AssignedProbeData = {
   state: string;
@@ -24,6 +25,17 @@ const { loading, result } = useQuery(gql`
     }
   }
 `);
+
+const reloadSuccess = ref(false);
+const { mutate: reloadTestrack, loading: testrackLoading, onDone } = useMutation(gql`
+mutation {
+      reinitializeHardware
+    }
+`, { fetchPolicy: "no-cache" });
+
+onDone(() => {
+  reloadSuccess.value = true;
+})
 
 const assignedProbes = computed(() => {
   if (result.value) {
@@ -61,19 +73,14 @@ const hasUnassignedProbes = computed(() => {
 
           <v-spacer />
 
-          <v-icon
-            size="25"
-            class="align-self-center"
-            :icon="
-              !hasUnassignedProbes ? 'mdi-checkbox-marked' : 'mdi-help-box'
-            "
-            :color="!hasUnassignedProbes ? 'success' : 'info'"
-          />
+          <v-icon size="25" class="align-self-center" :icon="
+            !hasUnassignedProbes ? 'mdi-checkbox-marked' : 'mdi-help-box'
+          " :color="!hasUnassignedProbes ? 'success' : 'info'" />
           <p class="align-self-center pl-2">
             {{
-              !hasUnassignedProbes
-                ? "All probes are assigned to a channel"
-                : "Detected unassigned probes"
+                !hasUnassignedProbes
+                  ? "All probes are assigned to a channel"
+                  : "Detected unassigned probes"
             }}
           </p>
         </v-row>
@@ -105,11 +112,16 @@ const hasUnassignedProbes = computed(() => {
         <v-sheet rounded elevation="1" class="pa-4">
           <v-row class="pa-2">
             <v-spacer />
-            <v-btn color="success" variant="text"> Reload Testrack </v-btn>
+            <v-btn v-if="!testrackLoading" color="success" variant="text" @click="reloadTestrack"> Reload Testrack
+            </v-btn>
+            <v-progress-linear v-else indeterminate color="secondary" />
           </v-row>
         </v-sheet>
       </v-col>
     </v-row>
+
+    <SuccessSnackbar :isSuccess="reloadSuccess" message="Testrack successfully reloaded"
+      @closeEvent="reloadSuccess = false" />
   </template>
 
   <template v-else>
@@ -120,14 +132,11 @@ const hasUnassignedProbes = computed(() => {
           <v-progress-linear indeterminate color="secondary" />
         </v-row>
         <v-row class="justify-center">
-          <p
-            class="align-self-center"
-            style="
+          <p class="align-self-center" style="
               max-width: 70%;
               text-align: center;
               color: rgb(var(--v-theme-on-surface), var(--v-disabled-opacity));
-            "
-          >
+            ">
             Loading data...
           </p>
         </v-row>

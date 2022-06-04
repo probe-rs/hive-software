@@ -57,7 +57,3 @@ impl TestProgram {
             .expect("Failed to write the hive_defines.S file contents.");
     }
 }
-
-fn add_testprogram() {
-    todo!("");
-}

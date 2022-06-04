@@ -5,7 +5,7 @@ use tokio::fs::File;
 use tokio::sync::mpsc::Sender;
 use tokio_tar::Archive;
 
-use crate::test::TestTask;
+use crate::testmanager::TestTask;
 
 use super::model::FlatTestResults;
 
