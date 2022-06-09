@@ -37,6 +37,8 @@ enum Commands {
     Test(Test),
     /// Connect to a Hive-Testserver
     Connect(Connect),
+    /// List available targets and probes on connected testserver
+    List,
 }
 
 #[derive(Debug, Args)]
@@ -78,6 +80,7 @@ fn app(cli_args: CliArgs) -> Result<()> {
     match cli_args.command {
         Commands::Test(_) => subcommands::test::test(cli_args, config),
         Commands::Connect(_) => subcommands::connect::connect(cli_args, config),
+        Commands::List => subcommands::list::list(cli_args, config),
     }
 }
 

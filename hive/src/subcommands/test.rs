@@ -11,45 +11,18 @@ use reqwest::blocking::{
 use tar::Builder;
 
 use crate::config::HiveConfig;
-use crate::models::Host;
-use crate::{validate, CliArgs, Commands};
+use crate::{CliArgs, Commands};
 
 pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
-    let subcommand_args = if let Commands::Test(args) = cli_args.command {
+    let subcommand_args = if let Commands::Test(args) = &cli_args.command {
         args
     } else {
         panic!("You may only call this function if the actual subcommand matches")
     };
 
-    if config.testserver.is_none() {
-        if cli_args.no_human {
-            bail!("No testserver address found in config. Add a testserver by using the connect subcommand");
-        }
+    super::show_testserver_prompt_if_none(&mut config, &cli_args)?;
 
-        let testserver_address_input = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Testserver address")
-            .validate_with(|input: &String| -> Result<(), &str> {
-                match validate::ip_or_url(input) {
-                    Ok(_) => Ok(()),
-                    Err(_) => Err("Invalid testserver address"),
-                }
-            })
-            .interact_text()
-            .unwrap();
-
-        let host: Host = validate::ip_or_url(&testserver_address_input)
-            .unwrap()
-            .into();
-
-        // We check if the provided host sends a response and is a testserver
-        super::get_testserver_capabilities(&host, cli_args.accept_invalid_certs)?;
-
-        config.testserver = Some(host);
-
-        config.save_config()?;
-    }
-
-    let project_path = subcommand_args.path.unwrap_or_else(|| "./".into());
+    let project_path = subcommand_args.path.clone().unwrap_or_else(|| "./".into());
     let cargofile_path = project_path.join("Cargo.toml");
 
     if !cargofile_path.is_file() {
@@ -108,7 +81,9 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
             )
         })?;
 
-    todo!("Implement test result formatting, add test option to form");
+    todo!(
+        "Implement test result formatting, add test option to form, add loader or upload progress"
+    );
 
     Ok(())
 }
