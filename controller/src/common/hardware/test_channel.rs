@@ -109,10 +109,6 @@ impl CombinedTestChannel {
         self.channel
     }
 
-    pub fn get_probe(&self) -> &PoisonFreeMutex<Option<Probe>>{
-        &self.probe
-    }
-
     /// Returns a owned instance of the [`Probe`] which is currently held by this struct. The probe field of this struct is replaced with [`Option::None`], until [`Probe`] ownership is returned to this struct by calling [`Self::return_probe()`].
     /// 
     /// # Panics
@@ -131,7 +127,7 @@ impl CombinedTestChannel {
         &self.rpi
     }
 
-    /// Reset the test channel to defaults for use in next test
+    /*/// Reset the test channel to defaults for use in next test
     pub fn reset(&self) -> Result<(), Box<dyn Error>> {
         self.rpi.lock().test_gpio_reset()?;
 
@@ -140,7 +136,7 @@ impl CombinedTestChannel {
         }
 
         Ok(())
-    }
+    }*/
 
     /// Loops through all available TSS and connects the testchannel to each available target, while executing the provided function on each connection.
     pub fn connect_all_available_and_execute<F>(&mut self, tss: &[Option<Mutex<TargetStackShield>>], mut function: F) where F: FnMut(&mut Self, &TargetInfo, u8) {
