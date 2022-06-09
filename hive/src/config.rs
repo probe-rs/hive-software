@@ -1,16 +1,15 @@
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::fs::{self, File};
 
 use anyhow::Result;
+use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use validators::models::Host as ValidatorHost;
 
-use crate::validate::ValidHost;
-
-const CONFIG_NAME: &str = "hive-config";
+use crate::models::Host;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct HiveConfig {
-    testserver: Option<Host>,
+    /// The currently stored testserver address
+    pub testserver: Option<Host>,
 }
 
 impl Default for HiveConfig {
@@ -19,46 +18,48 @@ impl Default for HiveConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub(super) struct Host {
-    address: Address,
-    port: Option<u16>,
-}
+impl HiveConfig {
+    /// Load the configuration file of the cli app
+    pub(super) fn load_config() -> Result<HiveConfig> {
+        let project_path = ProjectDirs::from("rs", "probe-rs", "hive")
+            .expect("Failed to determine a directory to store the application configuration");
 
-impl From<ValidHost> for Host {
-    fn from(valid: ValidHost) -> Self {
-        Self {
-            address: valid.host.into(),
-            port: valid.port,
+        fs::create_dir_all(project_path.config_dir())?;
+
+        let config_path = project_path.config_dir().join("config.json");
+
+        let is_new = !config_path.is_file();
+
+        let config_file = File::options()
+            .write(true)
+            .read(true)
+            .create(true)
+            .open(config_path)?;
+
+        let config: HiveConfig;
+
+        if is_new {
+            config = HiveConfig::default();
+            serde_json::to_writer_pretty(config_file, &config)?;
+        } else {
+            config = serde_json::from_reader(config_file)?;
         }
+
+        Ok(config)
     }
-}
 
-#[derive(Debug, Serialize, Deserialize)]
-pub(super) enum Address {
-    IPv4(Ipv4Addr),
-    IPv6(Ipv6Addr),
-    Domain(String),
-}
+    /// Save the provided configuration to disk
+    pub(super) fn save_config(&self) -> Result<()> {
+        let project_path = ProjectDirs::from("rs", "probe-rs", "hive")
+            .expect("Failed to determine a directory to store the application configuration");
 
-impl From<ValidatorHost> for Address {
-    fn from(valid: ValidatorHost) -> Self {
-        match valid {
-            ValidatorHost::Domain(domain) => Self::Domain(domain),
-            ValidatorHost::IPv4(ip) => Self::IPv4(ip),
-            ValidatorHost::IPv6(ip) => Self::IPv6(ip),
-        }
+        let config_file = File::options()
+            .write(true)
+            .create(true)
+            .open(project_path.config_dir().join("config.json"))?;
+
+        serde_json::to_writer_pretty(config_file, self)?;
+
+        Ok(())
     }
-}
-
-/// Load the configuration file of the cli app
-pub(super) fn load_config() -> Result<HiveConfig> {
-    let config = confy::load(CONFIG_NAME)?;
-    Ok(config)
-}
-
-/// Save the provided configuration to disk
-pub(super) fn save_config(config: &HiveConfig) -> Result<()> {
-    confy::store(CONFIG_NAME, config)?;
-    Ok(())
 }

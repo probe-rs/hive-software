@@ -6,7 +6,9 @@ use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use log::Level;
 
+mod client;
 mod config;
+mod models;
 mod subcommands;
 mod validate;
 
@@ -21,6 +23,12 @@ struct CliArgs {
     verbose: clap_verbosity_flag::Verbosity,
     #[clap(subcommand)]
     command: Commands,
+    /// Deactivates all user input promts
+    #[clap(short, long)]
+    no_human: bool,
+    /// Accept invalid tls certificates
+    #[clap(short = 'i', long)]
+    accept_invalid_certs: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -64,12 +72,12 @@ fn main() {
     }
 }
 
-fn app(args: CliArgs) -> Result<()> {
-    let config = config::load_config()?;
+fn app(cli_args: CliArgs) -> Result<()> {
+    let config = config::HiveConfig::load_config()?;
 
-    match args.command {
-        Commands::Test(args) => subcommands::test::test(args, config),
-        Commands::Connect(args) => subcommands::connect::connect(args, config),
+    match cli_args.command {
+        Commands::Test(_) => subcommands::test::test(cli_args, config),
+        Commands::Connect(_) => subcommands::connect::connect(cli_args, config),
     }
 }
 
