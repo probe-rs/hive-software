@@ -200,11 +200,26 @@ mod tests {
     use super::{CsrfError, COOKIE_CSRF_TOKEN_KEY, HEADER_CSRF_TOKEN_KEY};
 
     fn app() -> Router {
-        Router::new().route("/", get(get_handler)).layer(
-            ServiceBuilder::new()
-                .layer(CookieManagerLayer::new())
-                .layer(middleware::from_fn(super::require_csrf_token)),
-        )
+        Router::new()
+            .route(
+                "/",
+                get(get_handler).layer(
+                    ServiceBuilder::new()
+                        .layer(CookieManagerLayer::new())
+                        .layer(middleware::from_fn(super::provide_csrf_token))
+                        .layer(middleware::from_fn(super::require_csrf_token)),
+                ),
+            )
+            // This route does not contain a csrf provider, this is required as the csrf provider is usually invoked before the csrf check middleware which means that the csrf cookie is always set.
+            // For some tests this behaviour is not desired.
+            .route(
+                "/noprovider",
+                get(get_handler).layer(
+                    ServiceBuilder::new()
+                        .layer(CookieManagerLayer::new())
+                        .layer(middleware::from_fn(super::require_csrf_token)),
+                ),
+            )
     }
 
     async fn get_handler() -> String {
@@ -247,7 +262,8 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method(Method::GET)
-                    .uri("/")
+                    // We don't want the csrf provider to add any cookie for this test
+                    .uri("/noprovider")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -331,6 +347,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn invalid_cookie() {
+        let ipc_server = app();
+
+        let csrf_cookie = Cookie::new(COOKIE_CSRF_TOKEN_KEY, "abc.def.ghi");
+
+        // Second request with appended and modified csrf cookie
+        let res = ipc_server
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/")
+                    .header(header::COOKIE, csrf_cookie.to_string())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::FORBIDDEN);
+        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        assert_eq!(
+            body_text,
+            CsrfError::InvalidCsrfCookie.to_string().as_bytes()
+        );
+    }
+
+    #[tokio::test]
     async fn missing_header() {
         let ipc_server = app();
 
@@ -362,7 +405,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(res.status(), StatusCode::FORBIDDEN);
         let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
         assert_eq!(
             body_text,

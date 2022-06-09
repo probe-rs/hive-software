@@ -180,12 +180,15 @@ fn check_jwt(token: &str) -> Result<JwtClaims, ()> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use axum::extract::extractor_middleware;
     use axum::routing::get;
     use axum::Router;
     use comm_types::auth::DbUser;
     use comm_types::auth::JwtClaims;
     use comm_types::auth::Role;
+    use cookie::time::Duration;
     use cookie::SameSite;
     use hyper::header;
     use hyper::Body;
@@ -193,11 +196,16 @@ mod tests {
     use hyper::Request;
     use hyper::StatusCode;
     use jsonwebtoken::{get_current_timestamp, EncodingKey, Header};
+    use lazy_static::lazy_static;
     use serde::Deserialize;
     use serde::Serialize;
     use tower::{ServiceBuilder, ServiceExt};
     use tower_cookies::Cookie;
     use tower_cookies::CookieManagerLayer;
+    use tower_cookies::Cookies;
+
+    use crate::database::{keys, CborDb, HiveDb};
+    use crate::webserver::csrf;
 
     use super::check_jwt;
     use super::generate_jwt;
@@ -207,6 +215,22 @@ mod tests {
     use super::ISSUER;
     use super::JWT_SECRET;
     use super::TOKEN_EXPIRE_TIME;
+
+    lazy_static! {
+        // We open a temporary test database and initialize it to the test values
+        static ref DB: Arc<HiveDb> = {
+            let db = HiveDb::open_test();
+
+            db.credentials_tree.c_insert(keys::credentials::USERS, &*DUMMY_USERS).unwrap();
+
+            Arc::new(db)
+        };
+
+        static ref DUMMY_USERS: Vec<DbUser> = {
+            let hash = crate::database::hasher::hash_password("fancy password");
+            vec![DbUser { username: "TeyKey1".to_owned(), hash, role: Role::ADMIN }]
+        };
+    }
 
     fn app() -> Router {
         Router::new().route("/", get(get_handler)).layer(
@@ -370,5 +394,48 @@ mod tests {
             .unwrap();
 
         assert_eq!(res.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn authenticate_user_csrf_refresh() {
+        let cookie_jar = Cookies::default();
+        csrf::add_new_csrf_cookie(&cookie_jar).await;
+
+        let csrf_cookie = cookie_jar.get("CSRF-TOKEN").unwrap();
+        let old_csrf_value = csrf_cookie.value();
+
+        let authentification_result =
+            super::authenticate_user(DB.clone(), "TeyKey1", "fancy password", &cookie_jar).await;
+
+        assert!(authentification_result.is_ok());
+
+        // After successful auth the old csrf cookie should be replaced by a new one
+        assert_ne!(
+            old_csrf_value,
+            cookie_jar.get("CSRF-TOKEN").unwrap().value()
+        );
+    }
+
+    #[tokio::test]
+    async fn logout_cookie_deletion() {
+        let cookie_jar = Cookies::default();
+
+        let jwt = generate_jwt(
+            &DbUser {
+                username: "Thor".to_owned(),
+                hash: "dummy hash".to_owned(),
+                role: Role::ADMIN,
+            },
+            60,
+        );
+
+        let auth_cookie = Cookie::build(AUTH_COOKIE_KEY, jwt).finish();
+        cookie_jar.add(auth_cookie);
+
+        super::logout(&cookie_jar);
+
+        let expired_cookie = cookie_jar.get(AUTH_COOKIE_KEY).unwrap();
+        assert_eq!(expired_cookie.max_age().unwrap(), Duration::new(0, 0));
+        assert_eq!(expired_cookie.value(), "");
     }
 }
