@@ -4,6 +4,13 @@ use std::ops::Range;
 use async_graphql::SimpleObject;
 use serde::{Deserialize, Serialize};
 
+/// The overall capabilities of the tesrack. Contains the most important information such as available probes and targets to test
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Capabilities {
+    pub available_probes: Vec<String>,
+    pub available_targets: Vec<String>,
+}
+
 /// Holds all information on a testrack instance which needs to be accessible to multiple applications
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Testrack {

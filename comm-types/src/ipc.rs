@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use super::cbor::CBOR_MIME;
 use super::hardware::{ProbeState, TargetState};
-use super::results::TestResults;
+use super::test::TestResults;
 
 pub type HiveProbeData = [ProbeState; 4];
 pub type HiveTargetData = [Option<[TargetState; 4]>; 8];

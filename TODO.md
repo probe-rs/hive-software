@@ -17,6 +17,7 @@
 - [ ] ~~consider switching to base64 ct encoding instead of base64 for tokens etc.~~
 - [ ] Implement proper initialization which blocks the monitor in case no initialization has been done, also add reinitialization which can be triggered automatically or by the user
 - [ ] Move all blocking functions in async contect into blocking tokio tasks
+- [ ] Check if axum layers are properly implemented. Scope them correctly to avoid having unnecessary layers on certain routes. Check if request limiting is required on public routes.
 
 ## Hive Backend UI
 - [X] Current appollo retrylink is useless as it does not call fetch function to change headers. Write own retry function which tries to append csrf header on each retry

@@ -59,13 +59,6 @@ fn app(
                 .layer(Extension(db.clone()))
                 .layer(Extension(reinit_task_sender))
                 .layer(Extension(backend::build_schema())),
-        )
-        .route("/test", post(handlers::graphql_test))
-        .layer(
-            ServiceBuilder::new()
-                .layer(Extension(test_task_sender))
-                .layer(Extension(db.clone()))
-                .layer(Extension(test::build_schema())),
         );
 
     println!("{}", backend::build_schema().sdl());
@@ -75,7 +68,7 @@ fn app(
         .layer(
             ServiceBuilder::new()
                 .layer(middleware::from_fn(csrf::require_csrf_token))
-                .layer(Extension(db))
+                .layer(Extension(db.clone()))
                 .layer(Extension(backend::auth::build_schema())),
         );
 
@@ -84,6 +77,8 @@ fn app(
     .nest("/auth", auth_routes)
     // Graphql handlers
     .nest("/graphql", graphql_routes)
+    // REST test request endpoint
+    .nest("/test", test::test_routes(db, test_task_sender))
     // Static fileserver used to host the hive-backend-ui Vue app
     .fallback(routing::get_service(ServeDir::new(STATIC_FILES)).handle_error(
         |error: std::io::Error| async move {

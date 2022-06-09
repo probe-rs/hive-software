@@ -1,6 +1,17 @@
-//! Hive test result format and helper functions
-
+//! Hive test request and result types
 use serde::{Deserialize, Serialize};
+
+/// Test options which are passed on a test request
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TestOptions {
+    // TODO Add options like probe/target filters
+}
+
+impl Default for TestOptions {
+    fn default() -> Self {
+        Self {}
+    }
+}
 
 /// A batch of [`TestResult`]s from an entire testrun
 #[derive(Debug, Serialize, Deserialize)]

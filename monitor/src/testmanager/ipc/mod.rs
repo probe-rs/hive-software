@@ -7,7 +7,7 @@ use std::task::Poll;
 use axum::extract::connect_info;
 use axum::routing::{get, post};
 use axum::{BoxError, Extension, Router, Server};
-use comm_types::results::TestResults;
+use comm_types::test::TestResults;
 use futures::ready;
 use hyper::server::accept::Accept;
 use tokio::net::unix::UCred;
@@ -118,7 +118,7 @@ mod tests {
     use ciborium::de::from_reader;
     use comm_types::hardware::{ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
-    use comm_types::results::TestResults;
+    use comm_types::test::TestResults;
     use lazy_static::lazy_static;
     use tokio::sync::mpsc::Sender;
     use tower::ServiceExt;

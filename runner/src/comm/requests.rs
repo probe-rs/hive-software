@@ -1,7 +1,7 @@
 //! All requests that can be sent to monitor from runner
 use axum::http::{Method, Request};
 use ciborium::ser::into_writer;
-use comm_types::{cbor::CBOR_MIME, ipc::IpcMessage, results::TestResults};
+use comm_types::{cbor::CBOR_MIME, ipc::IpcMessage, test::TestResults};
 use hyper::{header, Body};
 
 pub(crate) fn get_probes() -> (Request<Body>, Option<Vec<u8>>) {

@@ -1,14 +1,18 @@
 //! Handles the running of tests and starts/stops the runner and communicates with it
+use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
 
-use comm_types::results::TestResults;
+use anyhow::{Error, Result};
+use axum::body::Bytes;
+use cargo_toml::Manifest;
+use comm_types::test::{TestOptions, TestResults};
 use controller::common::hardware::HiveHardware;
-use tokio::fs::File;
+use tar::Archive;
+use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver, Sender as MpscSender};
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
-use tokio_tar::Archive;
 
 use crate::database::HiveDb;
 use crate::{flash, init, HARDWARE, HARDWARE_DB_DATA_CHANGED, SHUTDOWN_SIGNAL};
@@ -17,6 +21,30 @@ mod ipc;
 
 /// The maximum amount of tasks which are allowed in the test task queue.
 const TASK_CHANNEL_BUF_SIZE: usize = 10;
+/// Path to the Hive workspace where the provided project is unpacked and built
+const WORKSPACE_PATH: &str = "./workspace";
+const RUNNER_BINARY_PATH: &str = "./workspace/bin";
+
+#[derive(Debug, Error)]
+pub(crate) enum TestManagerError {
+    #[error("The testserver is shutting down and the test request was discarded")]
+    Shutdown,
+    #[error("Failed to receive the test results from the runner.\n\n Runner output: \n{0}")]
+    RunnerError(String),
+    #[error("Failed to build the provided project.\n\n Cargo output: \n{0}")]
+    BuildError(String),
+}
+
+/// Errors which happen if the provided cargofile for testing is invalid
+#[derive(Debug, Error)]
+enum CargofileError {
+    #[error("No cargofile found in root folder")]
+    NoCargoFile,
+    #[error("Crate probe-rs and its required dependencies not found in provided project")]
+    WrongProject,
+    #[error("Cargofile in root is not a workspace")]
+    NoWorkspace,
+}
 
 /// The testmanager of the monitor accepts external test tasks and returns the test results to the requesting party
 pub(crate) struct TestManager {
@@ -29,20 +57,25 @@ pub(crate) struct TestManager {
 }
 
 /// A test task which can be sent to a [`TestManager`]
+#[derive(Debug)]
 pub(crate) struct TestTask {
-    result_sender: OneshotSender<TestResults>,
-    tarball: Archive<File>,
-    //... other options like which targets to test etc should be implemented here
+    result_sender: OneshotSender<Result<TestResults, Error>>,
+    probe_rs_project: Bytes,
+    options: TestOptions,
 }
 
 impl TestTask {
-    pub fn new(tarball: Archive<File>) -> (Self, OneshotReceiver<TestResults>) {
+    pub fn new(
+        probe_rs_project: Bytes,
+        options: TestOptions,
+    ) -> (Self, OneshotReceiver<Result<TestResults, Error>>) {
         let (result_sender, result_receiver) = oneshot::channel();
 
         (
             Self {
                 result_sender,
-                tarball,
+                probe_rs_project,
+                options,
             },
             result_receiver,
         )
@@ -129,41 +162,9 @@ impl TestManager {
 
             let mut hardware = HARDWARE.lock().unwrap();
 
-            // Check if a reinitialization is required due to changes to the hardware data in the DB
-            let mut data_changed = *HARDWARE_DB_DATA_CHANGED.blocking_lock();
-            if data_changed {
-                self.reinitialize_hardware(&mut hardware);
-                data_changed = false;
-            }
-            drop(data_changed);
+            let test_results = self.run_test(&mut hardware, &task);
 
-            // Unlock probes
-            for testchannel in hardware.testchannels.iter() {
-                let testchannel = testchannel.lock().unwrap();
-
-                testchannel.unlock_probe();
-            }
-
-            // TODO later this should start up the vm and run the runner there
-
-            // Start runner and execute tests
-            Command::new("runner").output().expect(
-                "Failed to run the runner. Is the runner command accessible to the application?",
-            );
-
-            match self.test_result_receiver.as_mut().unwrap().try_recv() {
-                Ok(results) => task.result_sender.send(results).expect("Failed to send test results to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the test run."),
-                Err(err) => match err {
-                    mpsc::error::TryRecvError::Empty => todo!("failed to receive any message. This might indicate that the runner did not run successfully"),
-                    mpsc::error::TryRecvError::Disconnected => {
-                        // This might be a bug or simply a shutdown operation
-                        log::warn!(
-                            "Testresult sender part has been dropped, stopping test manager"
-                        );
-                        return;
-                    }
-                },
-            }
+            task.result_sender.send(test_results).expect("Failed to send test results to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the test run.");
 
             self.reinitialize_hardware(&mut hardware);
         }
@@ -197,5 +198,114 @@ impl TestManager {
 
         // Reflash testprograms
         flash::flash_testbinaries(self.db.clone());
+    }
+
+    /// Prepare the test environment, run the tests and return the received result
+    fn run_test(&mut self, hardware: &mut HiveHardware, task: &TestTask) -> Result<TestResults> {
+        Self::prepare_workspace(&task.probe_rs_project)?;
+
+        Self::build_runner()?;
+
+        // Check if a reinitialization is required due to changes to the hardware data in the DB
+        let mut data_changed = *HARDWARE_DB_DATA_CHANGED.blocking_lock();
+        if data_changed {
+            self.reinitialize_hardware(hardware);
+            data_changed = false;
+        }
+        drop(data_changed);
+
+        // Unlock probes
+        for testchannel in hardware.testchannels.iter() {
+            let testchannel = testchannel.lock().unwrap();
+
+            testchannel.unlock_probe();
+        }
+
+        // TODO later this should start up the vm and run the runner there
+
+        // Start runner and execute tests
+        let runner_output = Command::new(format!("{}/runner", RUNNER_BINARY_PATH))
+            .output()
+            .expect(
+                "Failed to run the runner. Is the runner command accessible to the application?",
+            );
+
+        // Try to receive a value as the runner command blocks until the runner is finished. If no message is received by then something went wrong
+        match self.test_result_receiver.as_mut().unwrap().try_recv() {
+            Ok(results) => Ok(results),
+            Err(err) => match err {
+                mpsc::error::TryRecvError::Empty => Err(TestManagerError::RunnerError(
+                    String::from_utf8(runner_output.stdout)
+                        .unwrap_or("Could not parse runner output to utf8".to_owned()),
+                ))?,
+                mpsc::error::TryRecvError::Disconnected => {
+                    // This might be a bug or simply a shutdown operation
+                    log::warn!("Testresult sender part has been dropped, stopping test manager");
+                    Err(TestManagerError::Shutdown)?
+                }
+            },
+        }
+    }
+
+    /// Unpack the provided probe-rs tarball into the workspace and check if it is a valid probe-rs project
+    ///
+    /// # Panics
+    /// If the [`WORKSPACE_PATH`] does not exist. This means that the environment in which the monitor runs in has not been configured properly
+    fn prepare_workspace(probe_rs_project: &Bytes) -> Result<()> {
+        let workspace_path = Path::new(WORKSPACE_PATH);
+
+        if !workspace_path.exists() {
+            panic!("Could not find path {}. This is likely a configuration issue. Please make sure that the Hive workspace containing the sourcefiles is located at this path", WORKSPACE_PATH)
+        }
+
+        let project_path = workspace_path.join("probe-rs-testcandidate");
+
+        let mut tarball = Archive::new(probe_rs_project.as_ref());
+
+        tarball.unpack(&project_path)?;
+
+        let cargofile_path = project_path.join("probe-rs/Cargo.toml");
+
+        if !cargofile_path.exists() {
+            return Err(CargofileError::NoCargoFile)?;
+        }
+
+        let manifest = Manifest::from_path(cargofile_path)?;
+
+        if let Some(workspace) = manifest.workspace {
+            if !workspace.members.contains(&"probe-rs".to_owned()) {
+                return Err(CargofileError::WrongProject)?;
+            }
+        } else {
+            return Err(CargofileError::NoWorkspace)?;
+        }
+
+        Ok(())
+    }
+
+    /// Builds the runner binary with the provided probe-rs test dependency using Cargo
+    ///
+    /// # Panics
+    /// If the [`RUNNER_BINARY_PATH`] does not exist. This means that the environment in which the monitor runs in has not been configured properly
+    fn build_runner() -> Result<()> {
+        if !Path::new(RUNNER_BINARY_PATH).exists() {
+            panic!("Could not find path {}. This is likely a configuration issue. Please make sure that the ramdisk for storing the binary is correctly mounted at the requested path.", RUNNER_BINARY_PATH);
+        }
+
+        let build_output = Command::new("cargo")
+            .args(["build", "-p", "runner", "--target-dir", RUNNER_BINARY_PATH])
+            .output()
+            .expect(
+                "Failed to run cargo build. Is Cargo installed and accessible to the application?",
+            );
+
+        if !build_output.status.success() {
+            return Err(TestManagerError::BuildError(
+                String::from_utf8(build_output.stdout)
+                    .unwrap_or("Could not parse cargo build output to utf8".to_owned()),
+            ))?;
+        }
+
+        Ok(())
     }
 }

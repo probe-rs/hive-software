@@ -10,8 +10,8 @@ readme = "README.md"
 [features]
 hardware = []
 cbor = []
-ipc = ["hardware", "results", "cbor"]
-results = []
+ipc = ["hardware", "test", "cbor"]
+test = []
 auth = []
 
 [dependencies]

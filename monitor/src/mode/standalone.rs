@@ -5,7 +5,7 @@ use std::thread;
 use tokio::runtime::Builder;
 
 use crate::database::HiveDb;
-use crate::testmanager::{self, TestManager};
+use crate::testmanager::TestManager;
 use crate::{flash, init, webserver, HARDWARE};
 
 pub(crate) fn run_standalone_mode(db: Arc<HiveDb>, mut test_manager: TestManager) {

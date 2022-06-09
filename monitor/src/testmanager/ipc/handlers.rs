@@ -4,7 +4,7 @@ use std::sync::Arc;
 use axum::Extension;
 use comm_types::cbor::{Cbor, ServerParseError};
 use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
-use comm_types::results::TestResults;
+use comm_types::test::TestResults;
 use tokio::sync::mpsc::Sender;
 
 use crate::database::{keys, CborDb, HiveDb};

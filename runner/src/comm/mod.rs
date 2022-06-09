@@ -7,7 +7,7 @@ use std::{io, pin::Pin};
 
 use axum::http::Uri;
 use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
-use comm_types::results::{TestResult, TestResults};
+use comm_types::test::{TestResult, TestResults};
 use controller::common::hardware::InitError;
 use hyper::client::connect::{Connected, Connection};
 use hyper::{Body, Client};

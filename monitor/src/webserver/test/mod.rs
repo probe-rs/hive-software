@@ -1,12 +1,23 @@
-//! Test endpoint graphql schemas
-use async_graphql::{EmptySubscription, Schema};
+//! Test endpoint
+use std::sync::Arc;
 
-mod model;
-mod mutation;
-mod query;
+use axum::routing::{get, post};
+use axum::{Extension, Router};
+use tokio::sync::mpsc::Sender;
+use tower::ServiceBuilder;
 
-pub(super) type TestSchema = Schema<query::TestQuery, mutation::TestMutation, EmptySubscription>;
+use crate::database::HiveDb;
+use crate::testmanager::TestTask;
 
-pub(super) fn build_schema() -> TestSchema {
-    Schema::build(query::TestQuery, mutation::TestMutation, EmptySubscription).finish()
+mod handlers;
+
+pub(super) fn test_routes(db: Arc<HiveDb>, test_task_sender: Sender<TestTask>) -> Router {
+    Router::new()
+        .route("/capabilities", get(handlers::capabilities))
+        .route("/run", post(handlers::test))
+        .layer(
+            ServiceBuilder::new()
+                .layer(Extension(db.clone()))
+                .layer(Extension(test_task_sender)),
+        )
 }
