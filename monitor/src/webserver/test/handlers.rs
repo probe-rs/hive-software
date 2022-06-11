@@ -83,9 +83,10 @@ pub(super) async fn capabilities(Extension(db): Extension<Arc<HiveDb>>) -> Json<
 #[debug_handler]
 pub(super) async fn test(
     Extension(test_task_sender): Extension<Sender<TestTask>>,
-    _: ContentLengthLimit<Multipart, 50_000_000>,
-    mut multipart: Multipart,
+    content: ContentLengthLimit<Multipart, 50_000_000>,
 ) -> Result<Json<TestResults>, TestRequestError> {
+    let mut multipart = content.0;
+
     let mut options: Option<TestOptions> = None;
     let mut project = None;
 
@@ -109,9 +110,8 @@ pub(super) async fn test(
                 let field_data_type = field.content_type();
                 let field_file_name = field.file_name();
 
-                if field_data_type != Some("appplication/octet")
-                    && field_file_name.is_some()
-                    && field_file_name.unwrap().split('.').last() != Some("tar")
+                if field_data_type != Some("application/octet-stream")
+                    || field_file_name.unwrap_or_default().split('.').last() != Some("tar")
                 {
                     return Err(anyhow!(
                         "Invalid file format provided for field 'project'. Expecting tar archive."
@@ -126,7 +126,7 @@ pub(super) async fn test(
     }
 
     if project.is_none() {
-        return Err(anyhow!("No project tar archive provided to perform the tests on").into());
+        return Err(anyhow!("No project tar archive provided to perform the tests on. The field 'project' is missing.").into());
     }
 
     let project = project.unwrap();

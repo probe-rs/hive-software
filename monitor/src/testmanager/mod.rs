@@ -59,9 +59,9 @@ pub(crate) struct TestManager {
 /// A test task which can be sent to a [`TestManager`]
 #[derive(Debug)]
 pub(crate) struct TestTask {
-    result_sender: OneshotSender<Result<TestResults, Error>>,
-    probe_rs_project: Bytes,
-    options: TestOptions,
+    pub result_sender: OneshotSender<Result<TestResults, Error>>,
+    pub probe_rs_project: Bytes,
+    pub options: TestOptions,
 }
 
 impl TestTask {
