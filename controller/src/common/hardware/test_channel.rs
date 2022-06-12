@@ -94,10 +94,7 @@ impl CombinedTestChannel {
     pub fn get_probe_info(&self) -> Option<DebugProbeInfo> {
         let probe_info = &self.probe_info.lock();
 
-        match probe_info.as_ref() {
-            Some(probe_info) => Some(probe_info.clone()),
-            None => None,
-        }
+        probe_info.as_ref().cloned()
     }
 
     /// Check if testchannel has a probe attached and is ready to be used during testing

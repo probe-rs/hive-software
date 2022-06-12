@@ -6,16 +6,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::Host;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub(super) struct HiveConfig {
     /// The currently stored testserver address
     pub testserver: Option<Host>,
-}
-
-impl Default for HiveConfig {
-    fn default() -> Self {
-        Self { testserver: None }
-    }
 }
 
 impl HiveConfig {

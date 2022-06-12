@@ -51,10 +51,7 @@ pub(super) async fn capabilities(Extension(db): Extension<Arc<HiveDb>>) -> Json<
 
     let mut available_targets = vec![];
 
-    for daughterboard in assigned_targets
-        .into_iter()
-        .filter_map(|daughterboard| daughterboard)
-    {
+    for daughterboard in assigned_targets.into_iter().flatten() {
         for target in daughterboard {
             if let TargetState::Known(target_info) = target {
                 available_targets.push(target_info.name);

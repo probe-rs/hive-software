@@ -33,6 +33,8 @@ fn get_testserver_capabilities(address: &Host, accept_invalid_certs: bool) -> Re
 /// Prompts the user to enter the testserver address, if the testserver address is not defined in the config (aka [`None`]).
 ///
 /// This function checks the entered address and verifies the connection to the testserver. This function fails in case the no-human flag is set.
+///
+/// In case the function succeeds the testserver host value in the config is guranteed to be [`Some`]
 fn show_testserver_prompt_if_none(config: &mut HiveConfig, cli_args: &CliArgs) -> Result<()> {
     if config.testserver.is_none() {
         if cli_args.no_human {

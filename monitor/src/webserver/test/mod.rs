@@ -17,7 +17,7 @@ pub(super) fn test_routes(db: Arc<HiveDb>, test_task_sender: Sender<TestTask>) -
         .route("/run", post(handlers::test))
         .layer(
             ServiceBuilder::new()
-                .layer(Extension(db.clone()))
+                .layer(Extension(db))
                 .layer(Extension(test_task_sender)),
         )
 }
@@ -237,22 +237,18 @@ mod tests {
         assert_eq!(expected_targets.len(), capabilities.available_targets.len());
         assert_eq!(expected_probes.len(), capabilities.available_probes.len());
 
-        if !capabilities
+        if capabilities
             .available_targets
             .iter()
-            .filter(|target| !expected_targets.contains(&target.as_str()))
-            .collect::<Vec<_>>()
-            .is_empty()
+            .any(|target| !expected_targets.contains(&target.as_str()))
         {
             panic!("Received targets do not match with expected targets:\nReceived:\n{:#?}\nExpected:\n{:#?}", capabilities.available_targets, expected_targets);
         }
 
-        if !capabilities
+        if capabilities
             .available_probes
             .iter()
-            .filter(|probe| !expected_probes.contains(&probe.as_str()))
-            .collect::<Vec<_>>()
-            .is_empty()
+            .any(|probe| !expected_probes.contains(&probe.as_str()))
         {
             panic!("Received probes do not match with expected probes:\nReceived:\n{:#?}\nExpected:\n{:#?}", capabilities.available_probes, expected_probes);
         }

@@ -2,15 +2,9 @@
 use serde::{Deserialize, Serialize};
 
 /// Test options which are passed on a test request
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct TestOptions {
     // TODO Add options like probe/target filters
-}
-
-impl Default for TestOptions {
-    fn default() -> Self {
-        Self {}
-    }
 }
 
 /// A batch of [`TestResult`]s from an entire testrun

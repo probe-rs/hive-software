@@ -31,16 +31,16 @@ pub enum TargetState {
 impl From<String> for TargetState {
     fn from(str: String) -> Self {
         if str == "Unknown" {
-            return Self::Unknown;
+            Self::Unknown
         } else if str == "Not Connected" {
-            return Self::NotConnected;
+            Self::NotConnected
         } else {
-            return Self::Known(TargetInfo {
+            Self::Known(TargetInfo {
                 name: str,
                 architecture: None,
                 memory_address: None,
                 status: Err("Not initialized".to_owned()),
-            });
+            })
         }
     }
 }

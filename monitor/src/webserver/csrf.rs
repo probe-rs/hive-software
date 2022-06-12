@@ -246,7 +246,7 @@ mod tests {
 
         let signed_token = super::sign_csrf_token(csrf_token.clone());
 
-        let parts: Vec<&str> = signed_token.split(".").collect();
+        let parts: Vec<&str> = signed_token.split('.').collect();
 
         let modified_cookie =
             Cookie::build("signed", format!("{}.{}", csrf_token_modified, parts[1])).finish();
@@ -446,7 +446,7 @@ mod tests {
             .unwrap();
 
         let cookies = res.headers().get(header::SET_COOKIE).unwrap().clone();
-        let modified_token_parts: Vec<&str> = csrf_cookie.value().split(".").collect();
+        let modified_token_parts: Vec<&str> = csrf_cookie.value().split('.').collect();
         let modified_token = modified_token_parts[0];
 
         let ipc_server = app();
@@ -493,7 +493,7 @@ mod tests {
         let cookies = res.headers().get(header::SET_COOKIE).unwrap().clone();
         let csrf_cookie = Cookie::parse(cookies.to_str().unwrap()).unwrap();
 
-        let token_parts: Vec<&str> = csrf_cookie.value().split(".").collect();
+        let token_parts: Vec<&str> = csrf_cookie.value().split('.').collect();
         let token = token_parts[0];
 
         let ipc_server = app();

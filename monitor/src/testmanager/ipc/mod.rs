@@ -292,22 +292,19 @@ mod tests {
         let data: IpcMessage = from_reader(&bytes[..]).unwrap();
 
         if let IpcMessage::ProbeInitData(data) = data {
-            assert_eq!(
-                data.iter().zip(PROBE_DATA.clone()).all(|(a, b)| {
-                    match (a, b) {
-                        (ProbeState::Known(a), ProbeState::Known(b)) => {
-                            if *a == b {
-                                return true;
-                            }
-                            false
+            assert!(data.iter().zip(PROBE_DATA.clone()).all(|(a, b)| {
+                match (a, b) {
+                    (ProbeState::Known(a), ProbeState::Known(b)) => {
+                        if *a == b {
+                            return true;
                         }
-                        (ProbeState::Unknown, ProbeState::Unknown) => true,
-                        (ProbeState::NotConnected, ProbeState::NotConnected) => true,
-                        _ => false,
+                        false
                     }
-                }),
-                true
-            )
+                    (ProbeState::Unknown, ProbeState::Unknown) => true,
+                    (ProbeState::NotConnected, ProbeState::NotConnected) => true,
+                    _ => false,
+                }
+            }))
         } else {
             panic!("Expected IpcMessage::ProbeInitData, but found {:?}", data);
         }
@@ -335,21 +332,18 @@ mod tests {
         let data: IpcMessage = from_reader(&bytes[..]).unwrap();
 
         if let IpcMessage::TargetInitData(data) = data {
-            assert_eq!(
-                data.iter().zip(TARGET_DATA.clone()).all(|(a, b)| {
-                    match (a, b) {
-                        (Some(a), Some(b)) => {
-                            if *a == b {
-                                return true;
-                            }
-                            false
+            assert!(data.iter().zip(TARGET_DATA.clone()).all(|(a, b)| {
+                match (a, b) {
+                    (Some(a), Some(b)) => {
+                        if *a == b {
+                            return true;
                         }
-                        (None, None) => true,
-                        _ => false,
+                        false
                     }
-                }),
-                true
-            )
+                    (None, None) => true,
+                    _ => false,
+                }
+            }))
         } else {
             panic!("Expected IpcMessage::TargetInitData, but found {:?}", data);
         }

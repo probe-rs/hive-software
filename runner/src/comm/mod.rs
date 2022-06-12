@@ -133,7 +133,7 @@ pub(crate) async fn ipc(
             }
 
             // Notify main thread with init data, so it can start with testing
-            init_data_sender.send((probe_data, target_data)).expect("Failed to send init data to main thread. Is the receiver still in scope and the thread still running?");
+            init_data_sender.send((*probe_data, *target_data)).expect("Failed to send init data to main thread. Is the receiver still in scope and the thread still running?");
         });
 
         let client_copy = client.clone();

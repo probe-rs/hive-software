@@ -13,6 +13,6 @@ pub(super) struct ValidHost {
 pub(super) fn ip_or_url(arg: &str) -> Result<ValidHost, String> {
     match ValidHost::parse_str(arg) {
         Ok(valid) => Ok(valid),
-        Err(_) => Err(format!("Invalid testserver address")),
+        Err(_) => Err("Invalid testserver address".to_owned()),
     }
 }

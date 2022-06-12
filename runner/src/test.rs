@@ -43,7 +43,7 @@ pub(crate) fn run_tests(
 
     let probe_info = testchannel.get_probe_info().unwrap();
     let probe_name = probe_info.identifier.clone();
-    let probe_sn = match probe_info.serial_number.clone() {
+    let probe_sn = match probe_info.serial_number {
         Some(number) => number,
         None => "None".to_owned(),
     };

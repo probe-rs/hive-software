@@ -51,7 +51,7 @@ pub(crate) fn run_init_mode(db: Arc<HiveDb>) {
 
     let users = vec![DbUser {
         username: username_input.clone(),
-        hash: hash,
+        hash,
         role: Role::ADMIN,
     }];
 

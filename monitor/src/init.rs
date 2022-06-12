@@ -43,11 +43,11 @@ pub(crate) fn check_uninit(db: Arc<HiveDb>) {
 /// Initializes the entire testrack hardware with the data contained in the DB
 pub(crate) fn init_hardware(db: Arc<HiveDb>, hardware: &mut HiveHardware) {
     init_tss(db.clone());
-    init_hardware_from_db_data(db.clone(), &hardware);
-    init_target_info_from_registry(&hardware);
+    init_hardware_from_db_data(db.clone(), hardware);
+    init_target_info_from_registry(hardware);
 
     // Synchronize the target data in the DB with the runtime data in case any data desyncs were encountered
-    database::sync::sync_tss_target_data(db, &hardware);
+    database::sync::sync_tss_target_data(db, hardware);
 
     hardware.hardware_status = HardwareStatus::Ready;
 }

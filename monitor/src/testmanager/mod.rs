@@ -134,10 +134,10 @@ impl TestManager {
                     let mut hardware = HARDWARE.lock().unwrap();
 
                     // Check if a reinitialization is required due to changes to the hardware data in the DB, otherwise skip
-                    let mut data_changed = *HARDWARE_DB_DATA_CHANGED.blocking_lock();
-                    if data_changed {
+                    let mut data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
+                    if *data_changed {
                         self.reinitialize_hardware(&mut hardware);
-                        data_changed = false;
+                        *data_changed = false;
                     }
                     drop(data_changed);
 
@@ -207,10 +207,10 @@ impl TestManager {
         Self::build_runner()?;
 
         // Check if a reinitialization is required due to changes to the hardware data in the DB
-        let mut data_changed = *HARDWARE_DB_DATA_CHANGED.blocking_lock();
-        if data_changed {
+        let mut data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
+        if *data_changed {
             self.reinitialize_hardware(hardware);
-            data_changed = false;
+            *data_changed = false;
         }
         drop(data_changed);
 
@@ -236,12 +236,13 @@ impl TestManager {
             Err(err) => match err {
                 mpsc::error::TryRecvError::Empty => Err(TestManagerError::RunnerError(
                     String::from_utf8(runner_output.stdout)
-                        .unwrap_or("Could not parse runner output to utf8".to_owned()),
-                ))?,
+                        .unwrap_or_else(|_| "Could not parse runner output to utf8".to_owned()),
+                )
+                .into()),
                 mpsc::error::TryRecvError::Disconnected => {
                     // This might be a bug or simply a shutdown operation
                     log::warn!("Testresult sender part has been dropped, stopping test manager");
-                    Err(TestManagerError::Shutdown)?
+                    Err(TestManagerError::Shutdown.into())
                 }
             },
         }
@@ -267,17 +268,17 @@ impl TestManager {
         let cargofile_path = project_path.join("probe-rs/Cargo.toml");
 
         if !cargofile_path.exists() {
-            return Err(CargofileError::NoCargoFile)?;
+            return Err(CargofileError::NoCargoFile.into());
         }
 
         let manifest = Manifest::from_path(cargofile_path)?;
 
         if let Some(workspace) = manifest.workspace {
             if !workspace.members.contains(&"probe-rs".to_owned()) {
-                return Err(CargofileError::WrongProject)?;
+                return Err(CargofileError::WrongProject.into());
             }
         } else {
-            return Err(CargofileError::NoWorkspace)?;
+            return Err(CargofileError::NoWorkspace.into());
         }
 
         Ok(())
@@ -302,8 +303,9 @@ impl TestManager {
         if !build_output.status.success() {
             return Err(TestManagerError::BuildError(
                 String::from_utf8(build_output.stdout)
-                    .unwrap_or("Could not parse cargo build output to utf8".to_owned()),
-            ))?;
+                    .unwrap_or_else(|_| "Could not parse cargo build output to utf8".to_owned()),
+            )
+            .into());
         }
 
         Ok(())

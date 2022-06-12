@@ -18,7 +18,7 @@ pub(crate) async fn probe_handler(Extension(db): Extension<Arc<HiveDb>>) -> Cbor
         .unwrap()
         .expect("Probe data was not found in the database. The data should be initialized before the runner is started.");
 
-    Cbor(IpcMessage::ProbeInitData(data))
+    Cbor(IpcMessage::ProbeInitData(Box::new(data)))
 }
 
 pub(crate) async fn target_handler(Extension(db): Extension<Arc<HiveDb>>) -> Cbor<IpcMessage> {
@@ -30,7 +30,7 @@ pub(crate) async fn target_handler(Extension(db): Extension<Arc<HiveDb>>) -> Cbo
         .unwrap()
         .expect("Target data was not found in the database. The data should be initialized before the runner is started.");
 
-    Cbor(IpcMessage::TargetInitData(data))
+    Cbor(IpcMessage::TargetInitData(Box::new(data)))
 }
 
 pub(crate) async fn test_result_handler(
@@ -39,7 +39,7 @@ pub(crate) async fn test_result_handler(
 ) -> Result<Cbor<IpcMessage>, ServerParseError> {
     if let IpcMessage::TestResults(results) = message {
         // send the received test results to the testmanager
-        test_result_sender.send(results).await.unwrap();
+        test_result_sender.send(*results).await.unwrap();
     } else {
         return Err(ServerParseError::InvalidCbor);
     }
