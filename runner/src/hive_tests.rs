@@ -4,10 +4,7 @@ use hive_test::{hive_test, inventory, TestChannelHandle};
 use probe_rs_test::Session;
 
 #[hive_test]
-fn my_first_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
-    let _unused = test_channel;
-    let _unused2 = session;
-
+fn my_first_test(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session) {
     let a = 2;
     let b = 2;
 
@@ -15,8 +12,7 @@ fn my_first_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session
 }
 
 #[hive_test]
-fn check_uid(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
-    let _unused = test_channel;
+fn check_uid(_test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
     let cores = session.list_cores();
     println!("found cores: {:?}", cores);
     session
@@ -43,16 +39,12 @@ fn check_uid(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
 }
 
 #[hive_test]
-fn only_pass_for_stm(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
-    let _unused = test_channel;
+fn only_pass_for_stm(_test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
     assert_eq!(session.target().name, "STM32F303x".to_string());
 }
 
 #[hive_test(should_panic = true, order = 30)]
-fn check_order_30(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
-    let _unused = test_channel;
-    let _unused2 = session;
-
+fn check_order_30(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session) {
     let a = 4;
     let b = 2;
 
@@ -60,10 +52,7 @@ fn check_order_30(test_channel: &mut dyn TestChannelHandle, session: &mut Sessio
 }
 
 #[hive_test(order = 30)]
-fn check_order_30_1(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
-    let _unused = test_channel;
-    let _unused2 = session;
-
+fn check_order_30_1(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session) {
     let a = 4;
     let b = 3;
 
@@ -71,10 +60,7 @@ fn check_order_30_1(test_channel: &mut dyn TestChannelHandle, session: &mut Sess
 }
 
 #[hive_test(order = 30)]
-fn check_order_30_2(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
-    let _unused = test_channel;
-    let _unused2 = session;
-
+fn check_order_30_2(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session) {
     let a = 4;
     let b = 4;
 
@@ -82,10 +68,7 @@ fn check_order_30_2(test_channel: &mut dyn TestChannelHandle, session: &mut Sess
 }
 
 #[hive_test(order = 35)]
-fn check_order_35(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
-    let _unused = test_channel;
-    let _unused2 = session;
-
+fn check_order_35(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session) {
     let a = 4;
     let b = 4;
 
@@ -93,10 +76,7 @@ fn check_order_35(test_channel: &mut dyn TestChannelHandle, session: &mut Sessio
 }
 
 #[hive_test(order = 35)]
-fn check_order_35_1(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
-    let _unused = test_channel;
-    let _unused2 = session;
-
+fn check_order_35_1(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session) {
     let a = 4;
     let b = 4;
 
