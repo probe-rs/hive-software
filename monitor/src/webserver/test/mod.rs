@@ -25,13 +25,12 @@ pub(super) fn test_routes(db: Arc<HiveDb>, test_task_sender: Sender<TestTask>) -
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
-    use std::io::Write;
     use std::sync::Arc;
 
     use axum::body::Body;
     use axum::http::{header, Method, Request, StatusCode};
     use comm_types::hardware::{Capabilities, ProbeInfo, ProbeState, TargetInfo, TargetState};
-    use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
+    use comm_types::ipc::{HiveProbeData, HiveTargetData};
     use comm_types::test::{TestOptions, TestResults};
     use hyper::Request as HyperRequest;
     use lazy_static::lazy_static;
@@ -165,7 +164,7 @@ mod tests {
         ];
     }
 
-    /// A mock implementation of the actual TestManager struct, it simply
+    /// A mock implementation of the actual TestManager struct
     struct TestManagerMock {
         task_sender: Sender<TestTask>,
         task_receiver: Receiver<TestTask>,

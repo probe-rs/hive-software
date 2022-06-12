@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 /// Flattened version of [`TargetState`] to use it in graphql api
 #[derive(SimpleObject, Debug)]
 pub(super) struct FlatTargetState {
-    state: State,
-    data: Option<TargetInfo>,
+    pub state: State,
+    pub data: Option<TargetInfo>,
 }
 
 impl From<TargetState> for FlatTargetState {
@@ -35,7 +35,7 @@ impl From<TargetState> for FlatTargetState {
 }
 
 /// Flattened version of [`ProbeState`] to use it in graphql api
-#[derive(SimpleObject, Debug, InputObject)]
+#[derive(SimpleObject, Debug, InputObject, Deserialize, PartialEq)]
 #[graphql(input_name = "FlatProbeStateInput")]
 pub(super) struct FlatProbeState {
     pub state: State,
@@ -61,7 +61,8 @@ impl From<ProbeState> for FlatProbeState {
     }
 }
 
-#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")] // Required for tests, to conform with async_graphql Enum derive
 pub(super) enum State {
     Known,
     Unknown,
@@ -69,7 +70,7 @@ pub(super) enum State {
 }
 
 /// Information on a probe attached to Hive
-#[derive(Debug, Clone, SimpleObject, InputObject)]
+#[derive(Debug, Clone, SimpleObject, InputObject, Deserialize, PartialEq)]
 #[graphql(input_name = "ProbeInfoInput")]
 pub(super) struct ProbeInfo {
     pub identifier: String,
