@@ -11,7 +11,7 @@ pub enum Role {
 }
 
 /// The representation of a user in the servers database
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct DbUser {
     pub username: String,
     pub hash: String,
