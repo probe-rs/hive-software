@@ -137,7 +137,7 @@ pub(super) async fn test(
 
     let results = test_result_receiver
         .await
-        .expect("Oneshot sender was unexpectedly dropped by testmanager.")?;
+        .expect("Oneshot sender was unexpectedly dropped by testmanager.");
 
     Ok(Json(results))
 }

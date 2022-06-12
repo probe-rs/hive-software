@@ -31,7 +31,7 @@ mod tests {
     use axum::http::{header, Method, Request, StatusCode};
     use comm_types::hardware::{Capabilities, ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData};
-    use comm_types::test::{TestOptions, TestResults};
+    use comm_types::test::{TestOptions, TestResults, TestRunStatus};
     use hyper::Request as HyperRequest;
     use lazy_static::lazy_static;
     use multipart::client::multipart::{Body as MultipartBody, Form};
@@ -187,8 +187,12 @@ mod tests {
         /// Tries to receive a test task and sends an empty [`TestResults`] struct back to the task creator via the provided oneshot channel
         pub async fn receive_test_task(&mut self) {
             if let Some(task) = self.task_receiver.recv().await {
-                let dummy_results = TestResults { results: vec![] };
-                task.result_sender.send(Ok(dummy_results)).expect("Failed to send dummy test results via oneshot channel. Has the receiver been dropped?");
+                let dummy_results = TestResults {
+                    status: TestRunStatus::Ok,
+                    results: Some(vec![]),
+                    error: None,
+                };
+                task.result_sender.send(dummy_results).expect("Failed to send dummy test results via oneshot channel. Has the receiver been dropped?");
             } else {
                 panic!("The task receiver failed to receive any value as it was considered closed or no messages can be received anymore because all senders have been dropped.");
             }
@@ -519,6 +523,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(results.results.is_empty());
+        assert_eq!(results.status, TestRunStatus::Ok);
+        assert!(results.results.unwrap().is_empty());
     }
 }

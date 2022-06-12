@@ -7,7 +7,7 @@ use std::{io, pin::Pin};
 
 use axum::http::Uri;
 use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
-use comm_types::test::{TestResult, TestResults};
+use comm_types::test::{TestResult, TestResults, TestRunStatus};
 use controller::common::hardware::InitError;
 use hyper::client::connect::{Connected, Connection};
 use hyper::{Body, Client};
@@ -144,7 +144,9 @@ pub(crate) async fn ipc(
             retry::try_request(
                 client_copy,
                 requests::post_test_results(TestResults {
-                    results: mem::take(&mut *results),
+                    status: TestRunStatus::Ok,
+                    results: Some(mem::take(&mut *results)),
+                    error: None,
                 }),
             )
             .await

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use anyhow::{Error, Result};
 use axum::body::Bytes;
 use cargo_toml::Manifest;
-use comm_types::test::{TestOptions, TestResults};
+use comm_types::test::{TestOptions, TestResults, TestRunError, TestRunStatus};
 use controller::common::hardware::HiveHardware;
 use tar::Archive;
 use thiserror::Error;
@@ -59,7 +59,7 @@ pub(crate) struct TestManager {
 /// A test task which can be sent to a [`TestManager`]
 #[derive(Debug)]
 pub(crate) struct TestTask {
-    pub result_sender: OneshotSender<Result<TestResults, Error>>,
+    pub result_sender: OneshotSender<TestResults>,
     pub probe_rs_project: Bytes,
     pub options: TestOptions,
 }
@@ -68,7 +68,7 @@ impl TestTask {
     pub fn new(
         probe_rs_project: Bytes,
         options: TestOptions,
-    ) -> (Self, OneshotReceiver<Result<TestResults, Error>>) {
+    ) -> (Self, OneshotReceiver<TestResults>) {
         let (result_sender, result_receiver) = oneshot::channel();
 
         (
@@ -162,7 +162,16 @@ impl TestManager {
 
             let mut hardware = HARDWARE.lock().unwrap();
 
-            let test_results = self.run_test(&mut hardware, &task);
+            let test_results =
+                self.run_test(&mut hardware, &task)
+                    .unwrap_or_else(|err| TestResults {
+                        status: TestRunStatus::Error,
+                        results: None,
+                        error: Some(TestRunError {
+                            err: err.to_string(),
+                            source: err.source().map(|err| err.to_string()),
+                        }),
+                    });
 
             task.result_sender.send(test_results).expect("Failed to send test results to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the test run.");
 

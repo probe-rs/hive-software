@@ -10,7 +10,9 @@ pub struct TestOptions {
 /// A batch of [`TestResult`]s from an entire testrun
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestResults {
-    pub results: Vec<TestResult>,
+    pub status: TestRunStatus,
+    pub results: Option<Vec<TestResult>>,
+    pub error: Option<TestRunError>,
 }
 
 /// A single test result
@@ -30,4 +32,18 @@ pub enum TestStatus {
     Passed,
     Failed(String),
     Skipped(String),
+}
+
+/// Status of an entire test run
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum TestRunStatus {
+    Ok,
+    Error,
+}
+
+/// The error type which is returned in case something goes wrong during a test run
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TestRunError {
+    pub err: String,
+    pub source: Option<String>,
 }
