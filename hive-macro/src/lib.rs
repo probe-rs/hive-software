@@ -162,10 +162,11 @@ pub fn hive_test(attr: TokenStream, item: TokenStream) -> TokenStream {
     new_code.into()
 }
 
-/// Checks the provided function argument identifiers against the given identifiers in [`TESTFUNCTION_ARGUMENT_IDENT`]
+/// Checks the provided function argument identifiers against the given identifiers in [`TESTFUNCTION_ARGUMENT_IDENT`], also allows _ for unused
 fn check_fn_arg_ident(pos: usize, input: &PatType) {
     if let Pat::Ident(ref path) = *input.pat {
-        if path.ident == TESTFUNCTION_ARGUMENT_IDENT[pos] {
+        if path.ident == TESTFUNCTION_ARGUMENT_IDENT[pos] || path.ident.to_string().starts_with('_')
+        {
             return;
         }
     }

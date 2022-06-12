@@ -2,8 +2,7 @@ use hive_test::TestChannelHandle;
 use probe_rs_test::Session;
 
 #[hive_macro::hive_test]
-fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
-    let _channel = test_channel;
+fn my_fancy_test(_test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
     let _session = session;
 
     // Doing important test
