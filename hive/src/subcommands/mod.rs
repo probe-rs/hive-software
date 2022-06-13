@@ -2,6 +2,7 @@ use anyhow::{anyhow, bail, Result};
 use comm_types::hardware::Capabilities;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
+use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::config::HiveConfig;
 use crate::models::Host;
@@ -65,4 +66,34 @@ fn show_testserver_prompt_if_none(config: &mut HiveConfig, cli_args: &CliArgs) -
     }
 
     Ok(())
+}
+
+/// Sets up an indefinite progress spinner for the duration of the provided closure. The closure receives a progress handle which makes it possible to alter the progress state inside the closure.
+/// On completion of the provided closure the progress is cleaned up from the terminal.
+///
+/// # No human
+/// In case the no human flag is supplied the provided progress instance is hidden and any manipulation to it does not have any visual effect.
+fn show_progress<F, T>(cli_args: &CliArgs, f: F) -> Result<T>
+where
+    F: FnOnce(&ProgressBar) -> Result<T>,
+{
+    if cli_args.no_human {
+        return f(&ProgressBar::hidden());
+    }
+
+    let progress = ProgressBar::new_spinner();
+
+    progress.set_style(
+        ProgressStyle::default_spinner()
+            .template("{spinner:.blue} {msg}")
+            .tick_strings(&["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]),
+    );
+
+    progress.enable_steady_tick(120);
+
+    let result = f(&progress);
+
+    progress.finish_and_clear();
+
+    result
 }

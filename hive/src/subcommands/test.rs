@@ -1,9 +1,8 @@
 //! The test subcommand
 use anyhow::{anyhow, bail, Result};
 use cargo_toml::Manifest;
-use dialoguer::{theme::ColorfulTheme, Input};
+use comm_types::test::{TestResults, TestRunStatus};
 use ignore::Walk;
-use indicatif::ProgressBar;
 use reqwest::blocking::{
     multipart::{Form, Part},
     Client,
@@ -39,51 +38,69 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
         bail!("This cargo project is not a workspace");
     }
 
-    let progress = ProgressBar::new_spinner();
+    let response = super::show_progress(&cli_args, |progress| {
+        progress.set_message("collecting files...");
 
-    progress.set_message("collecting files...");
+        let tar_buffer = vec![];
+        let mut tar = Builder::new(tar_buffer);
 
-    let tar_buffer = vec![];
-    let mut tar = Builder::new(tar_buffer);
-
-    for result in Walk::new(project_path) {
-        match result {
-            Ok(entry) => {
-                tar.append_path(entry.path())?;
-                progress.inc(1);
+        for result in Walk::new(project_path) {
+            match result {
+                Ok(entry) => {
+                    tar.append_path(entry.path())?;
+                    progress.inc(1);
+                }
+                Err(err) => bail!("Failed to read project files: {}", err),
             }
-            Err(err) => bail!("Failed to read project files: {}", err),
+        }
+
+        let tarfile = tar.into_inner()?;
+
+        progress.set_message("testing...");
+
+        let client = Client::new();
+
+        let fileupload = Part::bytes(tarfile)
+            .file_name("project.tar")
+            .mime_str("application/octet-stream")
+            .unwrap();
+
+        let form = Form::new().part("project", fileupload);
+
+        client
+            .post(format!(
+                "{}/test/run",
+                config.testserver.unwrap().as_https_url()
+            ))
+            .multipart(form)
+            .send()
+            .map_err(|err| {
+                anyhow!(
+                    "Failed to send test request to testserver.\nCaused by: {}",
+                    err
+                )
+            })
+    })?;
+
+    let test_results: TestResults = response.json().map_err(|err| anyhow!("Failed to deserialize received testserver response. This Hive CLI version might not be compatible with the connected testserver.\n\nCaused by: {}", err))?;
+
+    match test_results.status {
+        TestRunStatus::Ok => todo!("Implement test result formatting"),
+        TestRunStatus::Error => {
+            let test_run_error = test_results.error.unwrap();
+
+            match test_run_error.source {
+                Some(source) => bail!(
+                    "Testserver failed to run tests: {}\n\nCaused by: {}",
+                    test_run_error.err,
+                    source
+                ),
+                None => bail!("Testserver failed to run tests: {}", test_run_error.err),
+            }
         }
     }
 
-    let tarfile = tar.into_inner()?;
-
-    let client = Client::new();
-
-    let fileupload = Part::bytes(tarfile)
-        .file_name("project.tar")
-        .mime_str("application/octet-stream")
-        .unwrap();
-
-    let form = Form::new().part("project", fileupload);
-
-    client
-        .post(format!(
-            "{}/test/run",
-            config.testserver.unwrap().as_https_url()
-        ))
-        .multipart(form)
-        .send()
-        .map_err(|err| {
-            anyhow!(
-                "Failed to send test request to testserver.\nCaused by: {}",
-                err
-            )
-        })?;
-
-    todo!(
-        "Implement test result formatting, add test option to form, add loader or upload progress"
-    );
+    todo!("add test option to form");
 
     Ok(())
 }
