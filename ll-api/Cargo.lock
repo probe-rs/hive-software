@@ -695,9 +695,9 @@ checksum = "2839e79665f131bdb5782e51f2c6c9599c133c6098982a54c794358bf432529c"
 
 [[package]]
 name = "pca9535"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88a1ea33bed83024d13e9acbb79a37668738a1013a3ba88bc79a08c946f6976c"
+checksum = "94254cf6c049df05a1d5db72d5631c75046f8e50cbfc1446b6e3e4783532a0a9"
 dependencies = [
  "embedded-hal",
 ]
