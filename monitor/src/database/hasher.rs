@@ -6,10 +6,11 @@ use argon2::{
     PasswordVerifier, Version,
 };
 use comm_types::auth::DbUser;
+use hive_db::CborDb;
 use lazy_static::lazy_static;
 use rand_chacha::rand_core::OsRng;
 
-use super::{keys, CborDb, HiveDb};
+use super::{keys, MonitorDb};
 
 lazy_static! {
     static ref HASHER_SETTINGS: Params =
@@ -20,13 +21,13 @@ lazy_static! {
 ///
 /// This function only returns an [`Result::Ok`] value with the authenticated user if the provided user exists and the provided password is correct.
 pub(crate) fn check_password(
-    db: Arc<HiveDb>,
+    db: Arc<MonitorDb>,
     username: &str,
     password: &str,
 ) -> Result<DbUser, ()> {
     let users: Vec<DbUser> = db
         .credentials_tree
-        .c_get(keys::credentials::USERS)
+        .c_get(&keys::credentials::USERS)
         .unwrap()
         .unwrap();
 
@@ -90,15 +91,16 @@ mod tests {
     use argon2::PasswordHasher;
     use comm_types::auth::DbUser;
     use comm_types::auth::Role;
+    use hive_db::CborDb;
     use lazy_static::lazy_static;
     use rand_chacha::rand_core::OsRng;
 
-    use crate::database::{keys, CborDb, HiveDb};
+    use crate::database::{keys, MonitorDb};
 
     use super::check_password;
 
     lazy_static! {
-        static ref DB: Arc<HiveDb> = Arc::new(HiveDb::open_test());
+        static ref DB: Arc<MonitorDb> = Arc::new(MonitorDb::open_test());
     }
 
     #[test]
@@ -122,7 +124,7 @@ mod tests {
         ];
 
         DB.credentials_tree
-            .c_insert(keys::credentials::USERS, &dummy_users)
+            .c_insert(&keys::credentials::USERS, &dummy_users)
             .unwrap();
 
         assert!(check_password(DB.clone(), "Yarpen", "dummy password").is_err());
@@ -137,7 +139,7 @@ mod tests {
         }];
 
         DB.credentials_tree
-            .c_insert(keys::credentials::USERS, &dummy_users)
+            .c_insert(&keys::credentials::USERS, &dummy_users)
             .unwrap();
 
         assert!(check_password(DB.clone(), "Aloy", "dummy password").is_err());
@@ -160,7 +162,7 @@ mod tests {
         }];
 
         DB.credentials_tree
-            .c_insert(keys::credentials::USERS, &dummy_users)
+            .c_insert(&keys::credentials::USERS, &dummy_users)
             .unwrap();
 
         assert!(check_password(DB.clone(), "Arthur Morgan", "Very wrong password").is_err());
@@ -183,7 +185,7 @@ mod tests {
         }];
 
         DB.credentials_tree
-            .c_insert(keys::credentials::USERS, &dummy_users)
+            .c_insert(&keys::credentials::USERS, &dummy_users)
             .unwrap();
 
         assert!(check_password(DB.clone(), "Arthur Morgan", "Very strong password").is_ok());

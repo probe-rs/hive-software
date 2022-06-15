@@ -10,8 +10,9 @@ use controller::common::hardware::{CombinedTestChannel, HardwareStatus};
 use probe_rs::flashing::{download_file_with_options, DownloadOptions, Format};
 use probe_rs::{DebugProbeInfo, Session};
 use crossbeam_utils::thread;
+use hive_db::CborDb;
 
-use crate::database::{keys, CborDb, HiveDb};
+use crate::database::{keys, MonitorDb};
 use crate::{HARDWARE};
 use crate::testprogram::TestProgram;
 
@@ -25,14 +26,14 @@ struct FlashStatus {
 /// Tries to flash the testbinaries onto all available targets.
 /// 
 /// This function does nothing in case the [`HARDWARE`] static is not [`HardwareStatus::Ready`]
-pub(crate) fn flash_testbinaries(db: Arc<HiveDb>) {
+pub(crate) fn flash_testbinaries(db: Arc<MonitorDb>) {
     let hardware = HARDWARE.lock().unwrap();
 
     if hardware.hardware_status != HardwareStatus::Ready {
         return;
     }
 
-    let active_testprogram: Arc<TestProgram> = Arc::new(db.config_tree.c_get(keys::config::ACTIVE_TESTPROGRAM).unwrap().expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known"));
+    let active_testprogram = Arc::new(db.config_tree.c_get(&keys::config::ACTIVE_TESTPROGRAM).unwrap().expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known"));
 
     // A buffersize of 0 enforces that the RwLock flash_results vector does not slowly get out of sync due to read locks.
     // This could lead to situations where a thread checks the FlashStatus on an already invalid flash_results vector thus causing unwanted flashes of already successfully flashed targets.

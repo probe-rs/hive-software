@@ -19,7 +19,7 @@
 - [ ] Move all blocking functions in async context into blocking tokio tasks
 - [ ] Check if axum layers are properly implemented. Scope them correctly to avoid having unnecessary layers on certain routes. Check if request limiting is required on public routes.
 - [X] Return data type on /test/run endpoint which can be either error or ok with testresults, the current implementation fails with a bad request status code in case an error occurred in the testmanager, which is not an actual http error but an application error.
-- [ ] Current DB implementation is prone to race conditions as there is no guarantee that the previously read out value is not changed by another function before the previously read value is modified and written back to the DB
+- [X] Current DB implementation is prone to race conditions as there is no guarantee that the previously read out value is not changed by another function before the previously read value is modified and written back to the DB
 
 ## Hive Backend UI
 - [X] Current appollo retrylink is useless as it does not call fetch function to change headers. Write own retry function which tries to append csrf header on each retry

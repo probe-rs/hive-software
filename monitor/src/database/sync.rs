@@ -3,11 +3,12 @@ use std::sync::Arc;
 
 use comm_types::ipc::HiveTargetData;
 use controller::common::hardware::HiveHardware;
+use hive_db::CborDb;
 
-use super::{keys, CborDb, HiveDb};
+use super::{keys, MonitorDb};
 
 /// Synchronize the DB target data with the provided [`HiveHardware`] data.
-pub(crate) fn sync_tss_target_data(db: Arc<HiveDb>, hardware: &HiveHardware) {
+pub(crate) fn sync_tss_target_data(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     let mut target_data: HiveTargetData = Default::default();
 
     for tss in hardware.tss.iter().filter_map(|tss| tss.as_ref()) {
@@ -21,6 +22,6 @@ pub(crate) fn sync_tss_target_data(db: Arc<HiveDb>, hardware: &HiveHardware) {
     }
 
     db.config_tree
-        .c_insert(keys::config::ASSIGNED_TARGETS, &target_data)
+        .c_insert(&keys::config::ASSIGNED_TARGETS, &target_data)
         .unwrap();
 }

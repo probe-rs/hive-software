@@ -6,13 +6,14 @@ use std::sync::Arc;
 
 use comm_types::auth::{DbUser, Role};
 use dialoguer::{theme::ColorfulTheme, Input, Password};
+use hive_db::CborDb;
 
-use crate::database::{hasher, keys, CborDb, HiveDb};
+use crate::database::{hasher, keys, MonitorDb};
 
-pub(crate) fn run_init_mode(db: Arc<HiveDb>) {
+pub(crate) fn run_init_mode(db: Arc<MonitorDb>) {
     let users = db
         .credentials_tree
-        .c_get::<Vec<DbUser>>(keys::credentials::USERS)
+        .c_get::<Vec<DbUser>>(&keys::credentials::USERS)
         .unwrap();
 
     if users.is_some() && !users.unwrap().is_empty() {
@@ -56,7 +57,7 @@ pub(crate) fn run_init_mode(db: Arc<HiveDb>) {
     }];
 
     db.credentials_tree
-        .c_insert(keys::credentials::USERS, &users)
+        .c_insert(&keys::credentials::USERS, &users)
         .unwrap();
 
     println!("Successfully added user '{}', with admin role.\nYou can now restart the application in a non init-mode.", username_input);

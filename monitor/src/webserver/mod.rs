@@ -12,7 +12,7 @@ use tower::ServiceBuilder;
 use tower_cookies::CookieManagerLayer;
 use tower_http::services::ServeDir;
 
-use crate::database::HiveDb;
+use crate::database::MonitorDb;
 use crate::testmanager::{ReinitializationTask, TestTask};
 use crate::SHUTDOWN_SIGNAL;
 
@@ -27,7 +27,7 @@ const PEM_CERT: &str = "data/webserver/cert/cert.pem";
 const PEM_KEY: &str = "data/webserver/cert/key.pem";
 
 pub(crate) async fn web_server(
-    db: Arc<HiveDb>,
+    db: Arc<MonitorDb>,
     test_task_sender: Sender<TestTask>,
     reinit_task_sender: Sender<ReinitializationTask>,
 ) {
@@ -46,7 +46,7 @@ pub(crate) async fn web_server(
 
 /// Builds the webserver with all endpoints
 fn app(
-    db: Arc<HiveDb>,
+    db: Arc<MonitorDb>,
     test_task_sender: Sender<TestTask>,
     reinit_task_sender: Sender<ReinitializationTask>,
 ) -> Router {

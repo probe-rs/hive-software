@@ -8,7 +8,7 @@ use async_graphql::{
 };
 use tower_cookies::Cookies;
 
-use crate::database::HiveDb;
+use crate::database::MonitorDb;
 
 use crate::webserver::auth;
 
@@ -32,7 +32,7 @@ impl BackendAuthQuery {
         username: String,
         password: String,
     ) -> GraphQlResult<UserResponse> {
-        let db = ctx.data::<Arc<HiveDb>>().unwrap();
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
         let cookies = ctx.data::<Cookies>().unwrap();
 
         let user = auth::authenticate_user(db.clone(), &username, &password, cookies)

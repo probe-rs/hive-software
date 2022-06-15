@@ -4,11 +4,11 @@ use std::thread;
 
 use tokio::runtime::Builder;
 
-use crate::database::HiveDb;
+use crate::database::MonitorDb;
 use crate::testmanager::TestManager;
 use crate::{flash, init, webserver, HARDWARE};
 
-pub(crate) fn run_standalone_mode(db: Arc<HiveDb>, mut test_manager: TestManager) {
+pub(crate) fn run_standalone_mode(db: Arc<MonitorDb>, mut test_manager: TestManager) {
     init::check_uninit(db.clone());
 
     init::initialize_statics();

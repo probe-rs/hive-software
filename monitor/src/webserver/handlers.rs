@@ -7,14 +7,14 @@ use comm_types::auth::JwtClaims;
 use tokio::sync::mpsc::Sender;
 use tower_cookies::Cookies;
 
-use crate::database::HiveDb;
+use crate::database::MonitorDb;
 use crate::testmanager::ReinitializationTask;
 
 use super::backend::auth::BackendAuthSchema;
 use super::backend::BackendSchema;
 
 pub(super) async fn graphql_backend(
-    Extension(db): Extension<Arc<HiveDb>>,
+    Extension(db): Extension<Arc<MonitorDb>>,
     Extension(reinit_task_sender): Extension<Sender<ReinitializationTask>>,
     Extension(cookies): Extension<Cookies>,
     schema: Extension<BackendSchema>,
@@ -34,7 +34,7 @@ pub(super) async fn graphql_backend(
 }
 
 pub(super) async fn graphql_backend_auth(
-    Extension(db): Extension<Arc<HiveDb>>,
+    Extension(db): Extension<Arc<MonitorDb>>,
     Extension(cookies): Extension<Cookies>,
     schema: Extension<BackendAuthSchema>,
     req: GraphQLRequest,

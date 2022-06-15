@@ -7,5 +7,6 @@ members = [
 	"hive-test",
 	"monitor",
 	"runner",
-	"hive"
+	"hive",
+	"hive-db",
 ]

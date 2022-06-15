@@ -25,20 +25,21 @@ mod tests {
     use comm_types::auth::{DbUser, Role};
     use comm_types::hardware::{ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData};
+    use hive_db::CborDb;
     use lazy_static::lazy_static;
 
-    use crate::database::{keys, CborDb, HiveDb};
+    use crate::database::{keys, MonitorDb};
 
     lazy_static! {
         // We open a temporary test database and initialize it to the test values
-        static ref DB: Arc<HiveDb> = {
-            let db = HiveDb::open_test();
+        static ref DB: Arc<MonitorDb> = {
+            let db = MonitorDb::open_test();
 
-            db.config_tree.c_insert(keys::config::ASSIGNED_PROBES, &*PROBE_DATA).unwrap();
-            db.config_tree.c_insert(keys::config::ASSIGNED_TARGETS, &*TARGET_DATA).unwrap();
-            db.config_tree.c_insert(keys::config::TSS, &[true, true, true, true, true, true, false, false]).unwrap();
+            db.config_tree.c_insert(&keys::config::ASSIGNED_PROBES, &PROBE_DATA).unwrap();
+            db.config_tree.c_insert(&keys::config::ASSIGNED_TARGETS, &TARGET_DATA).unwrap();
+            db.config_tree.c_insert(&keys::config::TSS, &[true, true, true, true, true, true, false, false]).unwrap();
 
-            db.credentials_tree.c_insert(keys::credentials::USERS, &*DUMMY_USERS).unwrap();
+            db.credentials_tree.c_insert(&keys::credentials::USERS, &DUMMY_USERS).unwrap();
             Arc::new(db)
         };
         static ref PROBE_DATA: HiveProbeData = [
@@ -161,20 +162,20 @@ mod tests {
         let db = DB.clone();
 
         db.config_tree
-            .c_insert(keys::config::ASSIGNED_PROBES, &*PROBE_DATA)
+            .c_insert(&keys::config::ASSIGNED_PROBES, &*PROBE_DATA)
             .unwrap();
         db.config_tree
-            .c_insert(keys::config::ASSIGNED_TARGETS, &*TARGET_DATA)
+            .c_insert(&keys::config::ASSIGNED_TARGETS, &*TARGET_DATA)
             .unwrap();
         db.config_tree
             .c_insert(
-                keys::config::TSS,
+                &keys::config::TSS,
                 &[true, true, true, true, true, true, false, false],
             )
             .unwrap();
 
         db.credentials_tree
-            .c_insert(keys::credentials::USERS, &*DUMMY_USERS)
+            .c_insert(&keys::credentials::USERS, &*DUMMY_USERS)
             .unwrap();
     }
 
@@ -383,10 +384,11 @@ mod tests {
         use async_graphql::{value, Request};
         use comm_types::auth::{DbUser, JwtClaims, Role};
         use comm_types::hardware::ProbeState;
-        use comm_types::ipc::{HiveProbeData, HiveTargetData};
+        use hive_db::CborDb;
+        use serial_test::serial;
         use tower_cookies::Cookies;
 
-        use crate::database::{keys, CborDb};
+        use crate::database::keys;
         use crate::webserver::auth::{self, AUTH_COOKIE_KEY};
         use crate::webserver::backend::build_schema;
 
@@ -456,6 +458,7 @@ mod tests {
         }
 
         #[tokio::test]
+        #[serial]
         async fn assign_target() {
             let schema = build_schema();
 
@@ -492,7 +495,7 @@ mod tests {
             assert_eq!(
                 DB.clone()
                     .config_tree
-                    .c_get::<HiveTargetData>(keys::config::ASSIGNED_TARGETS)
+                    .c_get(&keys::config::ASSIGNED_TARGETS)
                     .unwrap()
                     .unwrap(),
                 expected_assigned_targets
@@ -556,6 +559,7 @@ mod tests {
         }
 
         #[tokio::test]
+        #[serial]
         async fn assign_probe() {
             let schema = build_schema();
 
@@ -594,14 +598,14 @@ mod tests {
                 })
             );
 
-            let mut expected_assigned_probes: HiveProbeData = PROBE_DATA.clone();
+            let mut expected_assigned_probes = PROBE_DATA.clone();
 
             expected_assigned_probes[3] = ProbeState::NotConnected;
 
             assert_eq!(
                 DB.clone()
                     .config_tree
-                    .c_get::<HiveProbeData>(keys::config::ASSIGNED_PROBES)
+                    .c_get(&keys::config::ASSIGNED_PROBES)
                     .unwrap()
                     .unwrap(),
                 expected_assigned_probes
@@ -709,6 +713,7 @@ mod tests {
         }
 
         #[tokio::test]
+        #[serial]
         async fn change_username() {
             let schema = build_schema();
 
@@ -768,7 +773,7 @@ mod tests {
             assert_eq!(
                 DB.clone()
                     .credentials_tree
-                    .c_get::<Vec<DbUser>>(keys::credentials::USERS)
+                    .c_get(&keys::credentials::USERS)
                     .unwrap()
                     .unwrap(),
                 expected_db_users

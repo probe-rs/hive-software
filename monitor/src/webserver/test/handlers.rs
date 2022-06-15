@@ -7,15 +7,15 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
 use axum_macros::debug_handler;
+use comm_types::hardware::TargetState;
 use comm_types::hardware::{Capabilities, ProbeState};
-use comm_types::ipc::HiveProbeData;
 use comm_types::test::{TestOptions, TestResults};
-use comm_types::{hardware::TargetState, ipc::HiveTargetData};
+use hive_db::CborDb;
 use thiserror::Error as ThisError;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    database::{keys, CborDb, HiveDb},
+    database::{keys, MonitorDb},
     testmanager::TestTask,
 };
 
@@ -36,16 +36,16 @@ impl IntoResponse for TestRequestError {
 }
 
 /// Get the capabilities of the testrack
-pub(super) async fn capabilities(Extension(db): Extension<Arc<HiveDb>>) -> Json<Capabilities> {
-    let assigned_targets: HiveTargetData = db
+pub(super) async fn capabilities(Extension(db): Extension<Arc<MonitorDb>>) -> Json<Capabilities> {
+    let assigned_targets = db
         .config_tree
-        .c_get(keys::config::ASSIGNED_TARGETS)
+        .c_get(&keys::config::ASSIGNED_TARGETS)
         .unwrap()
         .expect("DB not initialized");
 
-    let assigned_probes: HiveProbeData = db
+    let assigned_probes = db
         .config_tree
-        .c_get(keys::config::ASSIGNED_PROBES)
+        .c_get(&keys::config::ASSIGNED_PROBES)
         .unwrap()
         .expect("DB not initialized");
 

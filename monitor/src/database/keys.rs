@@ -2,14 +2,30 @@
 
 pub(crate) mod config {
     //! All valid keys for config DB Tree
-    pub(crate) const TSS: &str = "tss";
-    pub(crate) const ASSIGNED_TARGETS: &str = "targets";
-    pub(crate) const ASSIGNED_PROBES: &str = "probes";
-    pub(crate) const TESTPROGRAMS: &str = "testprograms";
-    pub(crate) const ACTIVE_TESTPROGRAM: &str = "active_testprogram";
+    use comm_types::ipc::{HiveProbeData, HiveTargetData};
+    use hive_db::Key;
+    use lazy_static::lazy_static;
+
+    use crate::testprogram::TestProgram;
+
+    lazy_static! {
+        pub(crate) static ref TSS: Key<'static, [bool; 8]> = Key::new("tss");
+        pub(crate) static ref ASSIGNED_TARGETS: Key<'static, HiveTargetData> = Key::new("targets");
+        pub(crate) static ref ASSIGNED_PROBES: Key<'static, HiveProbeData> = Key::new("probes");
+        pub(crate) static ref TESTPROGRAMS: Key<'static, Vec<TestProgram>> =
+            Key::new("testprograms");
+        pub(crate) static ref ACTIVE_TESTPROGRAM: Key<'static, TestProgram> =
+            Key::new("active_testprogram");
+    }
 }
 
 pub(crate) mod credentials {
     //! All valid keys for credentials DB Tree
-    pub(crate) const USERS: &str = "users";
+    use comm_types::auth::DbUser;
+    use hive_db::Key;
+    use lazy_static::lazy_static;
+
+    lazy_static! {
+        pub(crate) static ref USERS: Key<'static, Vec<DbUser>> = Key::new("users");
+    }
 }

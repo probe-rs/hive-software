@@ -14,7 +14,7 @@ use tokio::net::unix::UCred;
 use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
 use tokio::sync::mpsc::Sender;
 
-use crate::database::HiveDb;
+use crate::database::MonitorDb;
 use crate::SHUTDOWN_SIGNAL;
 
 mod handlers;
@@ -56,7 +56,7 @@ impl connect_info::Connected<&UnixStream> for IpcConnectionInfo {
 }
 
 /// Starts the IPC server and listens for incoming connections
-pub(super) async fn ipc_server(db: Arc<HiveDb>, test_result_sender: Sender<TestResults>) {
+pub(super) async fn ipc_server(db: Arc<MonitorDb>, test_result_sender: Sender<TestResults>) {
     let socket_path = Path::new(SOCKET_PATH);
 
     init_socket_file(socket_path).await;
@@ -81,7 +81,7 @@ pub(super) async fn ipc_server(db: Arc<HiveDb>, test_result_sender: Sender<TestR
 }
 
 /// Builds the IPC server with all endpoints
-fn app(db: Arc<HiveDb>, test_result_sender: Sender<TestResults>) -> Router {
+fn app(db: Arc<MonitorDb>, test_result_sender: Sender<TestResults>) -> Router {
     Router::new()
         .route("/data/probe", get(handlers::probe_handler))
         .route("/data/target", get(handlers::target_handler))
@@ -119,21 +119,22 @@ mod tests {
     use comm_types::hardware::{ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
     use comm_types::test::TestResults;
+    use hive_db::CborDb;
     use lazy_static::lazy_static;
     use tokio::sync::mpsc::Sender;
     use tower::ServiceExt;
 
-    use crate::database::{keys, CborDb, HiveDb};
+    use crate::database::{keys, MonitorDb};
 
     use super::app;
 
     lazy_static! {
         // We open a temporary test database and initialize it to the test values
-        static ref DB: Arc<HiveDb> = {
-            let db = HiveDb::open_test();
+        static ref DB: Arc<MonitorDb> = {
+            let db = MonitorDb::open_test();
 
-            db.config_tree.c_insert(keys::config::ASSIGNED_PROBES, &*PROBE_DATA).unwrap();
-            db.config_tree.c_insert(keys::config::ASSIGNED_TARGETS, &*TARGET_DATA).unwrap();
+            db.config_tree.c_insert(&keys::config::ASSIGNED_PROBES, &*PROBE_DATA).unwrap();
+            db.config_tree.c_insert(&keys::config::ASSIGNED_TARGETS, &*TARGET_DATA).unwrap();
 
             Arc::new(db)
         };

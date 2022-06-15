@@ -4,12 +4,13 @@ use std::path::Path;
 use std::process;
 use std::sync::Arc;
 
-use comm_types::auth::DbUser;
 use comm_types::hardware::{Architecture, TargetState};
 use controller::common::hardware::{HardwareStatus, HiveHardware, TargetStackShield};
+use hive_db::{CborDb, CborTransactional};
 use probe_rs::config;
+use sled::transaction::UnabortableTransactionError;
 
-use crate::database::{keys, CborDb, HiveDb};
+use crate::database::{keys, MonitorDb};
 use crate::testprogram::{TestProgram, TESTPROGRAM_PATH};
 use crate::{binaries, database};
 use crate::{EXPANDERS, HARDWARE, SHARED_I2C};
@@ -26,10 +27,10 @@ pub(crate) fn initialize_statics() {
 ///
 /// # Termination
 /// This function terminates the program by using [`process::exit`]. No values are dropped during exit. Therefore this function should be called as early as possible in the program flow before manipulating DB data.
-pub(crate) fn check_uninit(db: Arc<HiveDb>) {
+pub(crate) fn check_uninit(db: Arc<MonitorDb>) {
     let users = db
         .credentials_tree
-        .c_get::<Vec<DbUser>>(keys::credentials::USERS)
+        .c_get(&keys::credentials::USERS)
         .unwrap();
 
     if users.is_some() && !users.unwrap().is_empty() {
@@ -41,7 +42,7 @@ pub(crate) fn check_uninit(db: Arc<HiveDb>) {
 }
 
 /// Initializes the entire testrack hardware with the data contained in the DB
-pub(crate) fn init_hardware(db: Arc<HiveDb>, hardware: &mut HiveHardware) {
+pub(crate) fn init_hardware(db: Arc<MonitorDb>, hardware: &mut HiveHardware) {
     init_tss(db.clone());
     init_hardware_from_db_data(db.clone(), hardware);
     init_target_info_from_registry(hardware);
@@ -56,12 +57,12 @@ pub(crate) fn init_hardware(db: Arc<HiveDb>, hardware: &mut HiveHardware) {
 ///
 /// # Panics
 /// In case the default test program is not (or only partially) found on the disk. This might indicate a corrupted monitor install.
-pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
+pub(crate) fn init_testprograms(db: Arc<MonitorDb>) {
     log::debug!("Initializing testprograms");
-    match db
-        .config_tree
-        .c_get::<Vec<TestProgram>>(keys::config::TESTPROGRAMS)
-        .unwrap()
+
+    db.config_tree.transaction::<_, _, UnabortableTransactionError>(|tree|{
+        match tree
+        .c_get(&keys::config::TESTPROGRAMS)?
     {
         Some(mut programs) => {
             if programs.is_empty() {
@@ -83,16 +84,14 @@ pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
                     let _ = fs::remove_dir_all(&programs[idx].path);
 
                     programs.remove(idx);
-                    db.config_tree
-                        .c_insert(keys::config::TESTPROGRAMS, &programs)
-                        .unwrap();
+                    tree
+                        .c_insert(&keys::config::TESTPROGRAMS, &programs)?;
                 } else {
                     idx += 1;
                 }
             }
 
-            // Sync binaries after testprograms have been checked and cleaned
-            binaries::sync_binaries(db.clone());
+            Ok(())
         }
         None => {
             // As this might be the first run of the monitor the default testprogram has to be registered in the DB first
@@ -107,31 +106,29 @@ pub(crate) fn init_testprograms(db: Arc<HiveDb>) {
                     path: Path::new(&format!("{}{}", TESTPROGRAM_PATH, "default/")).to_path_buf(),
                 };
 
-                db.config_tree
-                    .c_insert(keys::config::ACTIVE_TESTPROGRAM, &default_testprogram)
-                    .unwrap();
+                tree.c_insert(&keys::config::ACTIVE_TESTPROGRAM, &default_testprogram)?;
 
                 testprograms.push(default_testprogram);
 
-                db.config_tree
-                    .c_insert(keys::config::TESTPROGRAMS, &testprograms)
-                    .unwrap();
-
-                // Sync binaries after testprograms have been checked and cleaned
-                binaries::sync_binaries(db.clone());
+                tree.c_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
             }
+            Ok(())
         }
     }
+    }).unwrap();
+
+    // Sync binaries from cleaned DB data
+    binaries::sync_binaries(db.clone());
 }
 
 /// Detect all connected TSS and update DB data
-fn init_tss(db: Arc<HiveDb>) {
+fn init_tss(db: Arc<MonitorDb>) {
     let detected = TargetStackShield::detect_connected_tss(SHARED_I2C.acquire_i2c());
 
     let detected = detected.map(|e| e.is_some());
 
     db.config_tree
-        .c_insert(keys::config::TSS, &detected)
+        .c_insert(&keys::config::TSS, &detected)
         .unwrap();
 }
 
@@ -139,9 +136,9 @@ fn init_tss(db: Arc<HiveDb>) {
 ///
 /// # Panics
 /// If the data in the DB has not been initialized.
-fn init_hardware_from_db_data(db: Arc<HiveDb>, hardware: &HiveHardware) {
-    let target_data = db.config_tree.c_get(keys::config::ASSIGNED_TARGETS).unwrap().expect("Failed to get the target data in the DB. This function can only be called once the target data has been initialized in the DB.");
-    let probe_data = db.config_tree.c_get(keys::config::ASSIGNED_PROBES).unwrap().expect("Failed to get the probe data in the DB. This function can only be called once the probe data has been initialized in the DB.");
+fn init_hardware_from_db_data(db: Arc<MonitorDb>, hardware: &HiveHardware) {
+    let target_data = db.config_tree.c_get(&keys::config::ASSIGNED_TARGETS).unwrap().expect("Failed to get the target data in the DB. This function can only be called once the target data has been initialized in the DB.");
+    let probe_data = db.config_tree.c_get(&keys::config::ASSIGNED_PROBES).unwrap().expect("Failed to get the probe data in the DB. This function can only be called once the probe data has been initialized in the DB.");
 
     // Ignore desync error as it is autoresolved by the function
     let _ = hardware.initialize_target_data(target_data);
@@ -174,10 +171,6 @@ fn init_target_info_from_registry(hardware: &HiveHardware) {
                         }
                     }
                 }
-
-                // Desync errors are ignored
-                /*todo!("Try to implement this without calling set_targets as it causes an unnecessary hardware check");
-                let _ = tss.set_targets(targets);*/
             }
         }
     }

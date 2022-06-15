@@ -20,7 +20,7 @@ mod testmanager;
 mod testprogram;
 mod webserver;
 
-use database::HiveDb;
+use database::MonitorDb;
 
 const LOGFILE_PATH: &str = "/mnt/hivetmp/monitor.log";
 const MAX_LOGFILE_SIZE: u64 = 50_000_000; // 50MB
@@ -69,7 +69,7 @@ fn main() {
         get_log_level(&cli_args.verbose.log_level()).to_level_filter(),
     );
 
-    let db = Arc::new(HiveDb::open());
+    let db = Arc::new(MonitorDb::open());
 
     let test_manager = testmanager::TestManager::new(db.clone());
 

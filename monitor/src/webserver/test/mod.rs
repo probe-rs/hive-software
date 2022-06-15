@@ -6,12 +6,12 @@ use axum::{Extension, Router};
 use tokio::sync::mpsc::Sender;
 use tower::ServiceBuilder;
 
-use crate::database::HiveDb;
+use crate::database::MonitorDb;
 use crate::testmanager::TestTask;
 
 mod handlers;
 
-pub(super) fn test_routes(db: Arc<HiveDb>, test_task_sender: Sender<TestTask>) -> Router {
+pub(super) fn test_routes(db: Arc<MonitorDb>, test_task_sender: Sender<TestTask>) -> Router {
     Router::new()
         .route("/capabilities", get(handlers::capabilities))
         .route("/run", post(handlers::test))
@@ -32,6 +32,7 @@ mod tests {
     use comm_types::hardware::{Capabilities, ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData};
     use comm_types::test::{TestOptions, TestResults, TestRunStatus};
+    use hive_db::CborDb;
     use hyper::Request as HyperRequest;
     use lazy_static::lazy_static;
     use multipart::client::multipart::{Body as MultipartBody, Form};
@@ -39,18 +40,18 @@ mod tests {
     use tokio::sync::mpsc::{Receiver, Sender};
     use tower::ServiceExt;
 
-    use crate::database::{keys, CborDb, HiveDb};
+    use crate::database::{keys, MonitorDb};
     use crate::testmanager::TestTask;
 
     use super::test_routes;
 
     lazy_static! {
         // We open a temporary test database and initialize it to the test values
-        static ref DB: Arc<HiveDb> = {
-            let db = HiveDb::open_test();
+        static ref DB: Arc<MonitorDb> = {
+            let db = MonitorDb::open_test();
 
-            db.config_tree.c_insert(keys::config::ASSIGNED_PROBES, &*PROBE_DATA).unwrap();
-            db.config_tree.c_insert(keys::config::ASSIGNED_TARGETS, &*TARGET_DATA).unwrap();
+            db.config_tree.c_insert(&keys::config::ASSIGNED_PROBES, &PROBE_DATA).unwrap();
+            db.config_tree.c_insert(&keys::config::ASSIGNED_TARGETS, &TARGET_DATA).unwrap();
 
             Arc::new(db)
         };

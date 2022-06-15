@@ -15,7 +15,7 @@ use rand_chacha::ChaChaRng;
 use thiserror::Error;
 use tower_cookies::Cookies;
 
-use crate::database::{hasher, HiveDb};
+use crate::database::{hasher, MonitorDb};
 
 use super::csrf;
 
@@ -58,7 +58,7 @@ impl IntoResponse for AuthError {
 /// # CSRF
 /// The expire time of the csrf cookie is set to [`csrf::COOKIE_TTL`]
 pub(super) async fn authenticate_user(
-    db: Arc<HiveDb>,
+    db: Arc<MonitorDb>,
     username: &str,
     password: &str,
     cookies: &Cookies,
@@ -190,6 +190,7 @@ mod tests {
     use comm_types::auth::Role;
     use cookie::time::Duration;
     use cookie::SameSite;
+    use hive_db::CborDb;
     use hyper::header;
     use hyper::Body;
     use hyper::Method;
@@ -204,7 +205,7 @@ mod tests {
     use tower_cookies::CookieManagerLayer;
     use tower_cookies::Cookies;
 
-    use crate::database::{keys, CborDb, HiveDb};
+    use crate::database::{keys, MonitorDb};
     use crate::webserver::csrf;
 
     use super::check_jwt;
@@ -218,10 +219,10 @@ mod tests {
 
     lazy_static! {
         // We open a temporary test database and initialize it to the test values
-        static ref DB: Arc<HiveDb> = {
-            let db = HiveDb::open_test();
+        static ref DB: Arc<MonitorDb> = {
+            let db = MonitorDb::open_test();
 
-            db.credentials_tree.c_insert(keys::credentials::USERS, &*DUMMY_USERS).unwrap();
+            db.credentials_tree.c_insert(&keys::credentials::USERS, &DUMMY_USERS).unwrap();
 
             Arc::new(db)
         };

@@ -3,7 +3,7 @@ use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
 
-use anyhow::{Error, Result};
+use anyhow::Result;
 use axum::body::Bytes;
 use cargo_toml::Manifest;
 use comm_types::test::{TestOptions, TestResults, TestRunError, TestRunStatus};
@@ -14,7 +14,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver, Sender as MpscSender};
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
-use crate::database::HiveDb;
+use crate::database::MonitorDb;
 use crate::{flash, init, HARDWARE, HARDWARE_DB_DATA_CHANGED, SHUTDOWN_SIGNAL};
 
 mod ipc;
@@ -53,7 +53,7 @@ pub(crate) struct TestManager {
     reinit_task_sender: MpscSender<ReinitializationTask>,
     reinit_task_receiver: MpscReceiver<ReinitializationTask>,
     test_result_receiver: Option<MpscReceiver<TestResults>>,
-    db: Arc<HiveDb>,
+    db: Arc<MonitorDb>,
 }
 
 /// A test task which can be sent to a [`TestManager`]
@@ -102,7 +102,7 @@ impl ReinitializationTask {
 
 impl TestManager {
     /// Create a new [`TestManager`]
-    pub fn new(db: Arc<HiveDb>) -> Self {
+    pub fn new(db: Arc<MonitorDb>) -> Self {
         let (test_task_sender, test_task_receiver) = mpsc::channel(TASK_CHANNEL_BUF_SIZE);
         let (reinit_task_sender, reinit_task_receiver) = mpsc::channel(1);
 
@@ -116,7 +116,7 @@ impl TestManager {
         }
     }
 
-    pub fn run(&mut self, db: Arc<HiveDb>, runtime: Arc<Runtime>) {
+    pub fn run(&mut self, db: Arc<MonitorDb>, runtime: Arc<Runtime>) {
         let mut shutdown_receiver = SHUTDOWN_SIGNAL.subscribe();
 
         let (test_result_sender, test_result_receiver) = mpsc::channel(1);
