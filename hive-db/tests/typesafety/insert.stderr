@@ -1,0 +1,8 @@
+error[E0308]: mismatched types
+  --> tests/typesafety/insert.rs:15:28
+   |
+15 |     tree.c_insert(&my_key, wrong_type).unwrap();
+   |                            ^^^^^^^^^^ expected `u8`, found `str`
+   |
+   = note: expected reference `&u8`
+              found reference `&str`

@@ -1,0 +1,9 @@
+error[E0308]: `?` operator has incompatible types
+  --> tests/typesafety/transaction_get.rs:14:38
+   |
+14 |         let previous: Option<bool> = tree.c_get(&my_key)?;
+   |                                      ^^^^^^^^^^^^^^^^^^^^ expected `bool`, found `u8`
+   |
+   = note: `?` operator cannot convert from `Option<u8>` to `Option<bool>`
+   = note: expected enum `Option<bool>`
+              found enum `Option<u8>`

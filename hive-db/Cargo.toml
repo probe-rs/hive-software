@@ -1,0 +1,18 @@
+[package]
+name = "hive-db"
+version = "0.1.0"
+edition = "2021"
+authors = ["TeyKey1"]
+repository = "https://github.com/probe-rs/hive-software"
+description = "The sled database used for Hive. This lib contains helper functions to create typed keys and implements automatic data (de)serialization from and to the database."
+readme = "README.md"
+
+[dependencies]
+ciborium = "0.2"
+sled = "0.34"
+serde = "1.0"
+
+[dev-dependencies]
+trybuild = "1.0"
+lazy_static = "1.4"
+serial_test = "0.7"
