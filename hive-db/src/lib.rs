@@ -47,7 +47,7 @@ impl HiveDb {
     ///
     /// # Panics
     /// If opening the DB fails, which is a fatal error that cannot be recovered and needs human intervention
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test"))]
     #[allow(dead_code)]
     pub fn open_test(flush_interval_ms: u64, cache_capacity_bytes: u64) -> Self {
         let db = Config::default()
@@ -88,7 +88,7 @@ mod tests {
 
     lazy_static! {
         static ref DB: HiveDb = HiveDb::open_test(100, 256);
-        static ref KEY: Key<'static, SerDeData> = Key::new("data".to_owned());
+        static ref KEY: Key<'static, SerDeData> = Key::new("data");
         static ref DATA: SerDeData = SerDeData {
             bool: false,
             number: 1873945,

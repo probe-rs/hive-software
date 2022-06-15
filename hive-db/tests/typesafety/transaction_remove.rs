@@ -8,7 +8,7 @@ fn main() {
 
     let tree = db.open_tree("tree");
 
-    let my_key: Key<u8> = Key::new("NiceNumber".to_owned());
+    let my_key: Key<u8> = Key::new("NiceNumber");
 
     tree.transaction(|tree| {
         let previous: Option<bool> = tree.c_remove(&my_key)?;

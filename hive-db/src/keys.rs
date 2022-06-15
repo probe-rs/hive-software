@@ -19,9 +19,9 @@ impl<'de, T> Key<'de, T>
 where
     T: Serialize + Deserialize<'de>,
 {
-    pub fn new(key: String) -> Self {
+    pub fn new(key: &str) -> Self {
         Self {
-            key,
+            key: key.to_owned(),
             phantom_data: PhantomData,
         }
     }

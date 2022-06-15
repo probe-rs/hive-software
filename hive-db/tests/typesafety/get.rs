@@ -8,7 +8,7 @@ fn main() {
 
     let tree = db.open_tree("tree");
 
-    let my_key: Key<u8> = Key::new("NiceNumber".to_owned());
+    let my_key: Key<u8> = Key::new("NiceNumber");
 
     let wrong_type: Option<u64> = tree.c_get(&my_key).unwrap();
 }
