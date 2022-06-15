@@ -1,5 +1,6 @@
 //! The graphql query
 use std::fs::File;
+use std::io::Error as IoError;
 use std::{path::Path, sync::Arc};
 
 use async_graphql::{Context, Object, Result as GrapqlResult};
@@ -101,18 +102,26 @@ impl BackendQuery {
 
     /// Search the supported targets by Hive
     async fn search_supported_targets(&self, search: String) -> Vec<String> {
-        // We limit the max amount of returned targets to 30 in order to not send monster responses which could hang the frontend
-        let mut chips = search_chips(search).unwrap();
-        chips.truncate(30);
-        chips
+        tokio::task::spawn_blocking(|| {
+            // We limit the max amount of returned targets to 30 in order to not send monster responses which could hang the frontend
+            let mut chips = search_chips(search).unwrap();
+            chips.truncate(30);
+            chips
+        })
+        .await
+        .unwrap()
     }
 
     /// The currently connected debug probes
     async fn connected_probes(&self) -> Vec<ProbeInfo> {
-        Probe::list_all()
-            .into_iter()
-            .map(|probe| probe.into())
-            .collect()
+        tokio::task::spawn_blocking(|| {
+            Probe::list_all()
+                .into_iter()
+                .map(|probe| probe.into())
+                .collect()
+        })
+        .await
+        .unwrap()
     }
 
     /// Return the log data of the provided application (either runner or monitor)
@@ -121,8 +130,6 @@ impl BackendQuery {
         application: Application,
         level: LogLevel,
     ) -> GrapqlResult<Vec<String>> {
-        todo!("replace File operations with async file operations");
-
         let filepath = match application {
             Application::Monitor => Path::new(crate::LOGFILE_PATH),
             Application::Runner => Path::new(RUNNER_LOGFILE_PATH),
@@ -132,17 +139,23 @@ impl BackendQuery {
             return Ok(vec![]);
         }
 
-        let logfile = File::open(filepath)?;
+        let log_entries = tokio::task::spawn_blocking::<_, Result<_, IoError>>(move || {
+            let logfile = File::open(filepath)?;
 
-        let mut log_entries = vec![];
+            let mut log_entries = vec![];
 
-        let mut entry_count = 0;
-        while let Ok(entry) = from_reader::<LogEntry, _>(&logfile) {
-            if entry.level <= <LogLevel as Into<Level>>::into(level) && entry_count < 100 {
-                log_entries.push(entry.message);
-                entry_count += 1;
+            let mut entry_count = 0;
+            while let Ok(entry) = from_reader::<LogEntry, _>(&logfile) {
+                if entry.level <= <LogLevel as Into<Level>>::into(level) && entry_count < 100 {
+                    log_entries.push(entry.message);
+                    entry_count += 1;
+                }
             }
-        }
+
+            Ok(log_entries)
+        })
+        .await
+        .unwrap()?;
 
         Ok(log_entries)
     }

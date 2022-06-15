@@ -63,7 +63,12 @@ pub(super) async fn authenticate_user(
     password: &str,
     cookies: &Cookies,
 ) -> Result<DbUser, ()> {
-    let user = hasher::check_password(db, username, password)?;
+    let username = username.to_string();
+    let password = password.to_string();
+    let user =
+        tokio::task::spawn_blocking(move || hasher::check_password(db, &username, &password))
+            .await
+            .unwrap()?;
 
     csrf::add_new_csrf_cookie(cookies).await;
 

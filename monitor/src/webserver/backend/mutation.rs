@@ -228,37 +228,57 @@ impl BackendMutation {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
         let claims = ctx.data::<JwtClaims>().unwrap();
 
-        hasher::check_password(db.clone(), &claims.username, &old_password)
-            .map_err(|_| anyhow!("Old password is incorrect"))?;
+        let blocking_claims = claims.clone();
+        let blocking_old_password = old_password.clone();
+        let blocking_db = db.clone();
 
-        db.credentials_tree
-            .transaction(|tree| {
-                let mut users: Vec<DbUser> = tree
-                    .c_get(&keys::credentials::USERS)?
-                    .expect("DB not initialized");
+        tokio::task::spawn_blocking(move || {
+            hasher::check_password(
+                blocking_db,
+                &blocking_claims.username,
+                &blocking_old_password,
+            )
+            .map_err(|_| anyhow!("Old password is incorrect"))
+        })
+        .await
+        .unwrap()?;
 
-                let user = users
-                    .iter_mut()
-                    .enumerate()
-                    .find(|(_, user)| user.username == claims.username);
+        let blocking_claims = claims.clone();
+        let blocking_new_password = new_password.clone();
+        let blocking_db = db.clone();
+        tokio::task::spawn_blocking(move || {
+            blocking_db
+                .credentials_tree
+                .transaction(|tree| {
+                    let mut users: Vec<DbUser> = tree
+                        .c_get(&keys::credentials::USERS)?
+                        .expect("DB not initialized");
 
-                if let Some((idx, _)) = user {
-                    // TODO: Find a way to only hash password once, even if the transaction closure is executed multiple times. Also do this in a blocking task to avoid blocking the async loop
-                    users[idx].hash = hasher::hash_password(&new_password);
+                    let user = users
+                        .iter_mut()
+                        .enumerate()
+                        .find(|(_, user)| user.username == blocking_claims.username);
 
-                    tree.c_insert(&keys::credentials::USERS, &users)?;
+                    if let Some((idx, _)) = user {
+                        // TODO: Find a way to only hash password once, even if the transaction closure is executed multiple times.
+                        users[idx].hash = hasher::hash_password(&blocking_new_password);
 
-                    Ok(true)
-                } else {
-                    abort(anyhow!("Failed to find user").into())
-                }
-            })
-            .map_err(|err| match err {
-                TransactionError::Abort(err) => err,
-                TransactionError::Storage(err) => {
-                    panic!("Failed to apply DB transaction to storage: {}", err)
-                }
-            })
+                        tree.c_insert(&keys::credentials::USERS, &users)?;
+
+                        Ok(true)
+                    } else {
+                        abort(anyhow!("Failed to find user").into())
+                    }
+                })
+                .map_err(|err| match err {
+                    TransactionError::Abort(err) => err,
+                    TransactionError::Storage(err) => {
+                        panic!("Failed to apply DB transaction to storage: {}", err)
+                    }
+                })
+        })
+        .await
+        .unwrap()
     }
 
     /// Log the currently authenticated user out by deleting the auth jwt cookie
