@@ -635,6 +635,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "common-multipart-rfc7578"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5baee326bc603965b0f26583e1ecd7c111c41b49bd92a344897476a352798869"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-util",
+ "http",
+ "mime",
+ "mime_guess",
+ "rand 0.8.5",
+ "thiserror",
+]
+
+[[package]]
 name = "console"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1398,6 +1414,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "hive-db"
+version = "0.1.0"
+dependencies = [
+ "ciborium",
+ "lazy_static",
+ "serde",
+ "serial_test",
+ "sled",
+ "trybuild",
+]
+
+[[package]]
 name = "hive-macro"
 version = "0.1.0"
 dependencies = [
@@ -1517,6 +1545,19 @@ dependencies = [
  "tower-service",
  "tracing",
  "want",
+]
+
+[[package]]
+name = "hyper-multipart-rfc7578"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0eb2cf73e96e9925f4bed948e763aa2901c2f1a3a5f713ee41917433ced6671"
+dependencies = [
+ "bytes",
+ "common-multipart-rfc7578",
+ "futures-core",
+ "http",
+ "hyper",
 ]
 
 [[package]]
@@ -1935,11 +1976,14 @@ dependencies = [
  "crossbeam-utils",
  "dialoguer",
  "futures",
+ "hive-db",
  "http-body",
  "hyper",
+ "hyper-multipart-rfc7578",
  "jsonwebtoken",
  "lazy_static",
  "log",
+ "mime",
  "probe-rs 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand_chacha 0.3.1",
  "ring",
@@ -2245,9 +2289,9 @@ dependencies = [
 
 [[package]]
 name = "pca9535"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88a1ea33bed83024d13e9acbb79a37668738a1013a3ba88bc79a08c946f6976c"
+checksum = "94254cf6c049df05a1d5db72d5631c75046f8e50cbfc1446b6e3e4783532a0a9"
 dependencies = [
  "embedded-hal 1.0.0-alpha.5",
 ]
@@ -3114,20 +3158,21 @@ dependencies = [
 
 [[package]]
 name = "serial_test"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5bcc41d18f7a1d50525d080fd3e953be87c4f9f1a974f3c21798ca00d54ec15"
+checksum = "d19dbfb999a147cedbfe82f042eb9555f5b0fa4ef95ee4570b74349103d9c9f4"
 dependencies = [
  "lazy_static",
- "parking_lot 0.11.2",
+ "log",
+ "parking_lot 0.12.0",
  "serial_test_derive",
 ]
 
 [[package]]
 name = "serial_test_derive"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2881bccd7d60fb32dfa3d7b3136385312f8ad75e2674aab2852867a09790cae8"
+checksum = "cb9e2050b2be1d681f8f1c1a528bcfe4e00afa2d8995f713974f5333288659f2"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",

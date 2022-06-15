@@ -1,10 +1,12 @@
 //! Hive webserver
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
+use axum::error_handling::HandleErrorLayer;
 use axum::extract::extractor_middleware;
 use axum::routing::{self, post};
-use axum::{middleware, Extension, Router};
+use axum::{middleware, BoxError, Extension, Router};
 use axum_server::tls_rustls::RustlsConfig;
 use hyper::StatusCode;
 use tokio::sync::mpsc::Sender;
@@ -25,6 +27,10 @@ mod test;
 const STATIC_FILES: &str = "data/webserver/static/";
 const PEM_CERT: &str = "data/webserver/cert/cert.pem";
 const PEM_KEY: &str = "data/webserver/cert/key.pem";
+
+const GLOBAL_RATE_LIMIT_REQUEST_AMOUNT: u64 = 20;
+const GLOBAL_RATE_LIMIT_DURATION_SECS: u64 = 1;
+const GLOBAL_REQUEST_BUFFER_SIZE: usize = 40;
 
 pub(crate) async fn web_server(
     db: Arc<MonitorDb>,
@@ -61,8 +67,6 @@ fn app(
                 .layer(Extension(backend::build_schema())),
         );
 
-    println!("{}", backend::build_schema().sdl());
-
     let auth_routes = Router::new()
         .route("/backend", post(handlers::graphql_backend_auth))
         .layer(
@@ -91,7 +95,16 @@ fn app(
     // Global layers
     .layer(
         ServiceBuilder::new()
+        .layer(HandleErrorLayer::new(handle_loadshed_error))
+        .layer(ServiceBuilder::new().load_shed().buffer(GLOBAL_REQUEST_BUFFER_SIZE).rate_limit(GLOBAL_RATE_LIMIT_REQUEST_AMOUNT, Duration::from_secs(GLOBAL_RATE_LIMIT_DURATION_SECS)).into_inner())
         .layer(CookieManagerLayer::new())
         .layer(middleware::from_fn(csrf::provide_csrf_token))
+    )
+}
+
+async fn handle_loadshed_error(err: BoxError) -> (StatusCode, String) {
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        format!("Too many requests: {}", err),
     )
 }

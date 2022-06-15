@@ -125,38 +125,61 @@ impl TestManager {
         // start IPC server used for communication with the runner
         runtime.spawn(ipc::ipc_server(db, test_result_sender));
 
+        enum TaskType {
+            TestTask(TestTask),
+            ReinitTask(ReinitializationTask),
+            Shutdown,
+        }
+
         loop {
             let task;
 
             // Poll task receiver and shutdown receiver
             loop {
-                if let Ok(received_task) = self.reinit_task_receiver.try_recv() {
-                    let mut hardware = HARDWARE.lock().unwrap();
+                let task_type = runtime.block_on(async {
+                    tokio::select! {
+                        received = self.reinit_task_receiver.recv() => {
+                            match received {
+                                Some(reinit_task) => TaskType::ReinitTask(reinit_task),
+                                None => panic!("Reinitialization task sender has been dropped before the taskmanager was shut down"),
+                            }
+                        }
 
-                    // Check if a reinitialization is required due to changes to the hardware data in the DB, otherwise skip
-                    let mut data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
-                    if *data_changed {
-                        self.reinitialize_hardware(&mut hardware);
-                        *data_changed = false;
+                        received = self.test_task_receiver.recv() => {
+                            match received {
+                                Some(received_task) => TaskType::TestTask(received_task),
+                                None => panic!("Test task sender has been dropped before the taskmanager was shut down"),
+                            }
+                        }
+
+                        received = shutdown_receiver.recv() => {
+                            match received {
+                                Ok(_) => TaskType::Shutdown,
+                                Err(_) => panic!("Shutdown sender has been dropped before the taskmanager was shut down"),
+                            }
+                        }
                     }
-                    drop(data_changed);
+                });
 
-                    received_task.task_complete_sender.send(()).expect("Failed to send reint task complete to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the reinitialization.")
-                }
+                match task_type {
+                    TaskType::TestTask(test_task) => {
+                        task = test_task;
+                        break;
+                    }
+                    TaskType::ReinitTask(reinit_task) => {
+                        let mut hardware = HARDWARE.lock().unwrap();
 
-                if let Ok(received_task) = self.test_task_receiver.try_recv() {
-                    // Save task and break out of the polling loop to complete the task
-                    task = received_task;
-                    break;
-                }
+                        // Check if a reinitialization is required due to changes to the hardware data in the DB, otherwise skip
+                        let mut data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
+                        if *data_changed {
+                            self.reinitialize_hardware(&mut hardware);
+                            *data_changed = false;
+                        }
+                        drop(data_changed);
 
-                match shutdown_receiver.try_recv() {
-                    // Exit inifnite loop function to allow the program to shutdown
-                    Ok(_) => return,
-                    Err(err) => match err {
-                        tokio::sync::broadcast::error::TryRecvError::Empty => (),
-                        _ => panic!("Failed to receive shutdown signal"),
-                    },
+                        reinit_task.task_complete_sender.send(()).expect("Failed to send reint task complete to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the reinitialization.")
+                    }
+                    TaskType::Shutdown => return,
                 }
             }
 
