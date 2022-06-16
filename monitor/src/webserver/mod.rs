@@ -12,7 +12,7 @@ use hyper::StatusCode;
 use tokio::sync::mpsc::Sender;
 use tower::ServiceBuilder;
 use tower_cookies::CookieManagerLayer;
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 
 use crate::database::MonitorDb;
 use crate::testmanager::{ReinitializationTask, TestTask};
@@ -77,28 +77,43 @@ fn app(
         );
 
     Router::new()
-    // Auth handlers
-    .nest("/auth", auth_routes)
-    // Graphql handlers
-    .nest("/graphql", graphql_routes)
-    // REST test request endpoint
-    .nest("/test", test::test_routes(db, test_task_sender))
-    // Static fileserver used to host the hive-backend-ui Vue app
-    .fallback(routing::get_service(ServeDir::new(STATIC_FILES)).handle_error(
-        |error: std::io::Error| async move {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to fetch static files, this is likely due to a bug in the software or wrong software setup: {}", error),
+        // Auth handlers
+        .nest("/auth", auth_routes)
+        // Graphql handlers
+        .nest("/graphql", graphql_routes)
+        // REST test request endpoint
+        .nest("/test", test::test_routes(db, test_task_sender))
+        // Static fileserver used to host the hive-backend-ui Vue app
+        .fallback(
+            routing::get_service(
+                ServeDir::new(STATIC_FILES)
+                    .fallback(ServeFile::new(format!("{}index.html", STATIC_FILES))),
             )
-        },
-    ))
-    // Global layers
-    .layer(
-        ServiceBuilder::new()
-        .layer(HandleErrorLayer::new(handle_loadshed_error))
-        .layer(ServiceBuilder::new().load_shed().buffer(GLOBAL_REQUEST_BUFFER_SIZE).rate_limit(GLOBAL_RATE_LIMIT_REQUEST_AMOUNT, Duration::from_secs(GLOBAL_RATE_LIMIT_DURATION_SECS)).into_inner())
-        .layer(CookieManagerLayer::new())
-        .layer(middleware::from_fn(csrf::provide_csrf_token))
+            .handle_error(handle_serve_dir_error),
+        )
+        // Global layers
+        .layer(
+            ServiceBuilder::new()
+                .layer(HandleErrorLayer::new(handle_loadshed_error))
+                .layer(
+                    ServiceBuilder::new()
+                        .load_shed()
+                        .buffer(GLOBAL_REQUEST_BUFFER_SIZE)
+                        .rate_limit(
+                            GLOBAL_RATE_LIMIT_REQUEST_AMOUNT,
+                            Duration::from_secs(GLOBAL_RATE_LIMIT_DURATION_SECS),
+                        )
+                        .into_inner(),
+                )
+                .layer(CookieManagerLayer::new())
+                .layer(middleware::from_fn(csrf::provide_csrf_token)),
+        )
+}
+
+async fn handle_serve_dir_error(error: std::io::Error) -> (StatusCode, String) {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("Failed to fetch static files, this is likely due to a bug in the software or wrong software setup: {}", error),
     )
 }
 

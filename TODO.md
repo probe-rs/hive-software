@@ -24,3 +24,4 @@
 ## Hive Backend UI
 - [X] Current appollo retrylink is useless as it does not call fetch function to change headers. Write own retry function which tries to append csrf header on each retry
 - [ ] Enhance log view, currently it is pretty basic and only shows the 100 latest entries it does not allow any kind of cursor which would make it possible to lazy load log entries
+- [X] The backend UI is only shown on the default route / any other route returns a 404 (for example /testprograms) Figure out a way to make the vue router compatible with axum webserver to avoid such situations in the backend
