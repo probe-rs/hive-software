@@ -9,6 +9,8 @@
 CONFIG=/boot/config.txt
 FSTAB=/etc/fstab
 JOURNAL=/etc/systemd/journald.conf
+HIVE_LOGS=./data/logs
+HIVE_WORKSPACE=./data/workspace
 
 ####################################################################
 ##                           Functions                            ##
@@ -53,11 +55,18 @@ configure_os() {
 
 configure_storage() {
     # Create tempfs for runner and monitor logs
-    mkdir "/mnt/hivetmp"
+    mkdir -p $HIVE_LOGS
+    abs_path=$(readlink -f $HIVE_LOGS)
     sed -i -e '$a# ==============Hive Configuration==============' $FSTAB
-    sed -i -e '$atmpfs			\/mnt\/hivetmp	tmpfs   nodev,user,noexec,noatime,rw,size=100M   0 0' $FSTAB
+    sed -i -e "\$atmpfs $abs_path tmpfs nodev,user,noexec,noatime,rw,size=100M 0 0" $FSTAB
+    printf "\tCreated $abs_path tempfs to store Hive logs\n"
+
+    # Create tempfs for building the runner
+    mkdir -p $HIVE_WORKSPACE
+    abs_path=$(readlink -f $HIVE_WORKSPACE)
+    sed -i -e "\$atmpfs $abs_path tmpfs nodev,user,noexec,noatime,rw,size=600M 0 0" $FSTAB
     sed -i -e '$a# ==============End of Hive Configuration==============' $FSTAB
-    printf "\tCreated /mnt/hivetmp tempfs to store Hive logs\n"
+    printf "\tCreated $abs_path tempfs to use as workspace for building the runner\n"
 }
 
 configure_user() {
