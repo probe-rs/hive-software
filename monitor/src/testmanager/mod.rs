@@ -1,14 +1,11 @@
 //! Handles the running of tests and starts/stops the runner and communicates with it
-use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
 
 use anyhow::Result;
 use axum::body::Bytes;
-use cargo_toml::Manifest;
 use comm_types::test::{TestOptions, TestResults, TestRunError, TestRunStatus};
 use controller::common::hardware::HiveHardware;
-use tar::Archive;
 use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver, Sender as MpscSender};
@@ -18,12 +15,10 @@ use crate::database::MonitorDb;
 use crate::{flash, init, HARDWARE, HARDWARE_DB_DATA_CHANGED, SHUTDOWN_SIGNAL};
 
 mod ipc;
+mod workspace;
 
 /// The maximum amount of tasks which are allowed in the test task queue.
 const TASK_CHANNEL_BUF_SIZE: usize = 10;
-/// Path to the Hive workspace where the provided project is unpacked and built
-const WORKSPACE_PATH: &str = "./workspace";
-const RUNNER_BINARY_PATH: &str = "./workspace/bin";
 
 #[derive(Debug, Error)]
 pub(crate) enum TestManagerError {
@@ -33,17 +28,6 @@ pub(crate) enum TestManagerError {
     RunnerError(String),
     #[error("Failed to build the provided project.\n\n Cargo output: \n{0}")]
     BuildError(String),
-}
-
-/// Errors which happen if the provided cargofile for testing is invalid
-#[derive(Debug, Error)]
-enum CargofileError {
-    #[error("No cargofile found in root folder")]
-    NoCargoFile,
-    #[error("Crate probe-rs and its required dependencies not found in provided project")]
-    WrongProject,
-    #[error("Cargofile in root is not a workspace")]
-    NoWorkspace,
 }
 
 /// The testmanager of the monitor accepts external test tasks and returns the test results to the requesting party
@@ -177,7 +161,7 @@ impl TestManager {
                         }
                         drop(data_changed);
 
-                        reinit_task.task_complete_sender.send(()).expect("Failed to send reint task complete to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the reinitialization.")
+                        reinit_task.task_complete_sender.send(()).expect("Failed to send reinit task complete to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the reinitialization.")
                     }
                     TaskType::Shutdown => return,
                 }
@@ -197,6 +181,8 @@ impl TestManager {
                     });
 
             task.result_sender.send(test_results).expect("Failed to send test results to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the test run.");
+
+            workspace::restore_workspace();
 
             self.reinitialize_hardware(&mut hardware);
         }
@@ -234,9 +220,9 @@ impl TestManager {
 
     /// Prepare the test environment, run the tests and return the received result
     fn run_test(&mut self, hardware: &mut HiveHardware, task: &TestTask) -> Result<TestResults> {
-        Self::prepare_workspace(&task.probe_rs_project)?;
+        workspace::prepare_workspace(&task.probe_rs_project)?;
 
-        Self::build_runner()?;
+        workspace::build_runner()?;
 
         // Check if a reinitialization is required due to changes to the hardware data in the DB
         let mut data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
@@ -256,7 +242,7 @@ impl TestManager {
         // TODO later this should start up the vm and run the runner there
 
         // Start runner and execute tests
-        let runner_output = Command::new(format!("{}/runner", RUNNER_BINARY_PATH))
+        let runner_output = Command::new(format!("{}/runner", workspace::RUNNER_BINARY_PATH))
             .output()
             .expect(
                 "Failed to run the runner. Is the runner command accessible to the application?",
@@ -278,68 +264,5 @@ impl TestManager {
                 }
             },
         }
-    }
-
-    /// Unpack the provided probe-rs tarball into the workspace and check if it is a valid probe-rs project
-    ///
-    /// # Panics
-    /// If the [`WORKSPACE_PATH`] does not exist. This means that the environment in which the monitor runs in has not been configured properly
-    fn prepare_workspace(probe_rs_project: &Bytes) -> Result<()> {
-        let workspace_path = Path::new(WORKSPACE_PATH);
-
-        if !workspace_path.exists() {
-            panic!("Could not find path {}. This is likely a configuration issue. Please make sure that the Hive workspace containing the sourcefiles is located at this path", WORKSPACE_PATH)
-        }
-
-        let project_path = workspace_path.join("probe-rs-testcandidate");
-
-        let mut tarball = Archive::new(probe_rs_project.as_ref());
-
-        tarball.unpack(&project_path)?;
-
-        let cargofile_path = project_path.join("probe-rs/Cargo.toml");
-
-        if !cargofile_path.exists() {
-            return Err(CargofileError::NoCargoFile.into());
-        }
-
-        let manifest = Manifest::from_path(cargofile_path)?;
-
-        if let Some(workspace) = manifest.workspace {
-            if !workspace.members.contains(&"probe-rs".to_owned()) {
-                return Err(CargofileError::WrongProject.into());
-            }
-        } else {
-            return Err(CargofileError::NoWorkspace.into());
-        }
-
-        Ok(())
-    }
-
-    /// Builds the runner binary with the provided probe-rs test dependency using Cargo
-    ///
-    /// # Panics
-    /// If the [`RUNNER_BINARY_PATH`] does not exist. This means that the environment in which the monitor runs in has not been configured properly
-    fn build_runner() -> Result<()> {
-        if !Path::new(RUNNER_BINARY_PATH).exists() {
-            panic!("Could not find path {}. This is likely a configuration issue. Please make sure that the ramdisk for storing the binary is correctly mounted at the requested path.", RUNNER_BINARY_PATH);
-        }
-
-        let build_output = Command::new("cargo")
-            .args(["build", "-p", "runner", "--target-dir", RUNNER_BINARY_PATH])
-            .output()
-            .expect(
-                "Failed to run cargo build. Is Cargo installed and accessible to the application?",
-            );
-
-        if !build_output.status.success() {
-            return Err(TestManagerError::BuildError(
-                String::from_utf8(build_output.stdout)
-                    .unwrap_or_else(|_| "Could not parse cargo build output to utf8".to_owned()),
-            )
-            .into());
-        }
-
-        Ok(())
     }
 }
