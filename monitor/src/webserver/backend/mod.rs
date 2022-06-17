@@ -183,6 +183,7 @@ mod tests {
         use async_graphql::{from_value, value, Request};
         use comm_types::hardware::{TargetInfo, TargetState};
         use serde::Deserialize;
+        use serial_test::serial;
 
         use crate::webserver::backend::build_schema;
         use crate::webserver::backend::model::{FlatProbeState, State};
@@ -228,6 +229,7 @@ mod tests {
         }
 
         #[tokio::test]
+        #[serial]
         async fn connected_daughterboards() {
             let schema = super::super::build_schema();
 
@@ -251,6 +253,7 @@ mod tests {
         }
 
         #[tokio::test]
+        #[serial]
         async fn connected_tss() {
             let schema = build_schema();
 
@@ -274,6 +277,7 @@ mod tests {
         }
 
         #[tokio::test]
+        #[serial]
         async fn assigned_targets() {
             let schema = build_schema();
 
@@ -324,6 +328,7 @@ mod tests {
         }
 
         #[tokio::test]
+        #[serial]
         async fn assigned_probes() {
             let schema = build_schema();
 
@@ -778,6 +783,360 @@ mod tests {
                     .unwrap(),
                 expected_db_users
             );
+
+            super::restore_db();
+        }
+
+        #[tokio::test]
+        async fn create_user_no_permission() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                createUser(username: "RandomDude", password: "Randomness", role: "ADMIN") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Dummy".to_owned(),
+                role: Role::MAINTAINER,
+            };
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(result.errors[0].message, "Insufficient permission");
+        }
+
+        #[tokio::test]
+        async fn create_user_invalid_username() {
+            let schema = build_schema();
+
+            // Username too short
+            let query = r#"mutation{
+                createUser(username: "Ran", password: "Randomness", role: "ADMIN") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Dummy".to_owned(),
+                role: Role::ADMIN,
+            };
+
+            let result = schema
+                .execute(
+                    Request::new(query)
+                        .data(DB.clone())
+                        .data(jwt_claims.clone()),
+                )
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(result.errors[0].message, "Failed to parse \"String\": the chars length is 3, must be greater than or equal to 4");
+
+            // Username contains whitespace
+            let query = r#"mutation{
+                createUser(username: "Ran dom" , password: "Randomness", role: "ADMIN") {
+                    username
+                    role
+                }
+            }"#;
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(
+                result.errors[0].message,
+                "Whitespaces are not allowed in the username"
+            );
+        }
+
+        #[tokio::test]
+        async fn create_user_invalid_password() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                createUser(username: "Random", password: "Rand", role: "ADMIN") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Dummy".to_owned(),
+                role: Role::ADMIN,
+            };
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(result.errors[0].message, "Failed to parse \"String\": the chars length is 4, must be greater than or equal to 6");
+        }
+
+        #[tokio::test]
+        #[serial]
+        async fn create_user() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                createUser(username: "Random", password: "Random", role: "MAINTAINER") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Scrat".to_owned(),
+                role: Role::ADMIN,
+            };
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await
+                .into_result()
+                .unwrap();
+
+            assert_eq!(
+                result.data,
+                value!({
+                    "createUser": {
+                        "username": "Random",
+                        "role": "MAINTAINER",
+                    }
+                })
+            );
+
+            let mut expected_db_users = DUMMY_USERS.clone();
+            expected_db_users.push(DbUser {
+                username: "Random".to_owned(),
+                hash: "dummy".to_owned(),
+                role: Role::MAINTAINER,
+            });
+
+            let actual_db_users = DB
+                .clone()
+                .credentials_tree
+                .c_get(&keys::credentials::USERS)
+                .unwrap()
+                .unwrap();
+
+            assert_eq!(expected_db_users.len(), actual_db_users.len());
+
+            for expected in expected_db_users.iter() {
+                if !actual_db_users
+                    .iter()
+                    .any(|user| user.username == expected.username && user.role == expected.role)
+                {
+                    panic!(
+                        "Users in DB do not match expected users:\nExpected: {:#?}\nActual: {:#?}",
+                        expected_db_users, actual_db_users,
+                    )
+                }
+            }
+
+            super::restore_db();
+        }
+
+        #[tokio::test]
+        async fn delete_user_no_permission() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                deleteUser(username: "Scrat") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Dummy".to_owned(),
+                role: Role::MAINTAINER,
+            };
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(result.errors[0].message, "Insufficient permission");
+        }
+
+        #[tokio::test]
+        async fn delete_user_invalid_username() {
+            let schema = build_schema();
+
+            // Username too short
+            let query = r#"mutation{
+                deleteUser(username: "Ran") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Dummy".to_owned(),
+                role: Role::ADMIN,
+            };
+
+            let result = schema
+                .execute(
+                    Request::new(query)
+                        .data(DB.clone())
+                        .data(jwt_claims.clone()),
+                )
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(result.errors[0].message, "Failed to parse \"String\": the chars length is 3, must be greater than or equal to 4");
+
+            // Username contains whitespace
+            let query = r#"mutation{
+                deleteUser(username: "Ran dom") {
+                    username
+                    role
+                }
+            }"#;
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(
+                result.errors[0].message,
+                "Whitespaces are not allowed in the username"
+            );
+        }
+
+        #[tokio::test]
+        async fn delete_user_not_existing() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                deleteUser(username: "BlackVoid") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Dummy".to_owned(),
+                role: Role::ADMIN,
+            };
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(
+                result.errors[0].message,
+                "No user with the provided username found in DB."
+            );
+        }
+
+        #[tokio::test]
+        async fn delete_user_own_user() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                deleteUser(username: "Scrat") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Scrat".to_owned(),
+                role: Role::ADMIN,
+            };
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(result.errors[0].message, "Cannot delete own user");
+        }
+
+        #[tokio::test]
+        #[serial]
+        async fn delete_user() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                deleteUser(username: "Scrat") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Dummy".to_owned(),
+                role: Role::ADMIN,
+            };
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await
+                .into_result()
+                .unwrap();
+
+            assert_eq!(
+                result.data,
+                value!({
+                    "deleteUser": {
+                        "username": "Scrat",
+                        "role": "ADMIN",
+                    }
+                })
+            );
+
+            assert!(DB
+                .clone()
+                .credentials_tree
+                .c_get(&keys::credentials::USERS)
+                .unwrap()
+                .unwrap()
+                .is_empty());
+
+            super::restore_db();
         }
     }
 }

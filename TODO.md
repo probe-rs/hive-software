@@ -21,6 +21,9 @@
 - [X] Return data type on /test/run endpoint which can be either error or ok with testresults, the current implementation fails with a bad request status code in case an error occurred in the testmanager, which is not an actual http error but an application error.
 - [X] Current DB implementation is prone to race conditions as there is no guarantee that the previously read out value is not changed by another function before the previously read value is modified and written back to the DB
 
+## Runner
+- [ ] Add a proper shutdown procedure 
+
 ## Hive Backend UI
 - [X] Current appollo retrylink is useless as it does not call fetch function to change headers. Write own retry function which tries to append csrf header on each retry
 - [ ] Enhance log view, currently it is pretty basic and only shows the 100 latest entries it does not allow any kind of cursor which would make it possible to lazy load log entries

@@ -40,6 +40,13 @@ pub(crate) struct TestManager {
     db: Arc<MonitorDb>,
 }
 
+/// The possible task types the testmanager can handle
+enum TaskType {
+    TestTask(TestTask),
+    ReinitTask(ReinitializationTask),
+    Shutdown,
+}
+
 /// A test task which can be sent to a [`TestManager`]
 #[derive(Debug)]
 pub(crate) struct TestTask {
@@ -109,11 +116,8 @@ impl TestManager {
         // start IPC server used for communication with the runner
         runtime.spawn(ipc::ipc_server(db, test_result_sender));
 
-        enum TaskType {
-            TestTask(TestTask),
-            ReinitTask(ReinitializationTask),
-            Shutdown,
-        }
+        // restore workspace to its defaults (as it is located on a ramdisk)
+        workspace::restore_workspace();
 
         loop {
             let task;
@@ -181,8 +185,6 @@ impl TestManager {
                     });
 
             task.result_sender.send(test_results).expect("Failed to send test results to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the test run.");
-
-            workspace::restore_workspace();
 
             self.reinitialize_hardware(&mut hardware);
         }

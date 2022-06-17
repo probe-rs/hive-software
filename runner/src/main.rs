@@ -23,7 +23,7 @@ mod comm;
 mod hive_tests;
 mod test;
 
-const LOGFILE_PATH: &str = "/mnt/hivetmp/runner.log";
+const LOGFILE_PATH: &str = "./data/logs/runner.log";
 const MAX_LOGFILE_SIZE: u64 = 50_000_000; // 50MB
 
 lazy_static! {

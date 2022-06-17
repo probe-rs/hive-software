@@ -22,7 +22,7 @@ mod webserver;
 
 use database::MonitorDb;
 
-const LOGFILE_PATH: &str = "/mnt/hivetmp/monitor.log";
+const LOGFILE_PATH: &str = "./data/logs/monitor.log";
 const MAX_LOGFILE_SIZE: u64 = 50_000_000; // 50MB
 
 lazy_static! {

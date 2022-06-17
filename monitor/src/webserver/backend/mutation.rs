@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use async_graphql::{Context, Object, Result as GraphQlResult};
-use comm_types::auth::{DbUser, JwtClaims};
+use comm_types::auth::{DbUser, JwtClaims, Role};
 use comm_types::hardware::{ProbeInfo, ProbeState, TargetState};
 use hive_db::CborTransactional;
 use probe_rs::Probe;
@@ -279,6 +279,104 @@ impl BackendMutation {
         })
         .await
         .unwrap()
+    }
+
+    /// Create a new user
+    #[graphql(guard = "Role::ADMIN")]
+    async fn create_user<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+        #[graphql(validator(chars_min_length = 4))] username: String,
+        #[graphql(validator(chars_min_length = 6))] password: String,
+        role: Role,
+    ) -> GraphQlResult<UserResponse> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+
+        if username.contains(' ') {
+            return Err(anyhow!("Whitespaces are not allowed in the username").into());
+        }
+
+        let hash = tokio::task::spawn_blocking(move || hasher::hash_password(&password))
+            .await
+            .unwrap();
+
+        let new_user = DbUser {
+            username,
+            hash,
+            role,
+        };
+
+        db.credentials_tree
+            .transaction(|tree| {
+                let mut users = tree
+                    .c_get(&keys::credentials::USERS)?
+                    .expect("DB not initialized");
+
+                if users.iter().any(|user| user.username == new_user.username) {
+                    abort(anyhow!("User already exists"))?;
+                }
+
+                users.push(new_user.clone());
+
+                tree.c_insert(&keys::credentials::USERS, &users)?;
+
+                Ok(())
+            })
+            .map_err(|err| match err {
+                TransactionError::Abort(err) => err,
+                TransactionError::Storage(err) => {
+                    panic!("Failed to apply DB transaction to storage: {}", err)
+                }
+            })?;
+
+        Ok(new_user.into())
+    }
+
+    /// Delete a user
+    #[graphql(guard = "Role::ADMIN")]
+    async fn delete_user<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+        #[graphql(validator(chars_min_length = 4))] username: String,
+    ) -> GraphQlResult<UserResponse> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+        let claims = ctx.data::<JwtClaims>().unwrap();
+
+        if username.contains(' ') {
+            return Err(anyhow!("Whitespaces are not allowed in the username").into());
+        }
+
+        if username == claims.username {
+            return Err(anyhow!("Cannot delete own user").into());
+        }
+
+        let deleted_user = db
+            .credentials_tree
+            .transaction(|tree| {
+                let mut users = tree
+                    .c_get(&keys::credentials::USERS)?
+                    .expect("DB not initialized");
+
+                for idx in 0..users.len() {
+                    if username == users[idx].username {
+                        let deleted_user = users.remove(idx);
+
+                        tree.c_insert(&keys::credentials::USERS, &users)?;
+
+                        return Ok(deleted_user);
+                    }
+                }
+
+                abort(anyhow!("No user with the provided username found in DB."))
+            })
+            .map_err(|err| match err {
+                TransactionError::Abort(err) => err,
+                TransactionError::Storage(err) => {
+                    panic!("Failed to apply DB transaction to storage: {}", err)
+                }
+            })?;
+
+        Ok(deleted_user.into())
     }
 
     /// Log the currently authenticated user out by deleting the auth jwt cookie
