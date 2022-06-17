@@ -35,6 +35,13 @@ pub(crate) fn run_standalone_mode(db: Arc<MonitorDb>, mut test_manager: TestMana
     let reinit_task_sender = test_manager.get_reinit_task_sender();
     let async_tread = thread::spawn(move || {
         rt_async.block_on(async {
+            tokio::spawn(async {
+                tokio::signal::ctrl_c()
+                    .await
+                    .expect("Failed to receive shutdown event");
+                crate::shutdown_application();
+            });
+
             webserver::web_server(db_async, test_task_sender, reinit_task_sender).await;
         });
     });

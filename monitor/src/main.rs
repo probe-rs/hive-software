@@ -95,4 +95,6 @@ fn shutdown_application() {
     SHUTDOWN_SIGNAL
         .send(())
         .expect("No receivers available to send the shutdown signal to.");
+
+    println!("Shutting down application...");
 }
