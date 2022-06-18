@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import {
+  type BackendMutation,
+  type BackendMutationAssignProbeArgs,
+  type BackendQuery,
+  State,
+  type FlatProbeState,
+  type ProbeInfo,
+} from "@/gql/backend";
+
 import { cloneDeep } from "@apollo/client/utilities";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import gql from "graphql-tag";
 import { computed, ref, type PropType } from "vue";
-
-type ProbeData = { identifier: string; serialNumber: string | null };
-type AssignedProbeData = {
-  state: string;
-  data: { identifier: string; serialNumber: string | null } | null;
-};
 
 const props = defineProps({
   channel: {
@@ -16,14 +19,14 @@ const props = defineProps({
     required: true,
   },
   initialData: {
-    type: Object as PropType<AssignedProbeData>,
+    type: Object as PropType<FlatProbeState>,
     required: true,
   },
 });
 
 const selectedProbe = ref(displayAssignedProbe(props.initialData));
 
-const { loading, result } = useQuery(gql`
+const { loading, result } = useQuery<BackendQuery>(gql`
   query {
     assignedProbes {
       state
@@ -39,7 +42,10 @@ const { loading, result } = useQuery(gql`
   }
 `);
 
-const { mutate: submitProbe } = useMutation(
+const { mutate: submitProbe } = useMutation<
+  BackendMutation,
+  BackendMutationAssignProbeArgs
+>(
   gql`
     mutation ($probePos: Int!, $probeState: FlatProbeStateInput!) {
       assignProbe(probePos: $probePos, probeState: $probeState) {
@@ -55,7 +61,13 @@ const { mutate: submitProbe } = useMutation(
     }
   `,
   {
-    update: (cache, { data: { assignProbe } }) => {
+    update: (cache, { data }) => {
+      if (!data) {
+        return;
+      }
+
+      const assignProbe = data.assignProbe;
+
       const QUERY = gql`
         query {
           assignedProbes {
@@ -67,20 +79,25 @@ const { mutate: submitProbe } = useMutation(
           }
         }
       `;
-      let data: any = cache.readQuery({
+
+      let cacheData: BackendQuery | null = cache.readQuery({
         query: QUERY,
       });
 
-      const newAssignedProbes = cloneDeep(data.assignedProbes);
+      if (!cacheData) {
+        return;
+      }
+
+      const newAssignedProbes = cloneDeep(cacheData.assignedProbes);
 
       newAssignedProbes[assignProbe.probePos] = assignProbe.data;
 
-      data = {
-        ...data,
+      cacheData = {
+        ...cacheData,
         assignedProbes: newAssignedProbes,
       };
 
-      cache.writeQuery({ query: QUERY, data });
+      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
     },
   },
 );
@@ -101,16 +118,16 @@ const connectedProbes = computed(() => {
 
 const availableProbes = computed(() => {
   const available = connectedProbes.value.filter(
-    (connectedProbe: ProbeData) => {
+    (connectedProbe: ProbeInfo) => {
       for (let i = 0; i < assignedProbes.value.length; i++) {
-        if (assignedProbes.value[i].state !== "KNOWN") {
+        if (assignedProbes.value[i].state !== State.Known) {
           continue;
         }
 
         if (
-          assignedProbes.value[i].data.identifier ===
+          assignedProbes.value[i].data!.identifier ===
             connectedProbe.identifier &&
-          assignedProbes.value[i].data.serialNumber ===
+          assignedProbes.value[i].data!.serialNumber ===
             connectedProbe.serialNumber
         ) {
           return false;
@@ -120,7 +137,7 @@ const availableProbes = computed(() => {
     },
   );
 
-  const displayAvailable = available.map((availableProbe: ProbeData) => {
+  const displayAvailable = available.map((availableProbe: ProbeInfo) => {
     return displayProbe(availableProbe);
   });
 
@@ -129,45 +146,44 @@ const availableProbes = computed(() => {
   return displayAvailable;
 });
 
-function displayAssignedProbe(probe: AssignedProbeData): string {
+function displayAssignedProbe(probe: FlatProbeState): string {
   switch (probe.state) {
-    case "KNOWN":
+    case State.Known:
       return `${probe.data!.identifier} (S/N: ${
         probe.data!.serialNumber ? probe.data!.serialNumber : "unknown"
       })`;
-    case "UNKNOWN":
+    case State.Unknown:
       return "Unknown";
-    case "NOT_CONNECTED":
+    case State.NotConnected:
       return "Not Connected";
     default:
       return `Received unknown state: ${probe.state}`;
   }
 }
 
-function displayProbe(probe: ProbeData): string {
+function displayProbe(probe: ProbeInfo): string {
   return `${probe.identifier} (S/N: ${
     probe.serialNumber ? probe.serialNumber : "unknown"
   })`;
 }
 
 function submit(probeName: string) {
-  console.log("submitting probe: " + probeName);
   let probeState;
 
   switch (probeName) {
-    case "Unknown":
+    case State.Unknown:
       probeState = {
-        state: "UNKNOWN",
+        state: State.Unknown,
         data: null,
       };
       break;
-    case "Not Connected":
+    case State.NotConnected:
       probeState = {
-        state: "NOT_CONNECTED",
+        state: State.NotConnected,
         data: null,
       };
       break;
-    default:
+    default: {
       const findIdentifierRegex = /.+?(?= \(S\/N:)/;
       const findSerialNumberRegex = /\(S\/N: (.*?)\)/;
 
@@ -175,7 +191,7 @@ function submit(probeName: string) {
       const serialNumberMatches = probeName.match(findSerialNumberRegex);
 
       probeState = {
-        state: "KNOWN",
+        state: State.Known,
         data: {
           identifier: identifierMatches![0],
           serialNumber:
@@ -185,6 +201,7 @@ function submit(probeName: string) {
         },
       };
       break;
+    }
   }
 
   submitProbe({ probePos: props.channel, probeState: probeState });

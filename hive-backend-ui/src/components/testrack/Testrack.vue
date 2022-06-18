@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { ref, onBeforeMount, onUnmounted, onMounted, watch } from "vue";
-import konva from "konva";
-import {
-  computed,
-  reactive,
-  type ComputedRef,
-  type Ref,
-} from "@vue/reactivity";
+import type { BackendQuery, FlatTargetState } from "@/gql/backend";
+import type { Maybe } from "@/gql/baseTypes";
+
+import { ref, onBeforeMount, onUnmounted, onMounted } from "vue";
+import { computed } from "@vue/reactivity";
 import RackPartComponent from "./RackPart.vue";
 import {
   paddingHorizontal,
@@ -15,10 +12,8 @@ import {
   referenceStageWidth,
   stageAspectRatio,
 } from "./constants";
-import { storeToRefs } from "pinia";
 import { useQuery } from "@vue/apollo-composable";
 import gql from "graphql-tag";
-import { resultKeyNameFromField } from "@apollo/client/utilities";
 
 enum PartType {
   RPI,
@@ -59,7 +54,7 @@ const konvaStage = ref(null);
 const stage = ref(null);
 
 // Server data
-const { result } = useQuery(gql`
+const { result } = useQuery<BackendQuery>(gql`
   query {
     connectedTss
     assignedTargets {
@@ -89,40 +84,39 @@ onBeforeMount(() => {
   const hiveRpi = new window.Image();
   hiveRpi.src = "./rack/hive_rpi.png";
   hiveRpi.onload = () => {
-    (hiveRpiImage! as any).value = hiveRpi;
+    hiveRpiImage.value = hiveRpi;
   };
 
   const hivePSS = new window.Image();
   hivePSS.src = "./rack/hive_probe_stack_shield.png";
   hivePSS.onload = () => {
-    (hiveProbeStackShieldImage! as any).value = hivePSS;
+    hiveProbeStackShieldImage.value = hivePSS;
   };
 
   const hiveTSS = new window.Image();
   hiveTSS.src = "./rack/hive_target_stack_shield.png";
   hiveTSS.onload = () => {
-    (hiveTargetStackShieldImage! as any).value = hiveTSS;
+    hiveTargetStackShieldImage.value = hiveTSS;
   };
 
   const hiveTSSwSpacer = new window.Image();
   hiveTSSwSpacer.src = "./rack/hive_target_stack_shield_wSpacer.png";
   hiveTSSwSpacer.onload = () => {
-    (hiveTargetStackShieldImageSpacer! as any).value = hiveTSSwSpacer;
+    hiveTargetStackShieldImageSpacer.value = hiveTSSwSpacer;
   };
 
   const hiveTSSwDaughterboard = new window.Image();
   hiveTSSwDaughterboard.src =
     "./rack/hive_target_stack_shield_wDaughterboard.png";
   hiveTSSwDaughterboard.onload = () => {
-    (hiveTargetStackShieldImageDaughterboard! as any).value =
-      hiveTSSwDaughterboard;
+    hiveTargetStackShieldImageDaughterboard.value = hiveTSSwDaughterboard;
   };
 
   const hiveTSSwDaughterboardSpacer = new window.Image();
   hiveTSSwDaughterboardSpacer.src =
     "./rack/hive_target_stack_shield_wDaughterboard_wSpacer.png";
   hiveTSSwDaughterboardSpacer.onload = () => {
-    (hiveTargetStackShieldImageDaughterboardSpacer! as any).value =
+    hiveTargetStackShieldImageDaughterboardSpacer.value =
       hiveTSSwDaughterboardSpacer;
   };
 });
@@ -147,22 +141,19 @@ onUnmounted(() => {
   window.removeEventListener("resize", updateStageSize);
 });
 
-function tssConfig(
-  idx: number,
-  data: null | { state: string; data: { name: string } },
-) {
+function tssConfig(idx: number, daugtherboard: Maybe<Array<FlatTargetState>>) {
   var img = undefined;
   var yVal = rackYpos - 71;
 
   if (idx == showTssIndexes.value.length - 1) {
-    if (data) {
+    if (daugtherboard) {
       img = hiveTargetStackShieldImageDaughterboard.value;
       yVal = rackYpos - 141;
     } else {
       img = hiveTargetStackShieldImage.value;
     }
   } else {
-    if (data) {
+    if (daugtherboard) {
       img = hiveTargetStackShieldImageDaughterboardSpacer.value;
       yVal = rackYpos - 141;
     } else {

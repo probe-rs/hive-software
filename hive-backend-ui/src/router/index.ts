@@ -4,6 +4,7 @@ import Testprograms from "@/views/Testprograms.vue";
 import NotFound from "@/views/NotFound.vue";
 import Login from "@/views/Login.vue";
 import Logs from "@/views/Logs.vue";
+import Users from "@/views/Users.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -27,6 +28,18 @@ const router = createRouter({
       path: "/logs",
       name: "logs",
       component: Logs,
+    },
+    {
+      path: "/users",
+      name: "users",
+      component: Users,
+      beforeEnter: () => {
+        /*const store = useUserStore();
+        if (store.role !== "ADMIN") {
+          return false
+        }*/
+        return true;
+      },
     },
     { path: "/:pathMatch(.*)*", component: NotFound, name: "notFound" },
   ],

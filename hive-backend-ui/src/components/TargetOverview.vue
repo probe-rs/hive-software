@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { ref, defineProps, watch } from "vue";
+import {
+  State,
+  type BackendMutation,
+  type BackendMutationAssignTargetArgs,
+  type BackendQuery,
+  type FlatTargetState,
+} from "@/gql/backend";
+
+import { ref, defineProps, watch, type PropType } from "vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import { gql } from "@apollo/client/core";
 import { computed } from "@vue/reactivity";
@@ -16,7 +24,7 @@ const props = defineProps({
     required: true,
   },
   initialData: {
-    type: Object,
+    type: Object as PropType<FlatTargetState>,
     required: true,
   },
 });
@@ -24,16 +32,20 @@ const props = defineProps({
 const search = ref("");
 const selectedChip = ref(getInitialSelectedChip());
 
-const { result: searchResults, loading: searchLoading } = useQuery(
-  gql`
-    query ($search: String) {
-      searchSupportedTargets(search: $search)
-    }
-  `,
-  { search },
-);
+const { result: searchResults, loading: searchLoading } =
+  useQuery<BackendQuery>(
+    gql`
+      query ($search: String) {
+        searchSupportedTargets(search: $search)
+      }
+    `,
+    { search },
+  );
 
-const { mutate: submitTarget } = useMutation(
+const { mutate: submitTarget } = useMutation<
+  BackendMutation,
+  BackendMutationAssignTargetArgs
+>(
   gql`
     mutation ($tssPos: Int!, $targetPos: Int!, $targetName: String!) {
       assignTarget(
@@ -48,7 +60,13 @@ const { mutate: submitTarget } = useMutation(
     }
   `,
   {
-    update: (cache, { data: { assignTarget } }) => {
+    update: (cache, { data }) => {
+      if (!data) {
+        return;
+      }
+
+      const assignTarget = data.assignTarget;
+
       const QUERY = gql`
         query {
           assignedTargets {
@@ -60,61 +78,65 @@ const { mutate: submitTarget } = useMutation(
         }
       `;
 
-      let data: any = cache.readQuery({
+      let cacheData: BackendQuery | null = cache.readQuery({
         query: QUERY,
       });
+
+      if (!cacheData) {
+        return;
+      }
 
       let newTarget;
 
       switch (assignTarget.targetName) {
         case "Unknown":
           newTarget = {
-            state: "UNKNOWN",
+            state: State.Unknown,
             data: null,
-            __typename: "FlatTargetState",
           };
           break;
         case "Not Connected":
           newTarget = {
-            state: "NOT_CONNECTED",
+            state: State.NotConnected,
             data: null,
-            __typename: "FlatTargetState",
           };
           break;
         default:
           newTarget = {
-            state: "KNOWN",
+            state: State.Known,
             data: {
               name: assignTarget.targetName,
-              __typename: "TargetInfo",
             },
-            __typename: "FlatTargetState",
           };
           break;
       }
 
-      const newAssignedTargets = cloneDeep(data.assignedTargets);
+      const newAssignedTargets = cloneDeep(cacheData.assignedTargets);
 
-      newAssignedTargets[assignTarget.tssPos][assignTarget.targetPos] =
+      if (!newAssignedTargets) {
+        return;
+      }
+
+      newAssignedTargets[assignTarget.tssPos]![assignTarget.targetPos] =
         newTarget;
 
-      data = {
-        ...data,
+      cacheData = {
+        ...cacheData,
         assignedTargets: newAssignedTargets,
       };
 
-      cache.writeQuery({ query: QUERY, data });
+      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
     },
   },
 );
 
 function getInitialSelectedChip() {
-  if (props.initialData.state === "UNKNOWN") {
+  if (props.initialData.state === State.Unknown) {
     return "Unknown";
-  } else if (props.initialData.state === "NOT_CONNECTED") {
+  } else if (props.initialData.state === State.NotConnected) {
     return "Not Connected";
   } else {
-    return props.initialData.data.name;
+    return props.initialData.data!.name;
   }
 }
 

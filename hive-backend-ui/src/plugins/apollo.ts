@@ -49,7 +49,7 @@ const csrfRetry = new RetryLink({
   },
   attempts: {
     max: 3,
-    retryIf: (error, _operation) => {
+    retryIf: (error, _) => {
       // 403 Forbidden is sent if something is wrong with the csrf token, so we retry in case no csrf cookie was set before
       if (error.statusCode === 403) {
         return true;

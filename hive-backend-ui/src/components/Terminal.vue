@@ -27,12 +27,15 @@ const terminal = new Terminal({
 const terminalFit = new FitAddon();
 terminal.loadAddon(terminalFit);
 terminal.loadAddon(new XtermWebfont());
-terminal.write(props.content)
+terminal.write(props.content);
 
-watch(() => props.content, (newVal) => {
-  terminal.reset()
-  terminal.write(newVal)
-})
+watch(
+  () => props.content,
+  (newVal) => {
+    terminal.reset();
+    terminal.write(newVal);
+  },
+);
 
 onBeforeMount(() => {
   window.addEventListener("resize", updateTerminalSize);

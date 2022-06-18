@@ -27,5 +27,6 @@ module.exports = {
         trailingComma: "all",
       },
     ],
+    "vue/multi-word-component-names": 0,
   },
 };

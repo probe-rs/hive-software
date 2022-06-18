@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import type { BackendMutation, BackendQuery } from "@/gql/backend";
+
 import TargetOverview from "@/components/TargetOverview.vue";
 import { defineProps } from "vue";
 import { useAppConfig } from "@/stores/appConfig";
-import { storeToRefs } from "pinia";
-import { computed, ref, toRef } from "@vue/reactivity";
+import { computed, ref } from "@vue/reactivity";
 import { AppTheme } from "@/plugins/vuetify";
 import SuccessSnackbar from "@/components/SuccessSnackbar.vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
@@ -14,7 +15,11 @@ import ferrisGesture from "@/assets/ferris/rustacean-flat-gesture.svg";
 
 const appConfig = useAppConfig();
 
-const { loading, result } = useQuery(gql`
+const props = defineProps({
+  tssPos: { type: Number, required: true },
+});
+
+const { loading, result } = useQuery<BackendQuery>(gql`
   query {
     assignedTargets {
       state
@@ -26,25 +31,28 @@ const { loading, result } = useQuery(gql`
 `);
 
 const reloadSuccess = ref(false);
-const { mutate: reloadTestrack, loading: testrackLoading, onDone } = useMutation(gql`
-mutation {
+const {
+  mutate: reloadTestrack,
+  loading: testrackLoading,
+  onDone,
+} = useMutation<BackendMutation>(
+  gql`
+    mutation {
       reinitializeHardware
     }
-`, { fetchPolicy: "no-cache" });
+  `,
+  { fetchPolicy: "no-cache" },
+);
 
 onDone(() => {
   reloadSuccess.value = true;
-})
+});
 
 const assignedTargets = computed(() => {
   if (result.value) {
     return result.value.assignedTargets;
   }
   return [];
-});
-
-const props = defineProps({
-  tssPos: { type: Number, required: true },
 });
 
 const tssPos = computed(() => {
@@ -68,13 +76,17 @@ const hasDaughterboard = computed(() => {
 
           <v-spacer />
 
-          <v-icon size="25" class="align-self-center" :icon="hasDaughterboard ? 'mdi-card' : 'mdi-card-remove'"
-            :color="hasDaughterboard ? 'success' : 'info'" />
+          <v-icon
+            size="25"
+            class="align-self-center"
+            :icon="hasDaughterboard ? 'mdi-card' : 'mdi-card-remove'"
+            :color="hasDaughterboard ? 'success' : 'info'"
+          />
           <p class="align-self-center pl-2">
             {{
-                hasDaughterboard
-                  ? "Daughterboard Connected"
-                  : "No Daughterboard Found"
+              hasDaughterboard
+                ? "Daughterboard Connected"
+                : "No Daughterboard Found"
             }}
           </p>
         </v-row>
@@ -86,18 +98,38 @@ const hasDaughterboard = computed(() => {
   <template v-if="hasDaughterboard && !loading">
     <v-row>
       <v-col sm="6">
-        <TargetOverview :tssPos="tssPos" :target="0" :status="false" :initialData="assignedTargets[tssPos][0]" />
+        <TargetOverview
+          :tssPos="tssPos"
+          :target="0"
+          :status="false"
+          :initialData="assignedTargets[tssPos]![0]"
+        />
       </v-col>
       <v-col sm="6">
-        <TargetOverview :tssPos="tssPos" :target="1" :status="true" :initialData="assignedTargets[tssPos][1]" />
+        <TargetOverview
+          :tssPos="tssPos"
+          :target="1"
+          :status="true"
+          :initialData="assignedTargets[tssPos]![1]"
+        />
       </v-col>
     </v-row>
     <v-row>
       <v-col sm="6">
-        <TargetOverview :tssPos="tssPos" :target="2" :status="true" :initialData="assignedTargets[tssPos][2]" />
+        <TargetOverview
+          :tssPos="tssPos"
+          :target="2"
+          :status="true"
+          :initialData="assignedTargets[tssPos]![2]"
+        />
       </v-col>
       <v-col sm="6">
-        <TargetOverview :tssPos="tssPos" :target="3" :status="true" :initialData="assignedTargets[tssPos][3]" />
+        <TargetOverview
+          :tssPos="tssPos"
+          :target="3"
+          :status="true"
+          :initialData="assignedTargets[tssPos]![3]"
+        />
       </v-col>
     </v-row>
 
@@ -109,7 +141,13 @@ const hasDaughterboard = computed(() => {
               Load Targets from File
             </v-btn>
             <v-spacer />
-            <v-btn v-if="!testrackLoading" color="success" variant="text" @click="reloadTestrack"> Reload Testrack
+            <v-btn
+              v-if="!testrackLoading"
+              color="success"
+              variant="text"
+              @click="reloadTestrack"
+            >
+              Reload Testrack
             </v-btn>
             <v-progress-linear v-else indeterminate color="secondary" />
           </v-row>
@@ -117,8 +155,11 @@ const hasDaughterboard = computed(() => {
       </v-col>
     </v-row>
 
-    <SuccessSnackbar :isSuccess="reloadSuccess" message="Testrack successfully reloaded"
-      @closeEvent="reloadSuccess = false" />
+    <SuccessSnackbar
+      :isSuccess="reloadSuccess"
+      message="Testrack successfully reloaded"
+      @closeEvent="reloadSuccess = false"
+    />
   </template>
 
   <template v-else-if="!hasDaughterboard && !loading">
@@ -126,21 +167,28 @@ const hasDaughterboard = computed(() => {
       <v-col cols="12">
         <v-sheet rounded elevation="1" class="pa-4">
           <v-row class="pa-6">
-            <v-img :src="ferrisGesture" height="125" :style="
-              appConfig.theme == AppTheme.Light
-                ? ''
-                : 'filter: brightness(80%);'
-            " />
+            <v-img
+              :src="ferrisGesture"
+              height="125"
+              :style="
+                appConfig.theme == AppTheme.Light
+                  ? ''
+                  : 'filter: brightness(80%);'
+              "
+            />
           </v-row>
           <v-row class="pa-2 justify-center">
-            <p class="align-self-center" style="
+            <p
+              class="align-self-center"
+              style="
                 max-width: 70%;
                 text-align: center;
                 color: rgb(
                   var(--v-theme-on-surface),
                   var(--v-disabled-opacity)
                 );
-              ">
+              "
+            >
               Could not detect any Daughterboard on this Target Stack Shield. If
               a Daughterboard is connected but not shown in here it might be
               related to a hardware problem. In that case, please make sure to
@@ -161,11 +209,14 @@ const hasDaughterboard = computed(() => {
           <v-progress-linear indeterminate color="secondary" />
         </v-row>
         <v-row class="justify-center">
-          <p class="align-self-center" style="
+          <p
+            class="align-self-center"
+            style="
               max-width: 70%;
               text-align: center;
               color: rgb(var(--v-theme-on-surface), var(--v-disabled-opacity));
-            ">
+            "
+          >
             Loading data...
           </p>
         </v-row>

@@ -1,16 +1,17 @@
 <script setup lang="ts">
+import type {
+  BackendQuery,
+  BackendMutation,
+  FlatProbeState,
+} from "@/gql/backend";
+
 import ProbeOverview from "@/components/ProbeOverview.vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import gql from "graphql-tag";
-import { computed, ref } from "vue";
+import { computed, ref, type ComputedRef } from "vue";
 import SuccessSnackbar from "./SuccessSnackbar.vue";
 
-type AssignedProbeData = {
-  state: string;
-  data: { identifier: string; serialNumber: string | null } | null;
-};
-
-const { loading, result } = useQuery(gql`
+const { loading, result } = useQuery<BackendQuery>(gql`
   query {
     assignedProbes {
       state
@@ -27,17 +28,24 @@ const { loading, result } = useQuery(gql`
 `);
 
 const reloadSuccess = ref(false);
-const { mutate: reloadTestrack, loading: testrackLoading, onDone } = useMutation(gql`
-mutation {
+const {
+  mutate: reloadTestrack,
+  loading: testrackLoading,
+  onDone,
+} = useMutation<BackendMutation>(
+  gql`
+    mutation {
       reinitializeHardware
     }
-`, { fetchPolicy: "no-cache" });
+  `,
+  { fetchPolicy: "no-cache" },
+);
 
 onDone(() => {
   reloadSuccess.value = true;
-})
+});
 
-const assignedProbes = computed(() => {
+const assignedProbes: ComputedRef<Array<FlatProbeState>> = computed(() => {
   if (result.value) {
     return result.value.assignedProbes;
   }
@@ -54,7 +62,7 @@ const connectedProbes = computed(() => {
 const hasUnassignedProbes = computed(() => {
   return (
     connectedProbes.value.length >
-    assignedProbes.value.filter((assignedProbe: AssignedProbeData) => {
+    assignedProbes.value.filter((assignedProbe: FlatProbeState) => {
       if (assignedProbe.state === "KNOWN") {
         return true;
       }
@@ -73,14 +81,19 @@ const hasUnassignedProbes = computed(() => {
 
           <v-spacer />
 
-          <v-icon size="25" class="align-self-center" :icon="
-            !hasUnassignedProbes ? 'mdi-checkbox-marked' : 'mdi-help-box'
-          " :color="!hasUnassignedProbes ? 'success' : 'info'" />
+          <v-icon
+            size="25"
+            class="align-self-center"
+            :icon="
+              !hasUnassignedProbes ? 'mdi-checkbox-marked' : 'mdi-help-box'
+            "
+            :color="!hasUnassignedProbes ? 'success' : 'info'"
+          />
           <p class="align-self-center pl-2">
             {{
-                !hasUnassignedProbes
-                  ? "All probes are assigned to a channel"
-                  : "Detected unassigned probes"
+              !hasUnassignedProbes
+                ? "All probes are assigned to a channel"
+                : "Detected unassigned probes"
             }}
           </p>
         </v-row>
@@ -112,7 +125,13 @@ const hasUnassignedProbes = computed(() => {
         <v-sheet rounded elevation="1" class="pa-4">
           <v-row class="pa-2">
             <v-spacer />
-            <v-btn v-if="!testrackLoading" color="success" variant="text" @click="reloadTestrack"> Reload Testrack
+            <v-btn
+              v-if="!testrackLoading"
+              color="success"
+              variant="text"
+              @click="reloadTestrack"
+            >
+              Reload Testrack
             </v-btn>
             <v-progress-linear v-else indeterminate color="secondary" />
           </v-row>
@@ -120,8 +139,11 @@ const hasUnassignedProbes = computed(() => {
       </v-col>
     </v-row>
 
-    <SuccessSnackbar :isSuccess="reloadSuccess" message="Testrack successfully reloaded"
-      @closeEvent="reloadSuccess = false" />
+    <SuccessSnackbar
+      :isSuccess="reloadSuccess"
+      message="Testrack successfully reloaded"
+      @closeEvent="reloadSuccess = false"
+    />
   </template>
 
   <template v-else>
@@ -132,11 +154,14 @@ const hasUnassignedProbes = computed(() => {
           <v-progress-linear indeterminate color="secondary" />
         </v-row>
         <v-row class="justify-center">
-          <p class="align-self-center" style="
+          <p
+            class="align-self-center"
+            style="
               max-width: 70%;
               text-align: center;
               color: rgb(var(--v-theme-on-surface), var(--v-disabled-opacity));
-            ">
+            "
+          >
             Loading data...
           </p>
         </v-row>

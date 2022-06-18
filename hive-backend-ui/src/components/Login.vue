@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { useLazyQuery, useQuery } from "@vue/apollo-composable";
+import type {
+  BackendAuthQuery,
+  BackendAuthQueryAuthenticateUserArgs,
+} from "@/gql/backendAuth";
+
+import { useLazyQuery } from "@vue/apollo-composable";
 import { computed } from "@vue/reactivity";
 import gql from "graphql-tag";
 import { ref, watch } from "vue";
@@ -14,7 +19,10 @@ const username = ref("");
 const password = ref("");
 const queryLoaded = ref(false);
 
-const { loading, result, error, refetch, load } = useLazyQuery(
+const { loading, result, error, refetch, load, onResult } = useLazyQuery<
+  BackendAuthQuery,
+  BackendAuthQueryAuthenticateUserArgs
+>(
   gql`
     query ($username: String!, $password: String!) {
       authenticateUser(username: $username, password: $password) {
@@ -34,10 +42,10 @@ const isError = computed(() => {
   return false;
 });
 
-watch(result, (newResult) => {
+onResult(({ data }) => {
   // User is successfully authenticated, redirect and save user
-  userStore.username = newResult.authenticateUser.username;
-  userStore.role = newResult.authenticateUser.role;
+  userStore.username = data.authenticateUser.username;
+  userStore.role = data.authenticateUser.role;
 
   router.push("/");
 });
