@@ -379,12 +379,68 @@ impl BackendMutation {
         Ok(deleted_user.into())
     }
 
-    /// Log the currently authenticated user out by deleting the auth jwt cookie
-    async fn logout<'ctx>(&self, ctx: &Context<'ctx>) -> GraphQlResult<bool> {
-        let cookies = ctx.data::<Cookies>().unwrap();
+    /// Modify a user
+    #[graphql(guard = "Role::ADMIN")]
+    async fn modify_user<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+        #[graphql(validator(chars_min_length = 4))] old_username: String,
+        new_role: Option<Role>,
+        #[graphql(validator(chars_min_length = 4))] new_username: Option<String>,
+        #[graphql(validator(chars_min_length = 6))] new_password: Option<String>,
+    ) -> GraphQlResult<UserResponse> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
-        auth::logout(cookies);
+        if old_username.contains(' ') || new_username.clone().unwrap_or_default().contains(' ') {
+            return Err(anyhow!("Whitespaces are not allowed in the username").into());
+        }
 
-        Ok(true)
+        let hash = match new_password {
+            Some(password) => Some(
+                tokio::task::spawn_blocking(move || hasher::hash_password(&password))
+                    .await
+                    .unwrap(),
+            ),
+            None => None,
+        };
+
+        let new_user = db
+            .credentials_tree
+            .transaction(|tree| {
+                let mut users: Vec<DbUser> = tree
+                    .c_get(&keys::credentials::USERS)?
+                    .expect("DB not initialized");
+
+                for idx in 0..users.len() {
+                    if old_username == users[idx].username {
+                        let mut user = users.remove(idx);
+
+                        user = DbUser {
+                            username: new_username
+                                .as_ref()
+                                .unwrap_or_else(|| &user.username)
+                                .to_owned(),
+                            hash: hash.as_ref().unwrap_or_else(|| &user.hash).to_owned(),
+                            role: new_role.unwrap_or_else(|| user.role),
+                        };
+
+                        users.push(user.clone());
+
+                        tree.c_insert(&keys::credentials::USERS, &users)?;
+
+                        return Ok(user);
+                    }
+                }
+
+                abort(anyhow!("Failed to find user"))
+            })
+            .map_err(|err| match err {
+                TransactionError::Abort(err) => err,
+                TransactionError::Storage(err) => {
+                    panic!("Failed to apply DB transaction to storage: {}", err)
+                }
+            })?;
+
+        Ok(new_user.into())
     }
 }

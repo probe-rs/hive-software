@@ -15,10 +15,10 @@ use crate::webserver::auth;
 use super::model::UserResponse;
 
 pub(in crate::webserver) type BackendAuthSchema =
-    Schema<BackendAuthQuery, EmptyMutation, EmptySubscription>;
+    Schema<BackendAuthQuery, BackendAuthMutation, EmptySubscription>;
 
 pub(in crate::webserver) fn build_schema() -> BackendAuthSchema {
-    Schema::build(BackendAuthQuery, EmptyMutation, EmptySubscription).finish()
+    Schema::build(BackendAuthQuery, BackendAuthMutation, EmptySubscription).finish()
 }
 
 pub(in crate::webserver) struct BackendAuthQuery;
@@ -40,5 +40,19 @@ impl BackendAuthQuery {
             .map_err(|_| anyhow!("Not authorized").extend_with(|_, e| e.set("code", 403)))?;
 
         Ok(user.into())
+    }
+}
+
+pub(in crate::webserver) struct BackendAuthMutation;
+
+#[Object]
+impl BackendAuthMutation {
+    /// Log the currently authenticated user out by deleting the auth jwt cookie
+    async fn logout<'ctx>(&self, ctx: &Context<'ctx>) -> GraphQlResult<bool> {
+        let cookies = ctx.data::<Cookies>().unwrap();
+
+        auth::logout(cookies);
+
+        Ok(true)
     }
 }

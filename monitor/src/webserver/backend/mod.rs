@@ -181,6 +181,7 @@ mod tests {
 
     mod query {
         use async_graphql::{from_value, value, Request};
+        use comm_types::auth::{JwtClaims, Role};
         use comm_types::hardware::{TargetInfo, TargetState};
         use serde::Deserialize;
         use serial_test::serial;
@@ -381,6 +382,62 @@ mod tests {
             assert_eq!(
                 from_value::<ExpectedValue>(result).unwrap().assignedProbes,
                 flat_assigned_probes
+            );
+        }
+
+        #[tokio::test]
+        async fn registered_users_no_permission() {
+            let schema = super::super::build_schema();
+
+            let query = r#"{
+                registeredUsers {
+                    username
+                    role
+                }
+            }"#;
+
+            let result = schema.execute(Request::new(query).data(DB.clone())).await;
+
+            assert!(result.is_err());
+
+            assert_eq!(result.errors[0].message, "Insufficient permission");
+        }
+
+        #[tokio::test]
+        #[serial]
+        async fn registered_users() {
+            let schema = super::super::build_schema();
+
+            let query = r#"{
+                registeredUsers {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Scrat".to_owned(),
+                role: Role::ADMIN,
+            };
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await
+                .into_result()
+                .unwrap();
+
+            assert_eq!(
+                result.data,
+                value!({
+                    "registeredUsers": [
+                        {
+                            "username": "Scrat",
+                            "role": "ADMIN"
+                        }
+                    ],
+                })
             );
         }
     }
@@ -1135,6 +1192,211 @@ mod tests {
                 .unwrap()
                 .unwrap()
                 .is_empty());
+
+            super::restore_db();
+        }
+
+        #[tokio::test]
+        async fn modify_user_no_permission() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                modifyUser(oldUsername: "Scrat") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Dummy".to_owned(),
+                role: Role::MAINTAINER,
+            };
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(result.errors[0].message, "Insufficient permission");
+        }
+
+        #[tokio::test]
+        async fn modify_user_invalid_username() {
+            let schema = build_schema();
+
+            // Old username too short
+            let query = r#"mutation{
+                modifyUser(oldUsername: "Ran") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Dummy".to_owned(),
+                role: Role::ADMIN,
+            };
+
+            let result = schema
+                .execute(
+                    Request::new(query)
+                        .data(DB.clone())
+                        .data(jwt_claims.clone()),
+                )
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(result.errors[0].message, "Failed to parse \"String\": the chars length is 3, must be greater than or equal to 4");
+
+            // New username too short
+            let query = r#"mutation{
+                modifyUser(oldUsername: "Random", newUsername: "ran") {
+                    username
+                    role
+                }
+            }"#;
+
+            let result = schema
+                .execute(
+                    Request::new(query)
+                        .data(DB.clone())
+                        .data(jwt_claims.clone()),
+                )
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(result.errors[0].message, "Failed to parse \"String\": the chars length is 3, must be greater than or equal to 4");
+
+            // Old username contains whitespace
+            let query = r#"mutation{
+                modifyUser(oldUsername: "Ran dom") {
+                    username
+                    role
+                }
+            }"#;
+
+            let result = schema
+                .execute(
+                    Request::new(query)
+                        .data(DB.clone())
+                        .data(jwt_claims.clone()),
+                )
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(
+                result.errors[0].message,
+                "Whitespaces are not allowed in the username"
+            );
+
+            // New username contains whitespace
+            let query = r#"mutation{
+                modifyUser(oldUsername: "Random", newUsername: "Ran dom") {
+                    username
+                    role
+                }
+            }"#;
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(
+                result.errors[0].message,
+                "Whitespaces are not allowed in the username"
+            );
+        }
+
+        #[tokio::test]
+        async fn modify_user_not_existing() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                modifyUser(oldUsername: "BlackVoid") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Dummy".to_owned(),
+                role: Role::ADMIN,
+            };
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await;
+
+            assert!(result.is_err());
+
+            assert_eq!(result.errors[0].message, "Failed to find user");
+        }
+
+        #[tokio::test]
+        #[serial]
+        async fn modify_user() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                modifyUser(oldUsername: "Scrat", newUsername: "Squirrel", newRole: "MAINTAINER") {
+                    username
+                    role
+                }
+            }"#;
+
+            let jwt_claims = JwtClaims {
+                iss: "dummy".to_owned(),
+                exp: 0,
+                username: "Dummy".to_owned(),
+                role: Role::ADMIN,
+            };
+
+            let old_hash = DUMMY_USERS[0].hash.clone();
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(jwt_claims))
+                .await
+                .into_result()
+                .unwrap();
+
+            assert_eq!(
+                result.data,
+                value!({
+                    "modifyUser": {
+                        "username": "Squirrel",
+                        "role": "MAINTAINER",
+                    }
+                })
+            );
+
+            let expected_user = DbUser {
+                username: "Squirrel".to_owned(),
+                hash: old_hash,
+                role: Role::MAINTAINER,
+            };
+
+            let db_users = DB
+                .clone()
+                .credentials_tree
+                .c_get(&keys::credentials::USERS)
+                .unwrap()
+                .unwrap();
+
+            assert_eq!(db_users.len(), 1);
+
+            assert_eq!(db_users[0], expected_user);
 
             super::restore_db();
         }

@@ -5,6 +5,7 @@ use std::{path::Path, sync::Arc};
 
 use async_graphql::{Context, Object, Result as GrapqlResult};
 use ciborium::de::from_reader;
+use comm_types::auth::Role;
 use controller::common::logger::LogEntry;
 use hive_db::CborDb;
 use log::Level;
@@ -13,7 +14,9 @@ use probe_rs::Probe;
 
 use crate::database::{keys, MonitorDb};
 
-use super::model::{Application, FlatProbeState, FlatTargetState, LogLevel, ProbeInfo};
+use super::model::{
+    Application, FlatProbeState, FlatTargetState, LogLevel, ProbeInfo, UserResponse,
+};
 
 const RUNNER_LOGFILE_PATH: &str = "/mnt/hivetmp/runner.log";
 
@@ -158,5 +161,19 @@ impl BackendQuery {
         .unwrap()?;
 
         Ok(log_entries)
+    }
+
+    /// List the registered users
+    #[graphql(guard = "Role::ADMIN")]
+    async fn registered_users<'ctx>(&self, ctx: &Context<'ctx>) -> Vec<UserResponse> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+
+        db.credentials_tree
+            .c_get(&keys::credentials::USERS)
+            .unwrap()
+            .expect("DB not initialized")
+            .into_iter()
+            .map(|user| user.into())
+            .collect()
     }
 }
