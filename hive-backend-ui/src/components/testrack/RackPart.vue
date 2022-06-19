@@ -4,6 +4,20 @@ import type { PartType } from "./types";
 import { defaultRackScale } from "./constants";
 import Konva from "konva";
 
+type RackPartConfig = {
+  image?: HTMLImageElement;
+  x: number;
+  y: number;
+};
+
+type VueKonvaImage = {
+  getNode(): VueKonvaImageTween;
+};
+
+interface VueKonvaImageTween extends Konva.Image {
+  enterTween: Konva.Tween;
+}
+
 const props = defineProps({
   type: {
     type: Number as PropType<PartType>,
@@ -14,7 +28,7 @@ const props = defineProps({
     required: true,
   },
   config: {
-    type: Object,
+    type: Object as PropType<RackPartConfig>,
     required: true,
   },
   isSelected: {
@@ -23,21 +37,29 @@ const props = defineProps({
   },
 });
 
-watch(
-  () => props.config,
-  (newConfig, oldConfig) => {
-    //if(oldConfig.y !== newConfig.y){
-    setTween(newConfig.y);
-    //}
-  },
-);
-
 onMounted(() => {
   setTween(props.config.y);
+
+  const node = (part.value! as VueKonvaImage).getNode();
+
+  // Reset the tween to the new image size in case the image changed (for example a Daughterboard has been inserted)
+  node.on("imageChange", () => {
+    node.y(props.config.y);
+
+    setTween(props.config.y);
+
+    if (props.isSelected) {
+      node.enterTween.play();
+    }
+  });
 });
 
 function setTween(y: number) {
-  const node = (part.value! as any).getNode();
+  if (!part.value) {
+    return;
+  }
+
+  const node = (part.value as VueKonvaImage).getNode();
 
   node.enterTween = new Konva.Tween({
     node: node,
@@ -47,37 +69,47 @@ function setTween(y: number) {
   });
 }
 
+watch(
+  () => props.isSelected,
+  (isSelected) => {
+    if (!part.value) {
+      return;
+    }
+
+    if (isSelected) {
+      (part.value as VueKonvaImage).getNode().enterTween.play();
+    } else {
+      (part.value as VueKonvaImage).getNode().enterTween.reverse();
+    }
+  },
+);
+
 const scale = ref(defaultRackScale);
 const part = ref(null);
 
 function handleMouseEnter() {
-  (part.value! as any).getNode().getStage().container().style.cursor =
-    "pointer";
+  if (!part.value) {
+    return;
+  }
+
+  (part.value as any).getNode().getStage().container().style.cursor = "pointer";
 
   if (!props.isSelected) {
-    (part.value! as any).getNode().enterTween.play();
+    (part.value as VueKonvaImage).getNode().enterTween.play();
   }
 }
 
 function handleMouseLeave() {
-  (part.value! as any).getNode().getStage().container().style.cursor =
-    "default";
+  if (!part.value) {
+    return;
+  }
+
+  (part.value as any).getNode().getStage().container().style.cursor = "default";
 
   if (!props.isSelected) {
-    (part.value! as any).getNode().enterTween.reverse();
+    (part.value as VueKonvaImage).getNode().enterTween.reverse();
   }
 }
-
-watch(
-  () => props.isSelected,
-  (isSelected) => {
-    if (isSelected) {
-      (part.value! as any).getNode().enterTween.play();
-    } else {
-      (part.value! as any).getNode().enterTween.reverse();
-    }
-  },
-);
 </script>
 
 <template>

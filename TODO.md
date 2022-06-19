@@ -31,7 +31,7 @@
 - [X] Finally export the graphql schema and generate proper Typescript Types to stop all the current any etc. mess
 - [ ] Add actual functionality to the testprogram view, currently it only looks nice
 - [X] User store does not stay persistent between page reloads, leading to wrongly denied routes
-- [ ] Fix appearance of Hive Testrack. Currently the active animation will not reset. Probably due to reassigning the Konva Tween object (It then looses info on its state)
+- [X] Fix appearance of Hive Testrack. Currently the active animation will not reset. Probably due to reassigning the Konva Tween object (It then looses info on its state)
 
 ## Hive Setup
 - [ ] Do proper error handling in shell setup script
