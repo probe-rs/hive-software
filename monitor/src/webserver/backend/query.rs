@@ -1,21 +1,24 @@
 //! The graphql query
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::Error as IoError;
 use std::{path::Path, sync::Arc};
 
+use anyhow::anyhow;
 use async_graphql::{Context, Object, Result as GrapqlResult};
 use ciborium::de::from_reader;
 use comm_types::auth::Role;
 use controller::common::logger::LogEntry;
-use hive_db::CborDb;
+use hive_db::{CborDb, CborTransactional};
 use log::Level;
 use probe_rs::config::search_chips;
 use probe_rs::Probe;
+use sled::transaction::UnabortableTransactionError;
 
 use crate::database::{keys, MonitorDb};
 
 use super::model::{
-    Application, FlatProbeState, FlatTargetState, LogLevel, ProbeInfo, UserResponse,
+    Application, FlatProbeState, FlatTargetState, FullTestProgramResponse, LogLevel, ProbeInfo,
+    TestProgramResponse, UserResponse,
 };
 
 const RUNNER_LOGFILE_PATH: &str = "/mnt/hivetmp/runner.log";
@@ -175,5 +178,72 @@ impl BackendQuery {
             .into_iter()
             .map(|user| user.into())
             .collect()
+    }
+
+    /// Get all avaialable testprograms
+    async fn available_testprograms<'ctx>(&self, ctx: &Context<'ctx>) -> Vec<TestProgramResponse> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+
+        db.config_tree
+            .transaction::<_, _, UnabortableTransactionError>(|tree| {
+                let active_testprogram = tree
+                    .c_get(&keys::config::ACTIVE_TESTPROGRAM)?
+                    .expect("DB not initialized");
+
+                let testprograms = tree
+                    .c_get(&keys::config::TESTPROGRAMS)?
+                    .expect("DB not initialized")
+                    .into_iter()
+                    .map(|testprogram| TestProgramResponse {
+                        name: testprogram.get_name().to_owned(),
+                        is_active: testprogram.get_name() == active_testprogram,
+                    })
+                    .collect::<Vec<_>>();
+
+                Ok(testprograms)
+            })
+            .unwrap()
+    }
+
+    /// Get the provided testprogram and its sourcecode as base64
+    async fn testprogram<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+        testprogram_name: String,
+    ) -> GrapqlResult<FullTestProgramResponse> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+
+        let testprograms = db
+            .config_tree
+            .c_get(&keys::config::TESTPROGRAMS)
+            .unwrap()
+            .expect("DB not initialized");
+
+        let testprogram = testprograms
+            .into_iter()
+            .find(|testprogram| testprogram.get_name() == testprogram_name)
+            .ok_or(anyhow!("Failed to find provided testprogram"))?;
+
+        let (code_arm, code_riscv, testprogram) = tokio::task::spawn_blocking(move || {
+            let arm_code = base64::encode(
+                fs::read(testprogram.get_path().join("arm/main.S"))
+                    .expect("Failed to open testprogram ARM assembly source code"),
+            );
+
+            let riscv_code = base64::encode(
+                fs::read(testprogram.get_path().join("riscv/main.S"))
+                    .expect("Failed to open testprogram ARM assembly source code"),
+            );
+
+            (arm_code, riscv_code, testprogram)
+        })
+        .await
+        .unwrap();
+
+        Ok(FullTestProgramResponse {
+            testprogram,
+            code_arm,
+            code_riscv,
+        })
     }
 }

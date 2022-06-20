@@ -11,7 +11,6 @@ use shared_bus::BusManager;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::sync::Mutex as AsyncMutex;
 
-mod binaries;
 mod database;
 mod flash;
 mod init;

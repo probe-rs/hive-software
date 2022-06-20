@@ -1,4 +1,4 @@
-//! Handlers to find all ram/flash address ranges which need to be provided for the building of the binaries
+//! Handlers to find all ram/flash address ranges which need to be provided for the building of the testprogram binaries
 use std::ops::Range;
 
 use comm_types::hardware::{Memory, TargetState};

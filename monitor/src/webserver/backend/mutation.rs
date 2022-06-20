@@ -1,16 +1,19 @@
 //! The graphql mutation
+use std::fs;
+use std::io::Read;
 use std::sync::Arc;
 
 use anyhow::anyhow;
-use async_graphql::{Context, Object, Result as GraphQlResult};
+use async_graphql::{Context, Object, Result as GraphQlResult, Upload};
 use comm_types::auth::{DbUser, JwtClaims, Role};
 use comm_types::hardware::{ProbeInfo, ProbeState, TargetState};
-use hive_db::CborTransactional;
+use hive_db::{CborDb, CborTransactional};
 use probe_rs::Probe;
 use sled::transaction::{abort, TransactionError};
 use tokio::sync::mpsc::Sender;
 use tower_cookies::Cookies;
 
+use crate::testprogram::{Testprogram, DEFAULT_TESTPROGRAM_NAME};
 use crate::{
     database::{hasher, keys, MonitorDb},
     testmanager::ReinitializationTask,
@@ -19,7 +22,7 @@ use crate::{
 };
 
 use super::model::{
-    AssignProbeResponse, AssignTargetResponse, FlatProbeState, State, UserResponse,
+    Architecture, AssignProbeResponse, AssignTargetResponse, FlatProbeState, State, UserResponse,
 };
 
 pub(in crate::webserver) struct BackendMutation;
@@ -442,5 +445,165 @@ impl BackendMutation {
             })?;
 
         Ok(new_user.into())
+    }
+
+    /// Modify a testprogram
+    async fn modify_testprogram<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+        testprogram_name: String,
+        architecture: Architecture,
+        file: Upload,
+    ) -> GraphQlResult<Testprogram> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+
+        let testprograms = db
+            .config_tree
+            .c_get(&keys::config::TESTPROGRAMS)
+            .unwrap()
+            .expect("DB not initialized");
+
+        let mut testprogram = testprograms
+            .into_iter()
+            .find(|testprogram| testprogram.get_name() == testprogram_name)
+            .ok_or(anyhow!("Failed to find provided testprogram"))?;
+
+        let mut upload = file.value(ctx).unwrap();
+
+        if upload.filename != "main.S" {
+            return Err(anyhow!("Invalid file uploaded. Expecting 'main.S'.").into());
+        }
+
+        let testprogram = tokio::task::spawn_blocking(move || {
+            let mut bytes = vec![];
+            upload.content.read(&mut bytes).unwrap();
+
+            match architecture {
+                Architecture::Arm => testprogram.get_arm_mut().check_source_code(&bytes),
+                Architecture::Riscv => testprogram.get_riscv_mut().check_source_code(&bytes),
+            }
+
+            testprogram
+        })
+        .await
+        .unwrap();
+
+        Ok(testprogram)
+    }
+
+    /// Delete a testprogram
+    async fn delete_testprogram<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+        testprogram_name: String,
+    ) -> GraphQlResult<bool> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+
+        if testprogram_name == DEFAULT_TESTPROGRAM_NAME {
+            return Err(anyhow!("Cannot delete the default testprogram").into());
+        }
+
+        let delete_path = db.config_tree
+            .transaction(|tree| {
+                let active_testprogram = tree
+                    .c_get(&keys::config::ACTIVE_TESTPROGRAM)?
+                    .expect("DB not initialized");
+
+                let mut testprograms = tree
+                    .c_get(&keys::config::TESTPROGRAMS)?
+                    .expect("DB not initialized");
+
+                for idx in 0..testprograms.len() {
+                    if testprograms[idx].get_name() != testprogram_name{
+                        continue;
+                    }
+
+                    if active_testprogram == testprograms[idx].get_name() {
+                        let default_testprogram = testprograms.iter().find(|program| program.get_name() == DEFAULT_TESTPROGRAM_NAME).expect("Failed to find default testprogram in DB. This should not happen as it is not allowed to delete the default testprogram.");
+    
+                        tree.c_insert(&keys::config::ACTIVE_TESTPROGRAM, &default_testprogram.get_name().to_owned())?;
+                    }
+    
+                    let deleted = testprograms.swap_remove(idx);
+
+                    tree.c_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
+
+                    return Ok(deleted.get_path().to_path_buf());
+                }
+
+                abort(anyhow!("Failed to find provided testprogram"))
+            })
+            .map_err(|err| match err {
+                TransactionError::Abort(err) => err,
+                TransactionError::Storage(err) => {
+                    panic!("Failed to apply DB transaction to storage: {}", err)
+                }
+            })?;
+
+        fs::remove_dir_all(delete_path).unwrap();
+
+        Ok(true)
+    }
+
+    /// Create a testprogram
+    async fn create_testprogram<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+        testprogram_name: String,
+    ) -> GraphQlResult<bool> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+
+        if testprogram_name == DEFAULT_TESTPROGRAM_NAME {
+            return Err(anyhow!("Cannot create the default testprogram").into());
+        }
+
+        todo!();
+        
+
+        Ok(true)
+    }
+
+    /// Set a testprogram as active testprogram
+    async fn set_active_testprogram<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+        testprogram_name: String,
+    ) -> GraphQlResult<bool> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+
+        db.config_tree
+            .transaction(|tree| {
+                let testprograms = tree
+                    .c_get(&keys::config::TESTPROGRAMS)?
+                    .expect("DB not initialized");
+
+                let testprogram = testprograms.iter().find(|testprogram| testprogram.get_name() == testprogram_name);
+
+                if testprogram.is_none(){
+                    abort(anyhow!("Failed to find provided testprogram"))?;
+                }
+
+                let testprogram = testprogram.unwrap();
+
+                let active_testprogram = tree
+                    .c_get(&keys::config::ACTIVE_TESTPROGRAM)?
+                    .expect("DB not initialized");
+
+                if active_testprogram == testprogram_name {
+                    abort(anyhow!("Testprogram is already active"))?;
+                }
+
+                tree.c_insert(&keys::config::ACTIVE_TESTPROGRAM, &testprogram.get_name().to_owned())?;
+
+                Ok(())
+            })
+            .map_err(|err| match err {
+                TransactionError::Abort(err) => err,
+                TransactionError::Storage(err) => {
+                    panic!("Failed to apply DB transaction to storage: {}", err)
+                }
+            })?;
+
+        Ok(true)
     }
 }

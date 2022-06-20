@@ -7,14 +7,15 @@ use std::sync::RwLock;
 
 use comm_types::hardware::{Architecture, TargetInfo, TargetState};
 use controller::common::hardware::{CombinedTestChannel, HardwareStatus};
+use hive_db::CborTransactional;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions, Format};
 use probe_rs::{DebugProbeInfo, Session};
 use crossbeam_utils::thread;
-use hive_db::CborDb;
+use sled::transaction::UnabortableTransactionError;
 
 use crate::database::{keys, MonitorDb};
 use crate::{HARDWARE};
-use crate::testprogram::TestProgram;
+use crate::testprogram::Testprogram;
 
 #[derive(Debug)]
 struct FlashStatus {
@@ -33,7 +34,22 @@ pub(crate) fn flash_testbinaries(db: Arc<MonitorDb>) {
         return;
     }
 
-    let active_testprogram = Arc::new(db.config_tree.c_get(&keys::config::ACTIVE_TESTPROGRAM).unwrap().expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known"));
+    let active_testprogram = db.config_tree.transaction::<_, _, UnabortableTransactionError>(|tree|{
+        let active = tree.c_get(&keys::config::ACTIVE_TESTPROGRAM)?.expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known");
+
+        let mut testprograms = tree.c_get(&keys::config::TESTPROGRAMS)?.expect("DB not initialized");
+
+        for idx in 0..testprograms.len() {
+            if active != testprograms[idx].get_name() {
+                continue;
+            }
+
+            return Ok(testprograms.remove(idx));
+        }
+        panic!("Failed to find active testprogram in database. This should not happen as it indicates a desync between the active testprogram DB data and the testprogram DB data.");
+    }).unwrap();
+
+    let active_testprogram = Arc::new(active_testprogram);
 
     // A buffersize of 0 enforces that the RwLock flash_results vector does not slowly get out of sync due to read locks.
     // This could lead to situations where a thread checks the FlashStatus on an already invalid flash_results vector thus causing unwanted flashes of already successfully flashed targets.
@@ -164,7 +180,7 @@ fn flash_target(
     target_info: &TargetInfo,
     tss_pos: u8,
     result_sender: &SyncSender<FlashStatus>,
-    testprogram: &TestProgram,
+    testprogram: &Testprogram,
     flash_results: &Arc<RwLock<Vec<FlashStatus>>>,
 ) {
     // Check if Testchannel is ready and if the target_info has been successfully initialized.
@@ -202,10 +218,10 @@ fn flash_target(
 
         let path = match target_info.architecture.as_ref().unwrap() {
             Architecture::ARM => {
-                testprogram.get_elf_path_arm(target_info.memory_address.as_ref().unwrap())
+                testprogram.get_arm().get_elf_path(target_info.memory_address.as_ref().unwrap())
             }
             Architecture::RISCV => {
-                testprogram.get_elf_path_riscv(target_info.memory_address.as_ref().unwrap())
+                testprogram.get_riscv().get_elf_path(target_info.memory_address.as_ref().unwrap())
             }
         };
 

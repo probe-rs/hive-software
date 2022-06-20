@@ -8,6 +8,8 @@ use log::Level;
 use probe_rs::DebugProbeInfo;
 use serde::{Deserialize, Serialize};
 
+use crate::testprogram::Testprogram;
+
 /// Flattened version of [`TargetState`] to use it in graphql api
 #[derive(SimpleObject, Debug)]
 pub(super) struct FlatTargetState {
@@ -123,15 +125,41 @@ impl From<DbUser> for UserResponse {
     }
 }
 
+#[derive(Debug, SimpleObject)]
+pub(super) struct TestProgramResponse {
+    pub name: String,
+    pub is_active: bool,
+}
+
+#[derive(Debug, SimpleObject)]
+pub(super) struct FullTestProgramResponse {
+    pub testprogram: Testprogram,
+    pub code_arm: String,
+    pub code_riscv: String,
+}
+
+#[derive(Debug, Enum, PartialEq, Eq, Clone, Copy)]
+pub(super) enum ResultEnum {
+    Ok,
+    Error,
+}
+
 /// The main applications of Hive
-#[derive(Enum, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Enum, PartialEq, Eq, Clone, Copy)]
 pub(super) enum Application {
     Monitor,
     Runner,
 }
 
+/// The supported architectures
+#[derive(Debug, Enum, PartialEq, Eq, Clone, Copy)]
+pub(super) enum Architecture {
+    Arm,
+    Riscv,
+}
+
 /// Wrapper for [`log::Level`] to use it in graphql api
-#[derive(Enum, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Enum, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub(super) enum LogLevel {
     Error,
     Warn,

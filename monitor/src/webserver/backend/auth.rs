@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use async_graphql::{
-    Context, EmptyMutation, EmptySubscription, ErrorExtensions, Object, Result as GraphQlResult,
-    Schema,
+    Context, EmptySubscription, ErrorExtensions, Object, Result as GraphQlResult, Schema,
 };
 use tower_cookies::Cookies;
 

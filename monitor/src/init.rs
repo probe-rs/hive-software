@@ -11,8 +11,8 @@ use probe_rs::config;
 use sled::transaction::UnabortableTransactionError;
 
 use crate::database::{keys, MonitorDb};
-use crate::testprogram::{TestProgram, TESTPROGRAM_PATH};
-use crate::{binaries, database};
+use crate::testprogram::{Testprogram, DEFAULT_TESTPROGRAM_NAME, TESTPROGRAM_PATH};
+use crate::{database, testprogram};
 use crate::{EXPANDERS, HARDWARE, SHARED_I2C};
 
 pub(crate) fn initialize_statics() {
@@ -71,17 +71,17 @@ pub(crate) fn init_testprograms(db: Arc<MonitorDb>) {
 
             let mut idx = 0;
             while programs.len() > idx {
-                if !programs[idx].path.join("arm/main.S").exists()
-                    || !programs[idx].path.join("riscv/main.S").exists()
+                if !programs[idx].get_path().join("arm/main.S").exists()
+                    || !programs[idx].get_path().join("riscv/main.S").exists()
                 {
-                    if programs[idx].name == "Default" {
+                    if programs[idx].get_name() == DEFAULT_TESTPROGRAM_NAME {
                         panic!("The files of the default testprogram are incomplete. The installation might be corrupted, please reinstall the program.");
                     }
 
-                    log::warn!("Found testprogram '{}' in DB but failed to locate the complete program files on the disk. Removing corrupted testprogram...", programs[idx].name);
+                    log::warn!("Found testprogram '{}' in DB but failed to locate the complete program files on the disk. Removing corrupted testprogram...", programs[idx].get_name());
 
                     // try to remove the program folder (in case only parts of the testprogram folder structure were missing)
-                    let _ = fs::remove_dir_all(&programs[idx].path);
+                    let _ = fs::remove_dir_all(&programs[idx].get_path());
 
                     programs.remove(idx);
                     tree
@@ -101,24 +101,22 @@ pub(crate) fn init_testprograms(db: Arc<MonitorDb>) {
                 panic!("Could not find the default testprogram. The installation might be corrupted, please reinstall the program.");
             } else {
                 let mut testprograms = vec![];
-                let default_testprogram = TestProgram {
-                    name: "Default".to_owned(),
-                    path: Path::new(&format!("{}{}", TESTPROGRAM_PATH, "default/")).to_path_buf(),
-                };
+                let default_testprogram = Testprogram::new(DEFAULT_TESTPROGRAM_NAME.to_owned());
 
-                tree.c_insert(&keys::config::ACTIVE_TESTPROGRAM, &default_testprogram)?;
+                tree.c_insert(&keys::config::ACTIVE_TESTPROGRAM, &default_testprogram.get_name().to_owned())?;
 
                 testprograms.push(default_testprogram);
 
                 tree.c_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
+
+                Ok(())
             }
-            Ok(())
         }
     }
     }).unwrap();
 
     // Sync binaries from cleaned DB data
-    binaries::sync_binaries(db.clone());
+    testprogram::sync_binaries(db);
 }
 
 /// Detect all connected TSS and update DB data

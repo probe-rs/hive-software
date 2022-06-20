@@ -6,15 +6,15 @@ pub(crate) mod config {
     use hive_db::Key;
     use lazy_static::lazy_static;
 
-    use crate::testprogram::TestProgram;
+    use crate::testprogram::Testprogram;
 
     lazy_static! {
         pub(crate) static ref TSS: Key<'static, [bool; 8]> = Key::new("tss");
         pub(crate) static ref ASSIGNED_TARGETS: Key<'static, HiveTargetData> = Key::new("targets");
         pub(crate) static ref ASSIGNED_PROBES: Key<'static, HiveProbeData> = Key::new("probes");
-        pub(crate) static ref TESTPROGRAMS: Key<'static, Vec<TestProgram>> =
+        pub(crate) static ref TESTPROGRAMS: Key<'static, Vec<Testprogram>> =
             Key::new("testprograms");
-        pub(crate) static ref ACTIVE_TESTPROGRAM: Key<'static, TestProgram> =
+        pub(crate) static ref ACTIVE_TESTPROGRAM: Key<'static, String> =
             Key::new("active_testprogram");
     }
 }

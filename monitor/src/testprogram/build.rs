@@ -1,13 +1,11 @@
 //! Handles the build process of a testinary (Assembly, Linking)
-use std::process::Command;
+use std::{path::Path, process::Command};
 
 use comm_types::hardware::Memory;
 use thiserror::Error;
 
-use crate::testprogram::TestProgram;
-
-#[derive(Debug, Error)]
-pub(super) enum BuildError {
+#[derive(Debug, Clone, Error)]
+pub(crate) enum BuildError {
     #[error("Failed to assemble the testprogram: {0}")]
     AssemblyError(String),
     #[error("Failed to link the testprogram: {0}")]
@@ -16,32 +14,12 @@ pub(super) enum BuildError {
     ObjectFileNotFound,
 }
 
-/// Assembles and links the provided testprogram for ARM with the provided memory address range
-pub(super) fn assemble_and_link_arm(
-    testprogram: &TestProgram,
-    arm_address: &Memory,
-) -> Result<(), BuildError> {
-    assemble_binary_arm(testprogram)?;
-    link_binary_arm(testprogram, arm_address)
-}
-
-/// Assembles and links the provided testprogram for RISCV with the provided memory address range
-pub(super) fn assemble_and_link_riscv(
-    testprogram: &TestProgram,
-    arm_address: &Memory,
-) -> Result<(), BuildError> {
-    assemble_binary_riscv(testprogram)?;
-    link_binary_riscv(testprogram, arm_address)
-}
-
 /// Try to assemble the provided testprogram for ARM cores
-pub(super) fn assemble_binary_arm(testprogram: &TestProgram) -> Result<(), BuildError> {
-    let working_dir = testprogram.path.to_owned().join("arm/");
-
+pub(super) fn assemble_binary_arm(program_path: &Path) -> Result<(), BuildError> {
     // -g Generate debug info, -mthumb assemble thumb code
     let assemble = Command::new("arm-none-eabi-as")
         .args(["-g", "main.S", "-o", "main.o", "-mthumb"])
-        .current_dir(working_dir)
+        .current_dir(program_path)
         .output()
         .expect("Failed to run the ARM assembly process, is the arm-none-eabi-as command accessible to the application?");
 
@@ -61,12 +39,10 @@ pub(super) fn assemble_binary_arm(testprogram: &TestProgram) -> Result<(), Build
 }
 
 /// Try to assemble the provided testprogram for RISCV cores
-pub(super) fn assemble_binary_riscv(testprogram: &TestProgram) -> Result<(), BuildError> {
-    let working_dir = testprogram.path.to_owned().join("riscv/");
-
+pub(super) fn assemble_binary_riscv(program_path: &Path) -> Result<(), BuildError> {
     let assemble = Command::new("riscv-none-embed-as")
         .args(["main.S", "-o", "main.o"])
-        .current_dir(working_dir)
+        .current_dir(program_path)
         .output()
         .expect("Failed to run the RISCV assembly process, is the riscv-none-embed-as command accessible to the application?");
 
@@ -90,11 +66,9 @@ pub(super) fn assemble_binary_riscv(testprogram: &TestProgram) -> Result<(), Bui
 /// The final elf is stored in the following format, to distinguish it between other memory address mappings:
 ///
 /// main_`flash start address`_`ram start address`.elf
-fn link_binary_arm(testprogram: &TestProgram, arm_address: &Memory) -> Result<(), BuildError> {
-    let working_dir = testprogram.path.to_owned().join("arm/");
-
+pub(super) fn link_binary_arm(program_path: &Path, arm_address: &Memory) -> Result<(), BuildError> {
     // Check if object file exists
-    if !working_dir.join("main.o").exists() {
+    if !program_path.join("main.o").exists() {
         return Err(BuildError::ObjectFileNotFound);
     }
 
@@ -108,7 +82,7 @@ fn link_binary_arm(testprogram: &TestProgram, arm_address: &Memory) -> Result<()
             &format!("{}{:#x}", "-Ttext=", arm_address.nvm.start),
             &format!("{}{:#x}", "-Tdata=", arm_address.ram.start),
         ])
-        .current_dir(working_dir)
+        .current_dir(program_path)
         .output()
         .expect("Failed to run the ARM linking process, is the arm-none-eabi-ld command accessible to the application?");
 
@@ -132,11 +106,12 @@ fn link_binary_arm(testprogram: &TestProgram, arm_address: &Memory) -> Result<()
 /// The final elf is stored in the following format, to distinguish it between other memory address mappings:
 ///
 /// main_`flash start address`_`ram start address`.elf
-fn link_binary_riscv(testprogram: &TestProgram, riscv_address: &Memory) -> Result<(), BuildError> {
-    let working_dir = testprogram.path.to_owned().join("riscv/");
-
+pub(super) fn link_binary_riscv(
+    program_path: &Path,
+    riscv_address: &Memory,
+) -> Result<(), BuildError> {
     // Check if object file exists
-    if !working_dir.join("main.o").exists() {
+    if !program_path.join("main.o").exists() {
         return Err(BuildError::ObjectFileNotFound);
     }
 
@@ -152,7 +127,7 @@ fn link_binary_riscv(testprogram: &TestProgram, riscv_address: &Memory) -> Resul
             "-Tdata",
             &format!("{:#x}", riscv_address.ram.start),
         ])
-        .current_dir(working_dir)
+        .current_dir(program_path)
         .output()
         .expect("Failed to run the RISCV linking process, is the riscv-none-embed-ld command accessible to the application?");
 
