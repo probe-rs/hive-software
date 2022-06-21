@@ -545,7 +545,7 @@ impl BackendMutation {
         &self,
         ctx: &Context<'ctx>,
         testprogram_name: String,
-    ) -> GraphQlResult<bool> {
+    ) -> GraphQlResult<String> {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
         if testprogram_name == DEFAULT_TESTPROGRAM_NAME {
@@ -599,7 +599,7 @@ impl BackendMutation {
 
         fs::remove_dir_all(delete_path).unwrap();
 
-        Ok(true)
+        Ok(testprogram_name)
     }
 
     /// Create a testprogram

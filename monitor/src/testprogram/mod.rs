@@ -61,10 +61,18 @@ pub(crate) struct Testprogram {
 }
 
 impl Testprogram {
+    /// Create a new testprogram
+    ///
+    /// # Panics
+    /// If the new testprogram directory cannot be created which is either caused by missing permissions or a corrputed install
     pub(crate) fn new(name: String) -> Self {
+        let path = PathBuf::from_str(TESTPROGRAM_PATH).unwrap().join(&name);
+
+        fs::create_dir_all(&path).expect("Failed to create directory for Testprogram");
+
         Self {
             name: name.clone(),
-            path: PathBuf::from_str(TESTPROGRAM_PATH).unwrap().join(&name),
+            path,
             testprogram_arm: TestprogramArchitecture::new(name.clone(), Architecture::Arm),
             testprogram_riscv: TestprogramArchitecture::new(name, Architecture::Riscv),
         }
