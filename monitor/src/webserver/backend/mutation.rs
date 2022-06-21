@@ -7,12 +7,13 @@ use anyhow::anyhow;
 use async_graphql::{Context, Object, Result as GraphQlResult, Upload};
 use comm_types::auth::{DbUser, JwtClaims, Role};
 use comm_types::hardware::{ProbeInfo, ProbeState, TargetState};
-use hive_db::{CborDb, CborTransactional};
+use hive_db::{CborTransactional};
 use probe_rs::Probe;
 use sled::transaction::{abort, TransactionError};
 use tokio::sync::mpsc::Sender;
 use tower_cookies::Cookies;
 
+use crate::ACTIVE_TESTPROGRAM_CHANGED;
 use crate::testprogram::{Testprogram, DEFAULT_TESTPROGRAM_NAME};
 use crate::{
     database::{hasher, keys, MonitorDb},
@@ -452,43 +453,91 @@ impl BackendMutation {
         &self,
         ctx: &Context<'ctx>,
         testprogram_name: String,
-        architecture: Architecture,
-        file: Upload,
+        #[graphql(validator(max_items = 2, min_items = 1))] code_files: Vec<Upload>,
     ) -> GraphQlResult<Testprogram> {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
-        let testprograms = db
-            .config_tree
-            .c_get(&keys::config::TESTPROGRAMS)
-            .unwrap()
-            .expect("DB not initialized");
+        let mut verified_code_files: Vec<(String, Architecture, Vec<u8>)> = vec![];
 
-        let mut testprogram = testprograms
-            .into_iter()
-            .find(|testprogram| testprogram.get_name() == testprogram_name)
-            .ok_or(anyhow!("Failed to find provided testprogram"))?;
+        // validate files
+        for file in code_files.into_iter(){
+            let mut file = file.value(ctx).unwrap();
 
-        let mut upload = file.value(ctx).unwrap();
+            if file.filename == "arm_main.S" || file.filename == "riscv_main.S"{
+                if verified_code_files.iter().any(|(filename, _, _)| *filename == file.filename){
+                    return Err(anyhow!("Received upload of the file '{}' twice", file.filename).into());
+                }
 
-        if upload.filename != "main.S" {
-            return Err(anyhow!("Invalid file uploaded. Expecting 'main.S'.").into());
-        }
+                let mut bytes = vec![];
+                file.content.read(&mut bytes).unwrap();
 
-        let testprogram = tokio::task::spawn_blocking(move || {
-            let mut bytes = vec![];
-            upload.content.read(&mut bytes).unwrap();
+                let architecture = match file.filename.as_str() {
+                    "arm_main.S" => Architecture::Arm,
+                    "riscv_main.S" => Architecture::Riscv,
+                    _ => unreachable!(),
+                };
 
-            match architecture {
-                Architecture::Arm => testprogram.get_arm_mut().check_source_code(&bytes),
-                Architecture::Riscv => testprogram.get_riscv_mut().check_source_code(&bytes),
+                verified_code_files.push((file.filename, architecture, bytes));
+                continue;
             }
 
-            testprogram
+            return Err(anyhow!("Found invalid filename '{}', expecting 'arm_main.S' or 'riscv_main.S'", file.filename).into());
+        }
+
+        let blocking_db = db.clone();
+        let (modified_testprogram, is_active) =  tokio::task::spawn_blocking(move || { 
+            blocking_db.config_tree
+            .transaction(|tree| {
+                let mut is_active = false;
+
+                let mut testprograms = tree
+                    .c_get(&keys::config::TESTPROGRAMS)?
+                    .expect("DB not initialized");
+
+                for idx in 0..testprograms.len(){
+                    if testprograms[idx].get_name() != testprogram_name {
+                        continue;
+                    }
+
+                    let active_testprogram = tree.c_get(&keys::config::ACTIVE_TESTPROGRAM)?.expect("DB not initialized");
+                    let mut testprogram = testprograms.remove(idx);
+
+                    if testprogram.get_name() == active_testprogram {
+                        is_active = true;
+                    }
+
+                    for (_, architecture, bytes) in verified_code_files.iter() {
+                        match architecture {
+                            Architecture::Arm => testprogram.get_arm_mut().check_source_code(&bytes),
+                            Architecture::Riscv => testprogram.get_riscv_mut().check_source_code(&bytes),
+                        }
+                    }
+
+                    testprograms.insert(idx, testprogram);
+
+                    tree.c_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
+
+                    return Ok((testprograms.remove(idx), is_active));
+                }
+
+                abort(anyhow!("Failed to find provided testprogram"))
+            })
+            .map_err(|err| match err {
+                TransactionError::Abort(err) => err,
+                TransactionError::Storage(err) => {
+                    panic!("Failed to apply DB transaction to storage: {}", err)
+                }
+            })
+
         })
         .await
-        .unwrap();
+        .unwrap()?;
 
-        Ok(testprogram)
+        if is_active {
+            *ACTIVE_TESTPROGRAM_CHANGED.lock().await = true;
+        }
+
+        Ok(modified_testprogram)
     }
 
     /// Delete a testprogram
@@ -503,8 +552,10 @@ impl BackendMutation {
             return Err(anyhow!("Cannot delete the default testprogram").into());
         }
 
-        let delete_path = db.config_tree
+        let (delete_path, was_active) = db.config_tree
             .transaction(|tree| {
+                let mut was_active = false;
+
                 let active_testprogram = tree
                     .c_get(&keys::config::ACTIVE_TESTPROGRAM)?
                     .expect("DB not initialized");
@@ -519,6 +570,8 @@ impl BackendMutation {
                     }
 
                     if active_testprogram == testprograms[idx].get_name() {
+                        was_active = true;
+
                         let default_testprogram = testprograms.iter().find(|program| program.get_name() == DEFAULT_TESTPROGRAM_NAME).expect("Failed to find default testprogram in DB. This should not happen as it is not allowed to delete the default testprogram.");
     
                         tree.c_insert(&keys::config::ACTIVE_TESTPROGRAM, &default_testprogram.get_name().to_owned())?;
@@ -528,7 +581,7 @@ impl BackendMutation {
 
                     tree.c_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
 
-                    return Ok(deleted.get_path().to_path_buf());
+                    return Ok((deleted.get_path().to_path_buf(), was_active));
                 }
 
                 abort(anyhow!("Failed to find provided testprogram"))
@@ -540,6 +593,10 @@ impl BackendMutation {
                 }
             })?;
 
+        if was_active {
+            *ACTIVE_TESTPROGRAM_CHANGED.lock().await = true;
+        }
+
         fs::remove_dir_all(delete_path).unwrap();
 
         Ok(true)
@@ -550,17 +607,35 @@ impl BackendMutation {
         &self,
         ctx: &Context<'ctx>,
         testprogram_name: String,
-    ) -> GraphQlResult<bool> {
+    ) -> GraphQlResult<Testprogram> {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
         if testprogram_name == DEFAULT_TESTPROGRAM_NAME {
             return Err(anyhow!("Cannot create the default testprogram").into());
         }
 
-        todo!();
-        
+        let new_testprogram = db.config_tree.transaction(|tree|{
+            let mut testprograms = tree.c_get(&keys::config::TESTPROGRAMS)?.expect("DB not initialized");
 
-        Ok(true)
+            if testprograms.iter().any(|testprogram| testprogram.get_name() == testprogram_name) {
+                abort(anyhow!("Testprogram already exists"))?;
+            }
+
+            let new_testprogram = Testprogram::new(testprogram_name.clone());
+
+            testprograms.push(new_testprogram);
+
+            tree.c_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
+
+            Ok(testprograms.pop().unwrap())
+        }).map_err(|err| match err {
+            TransactionError::Abort(err) => err,
+            TransactionError::Storage(err) => {
+                panic!("Failed to apply DB transaction to storage: {}", err)
+            }
+        })?;
+
+        Ok(new_testprogram)
     }
 
     /// Set a testprogram as active testprogram
@@ -568,11 +643,19 @@ impl BackendMutation {
         &self,
         ctx: &Context<'ctx>,
         testprogram_name: String,
-    ) -> GraphQlResult<bool> {
+    ) -> GraphQlResult<String> {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
         db.config_tree
             .transaction(|tree| {
+                let active_testprogram = tree
+                    .c_get(&keys::config::ACTIVE_TESTPROGRAM)?
+                    .expect("DB not initialized");
+
+                if active_testprogram == testprogram_name {
+                    abort(anyhow!("Testprogram is already active"))?;
+                }
+
                 let testprograms = tree
                     .c_get(&keys::config::TESTPROGRAMS)?
                     .expect("DB not initialized");
@@ -585,14 +668,6 @@ impl BackendMutation {
 
                 let testprogram = testprogram.unwrap();
 
-                let active_testprogram = tree
-                    .c_get(&keys::config::ACTIVE_TESTPROGRAM)?
-                    .expect("DB not initialized");
-
-                if active_testprogram == testprogram_name {
-                    abort(anyhow!("Testprogram is already active"))?;
-                }
-
                 tree.c_insert(&keys::config::ACTIVE_TESTPROGRAM, &testprogram.get_name().to_owned())?;
 
                 Ok(())
@@ -604,6 +679,8 @@ impl BackendMutation {
                 }
             })?;
 
-        Ok(true)
+            *ACTIVE_TESTPROGRAM_CHANGED.lock().await = true;
+
+        Ok(testprogram_name)
     }
 }

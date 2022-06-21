@@ -126,12 +126,6 @@ impl From<DbUser> for UserResponse {
 }
 
 #[derive(Debug, SimpleObject)]
-pub(super) struct TestProgramResponse {
-    pub name: String,
-    pub is_active: bool,
-}
-
-#[derive(Debug, SimpleObject)]
 pub(super) struct FullTestProgramResponse {
     pub testprogram: Testprogram,
     pub code_arm: String,

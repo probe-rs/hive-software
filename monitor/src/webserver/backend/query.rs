@@ -8,17 +8,17 @@ use async_graphql::{Context, Object, Result as GrapqlResult};
 use ciborium::de::from_reader;
 use comm_types::auth::Role;
 use controller::common::logger::LogEntry;
-use hive_db::{CborDb, CborTransactional};
+use hive_db::CborDb;
 use log::Level;
 use probe_rs::config::search_chips;
 use probe_rs::Probe;
-use sled::transaction::UnabortableTransactionError;
 
 use crate::database::{keys, MonitorDb};
+use crate::testprogram::Testprogram;
 
 use super::model::{
     Application, FlatProbeState, FlatTargetState, FullTestProgramResponse, LogLevel, ProbeInfo,
-    TestProgramResponse, UserResponse,
+    UserResponse,
 };
 
 const RUNNER_LOGFILE_PATH: &str = "/mnt/hivetmp/runner.log";
@@ -181,28 +181,23 @@ impl BackendQuery {
     }
 
     /// Get all avaialable testprograms
-    async fn available_testprograms<'ctx>(&self, ctx: &Context<'ctx>) -> Vec<TestProgramResponse> {
+    async fn available_testprograms<'ctx>(&self, ctx: &Context<'ctx>) -> Vec<Testprogram> {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
         db.config_tree
-            .transaction::<_, _, UnabortableTransactionError>(|tree| {
-                let active_testprogram = tree
-                    .c_get(&keys::config::ACTIVE_TESTPROGRAM)?
-                    .expect("DB not initialized");
-
-                let testprograms = tree
-                    .c_get(&keys::config::TESTPROGRAMS)?
-                    .expect("DB not initialized")
-                    .into_iter()
-                    .map(|testprogram| TestProgramResponse {
-                        name: testprogram.get_name().to_owned(),
-                        is_active: testprogram.get_name() == active_testprogram,
-                    })
-                    .collect::<Vec<_>>();
-
-                Ok(testprograms)
-            })
+            .c_get(&keys::config::TESTPROGRAMS)
             .unwrap()
+            .expect("DB not initialized")
+    }
+
+    /// Get the currently active testprogram
+    async fn active_testprogram<'ctx>(&self, ctx: &Context<'ctx>) -> String {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+
+        db.config_tree
+            .c_get(&keys::config::ACTIVE_TESTPROGRAM)
+            .unwrap()
+            .expect("DB not initialized")
     }
 
     /// Get the provided testprogram and its sourcecode as base64

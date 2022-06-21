@@ -35,6 +35,7 @@ lazy_static! {
     static ref HARDWARE: Mutex<HiveHardware> =
         Mutex::new(HiveHardware::new(&SHARED_I2C, &EXPANDERS));
     static ref HARDWARE_DB_DATA_CHANGED: AsyncMutex<bool> = AsyncMutex::new(false);
+    static ref ACTIVE_TESTPROGRAM_CHANGED: AsyncMutex<bool> = AsyncMutex::new(false);
     static ref SHUTDOWN_SIGNAL: Sender<()> = {
         let (sender, _) = broadcast::channel::<()>(1);
         sender

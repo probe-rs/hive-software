@@ -12,7 +12,10 @@ use tokio::sync::mpsc::{self, Receiver as MpscReceiver, Sender as MpscSender};
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 
 use crate::database::MonitorDb;
-use crate::{flash, init, HARDWARE, HARDWARE_DB_DATA_CHANGED, SHUTDOWN_SIGNAL};
+use crate::{
+    flash, init, testprogram, ACTIVE_TESTPROGRAM_CHANGED, HARDWARE, HARDWARE_DB_DATA_CHANGED,
+    SHUTDOWN_SIGNAL,
+};
 
 mod ipc;
 mod workspace;
@@ -157,13 +160,22 @@ impl TestManager {
                     TaskType::ReinitTask(reinit_task) => {
                         let mut hardware = HARDWARE.lock().unwrap();
 
-                        // Check if a reinitialization is required due to changes to the hardware data in the DB, otherwise skip
-                        let mut data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
-                        if *data_changed {
+                        // Check if a reinitialization is required due to changes to the hardware data in the DB or changes to testprogram data, otherwise skip
+                        let mut hardware_data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
+                        let mut testprogram_data_changed =
+                            ACTIVE_TESTPROGRAM_CHANGED.blocking_lock();
+
+                        if !*hardware_data_changed && *testprogram_data_changed {
+                            testprogram::sync_binaries(self.db.clone());
+                            *testprogram_data_changed = false;
+                        } else if *hardware_data_changed {
                             self.reinitialize_hardware(&mut hardware);
-                            *data_changed = false;
+                            *hardware_data_changed = false;
+                            *testprogram_data_changed = false;
                         }
-                        drop(data_changed);
+
+                        drop(hardware_data_changed);
+                        drop(testprogram_data_changed);
 
                         reinit_task.task_complete_sender.send(()).expect("Failed to send reinit task complete to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the reinitialization.")
                     }
@@ -216,6 +228,9 @@ impl TestManager {
             })
         }
 
+        // Rebuild and link testbinaries
+        testprogram::sync_binaries(self.db.clone());
+
         // Reflash testprograms
         flash::flash_testbinaries(self.db.clone());
     }
@@ -226,13 +241,21 @@ impl TestManager {
 
         workspace::build_runner()?;
 
-        // Check if a reinitialization is required due to changes to the hardware data in the DB
-        let mut data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
-        if *data_changed {
+        // Check if a reinitialization is required due to changes to the hardware data in the DB or changes to the testprogram
+        let mut hardware_data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
+        let mut testprogram_data_changed = ACTIVE_TESTPROGRAM_CHANGED.blocking_lock();
+
+        if !*hardware_data_changed && *testprogram_data_changed {
+            testprogram::sync_binaries(self.db.clone());
+            *testprogram_data_changed = false;
+        } else if *hardware_data_changed {
             self.reinitialize_hardware(hardware);
-            *data_changed = false;
+            *hardware_data_changed = false;
+            *testprogram_data_changed = false;
         }
-        drop(data_changed);
+
+        drop(hardware_data_changed);
+        drop(testprogram_data_changed);
 
         // Unlock probes
         for testchannel in hardware.testchannels.iter() {

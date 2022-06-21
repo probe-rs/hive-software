@@ -318,7 +318,7 @@ pub(crate) fn sync_binaries(db: Arc<MonitorDb>) {
         panic!("Failed to find active testprogram in database. This should not happen as it indicates a desync between the active testprogram DB data and the testprogram DB data.");
     }).unwrap();
 
-    if active_testprogram.build_binaries().is_ok() {
+    if active_testprogram.is_ready() && active_testprogram.build_binaries().is_ok() {
         return;
     }
 
