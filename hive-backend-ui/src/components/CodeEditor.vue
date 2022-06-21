@@ -9,7 +9,19 @@ import { computed } from "@vue/reactivity";
 import { useAppConfig } from "@/stores/appConfig";
 import { AppTheme } from "@/plugins/vuetify";
 
-const code = ref(JSON.stringify({ text: "some code ....", to: false }));
+const props = defineProps({
+  code: {
+    type: String,
+    required: true,
+  },
+  readOnly: {
+    type: Boolean,
+    required: true,
+  }
+})
+
+const code = ref(props.code);
+
 const appConfig = useAppConfig();
 const editorTheme = computed(() => {
   if (appConfig.theme === AppTheme.Light) {
@@ -20,16 +32,9 @@ const editorTheme = computed(() => {
 </script>
 
 <template>
-  <VAceEditor
-    style="height: 100%"
-    :options="{
-      fontSize: 20,
-      fontFamily: 'Ubuntu Mono',
-      readOnly: false,
-    }"
-    wrap
-    v-model:value="code"
-    :theme="editorTheme"
-    lang="assembly_x86"
-  />
+  <VAceEditor style="height: 100%" :options="{
+    fontSize: 20,
+    fontFamily: 'Ubuntu Mono',
+    readOnly: props.readOnly,
+  }" wrap v-model:value="code" :theme="editorTheme" lang="assembly_x86" />
 </template>

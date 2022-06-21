@@ -21,6 +21,7 @@
 - [X] Return data type on /test/run endpoint which can be either error or ok with testresults, the current implementation fails with a bad request status code in case an error occurred in the testmanager, which is not an actual http error but an application error.
 - [X] Current DB implementation is prone to race conditions as there is no guarantee that the previously read out value is not changed by another function before the previously read value is modified and written back to the DB
 - [ ] get_and_init_target_address_ranges() it might be better to do this based on the DB data as the testmanager will ultimately reinitialized the hardware based on DB data and not runtime data
+- [ ] Deadlock when reloading the testrack hardware due to user request via graphql. Probably inside Testmanager
 
 ## Runner
 - [ ] Add a proper shutdown procedure 
@@ -33,6 +34,9 @@
 - [ ] Add actual functionality to the testprogram view, currently it only looks nice
 - [X] User store does not stay persistent between page reloads, leading to wrongly denied routes
 - [X] Fix appearance of Hive Testrack. Currently the active animation will not reset. Probably due to reassigning the Konva Tween object (It then looses info on its state)
+- [ ] Display unhandled errors to user as snackbar
+- [ ] Fix tooltips, most of them don't show at all. Might be related to using alpha/beta version of vuetify
+- [ ] Add status to target which matches the actual status in runtime
 
 ## Hive Setup
 - [ ] Do proper error handling in shell setup script

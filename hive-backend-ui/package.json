@@ -17,6 +17,7 @@
     "@vue/apollo-composable": "^4.0.0-alpha.17",
     "@vue/apollo-util": "^4.0.0-alpha.17",
     "@vuetify/vite-plugin": "^1.0.0-alpha.10",
+    "base-64": "^1.0.0",
     "generate-password": "^1.7.0",
     "graphql": "^16.4.0",
     "graphql-tag": "^2.12.6",
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.1.0",
+    "@types/base-64": "^1.0.0",
     "@types/js-cookie": "^3.0.2",
     "@types/jsdom": "^16.2.14",
     "@types/node": "^16.11.27",

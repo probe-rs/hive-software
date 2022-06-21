@@ -13,6 +13,12 @@ export enum Application {
   Runner = "RUNNER",
 }
 
+/** The current supported architectures of a Testprogram */
+export enum Architecture {
+  Arm = "ARM",
+  Riscv = "RISCV",
+}
+
 export type AssignProbeResponse = {
   __typename?: "AssignProbeResponse";
   probePos: Scalars["Int"];
@@ -44,6 +50,14 @@ export type BackendMutation = {
   deleteUser: UserResponse;
   /** Modify a user */
   modifyUser: UserResponse;
+  /** Modify a testprogram */
+  modifyTestprogram: Testprogram;
+  /** Delete a testprogram */
+  deleteTestprogram: Scalars["String"];
+  /** Create a testprogram */
+  createTestprogram: Testprogram;
+  /** Set a testprogram as active testprogram */
+  setActiveTestprogram: Scalars["String"];
 };
 
 export type BackendMutationAssignTargetArgs = {
@@ -83,6 +97,23 @@ export type BackendMutationModifyUserArgs = {
   newPassword?: InputMaybe<Scalars["String"]>;
 };
 
+export type BackendMutationModifyTestprogramArgs = {
+  testprogramName: Scalars["String"];
+  codeFiles: Array<Scalars["Upload"]>;
+};
+
+export type BackendMutationDeleteTestprogramArgs = {
+  testprogramName: Scalars["String"];
+};
+
+export type BackendMutationCreateTestprogramArgs = {
+  testprogramName: Scalars["String"];
+};
+
+export type BackendMutationSetActiveTestprogramArgs = {
+  testprogramName: Scalars["String"];
+};
+
 export type BackendQuery = {
   __typename?: "BackendQuery";
   /** The currently connected daughterboards */
@@ -101,6 +132,12 @@ export type BackendQuery = {
   applicationLog: Array<Scalars["String"]>;
   /** List the registered users */
   registeredUsers: Array<UserResponse>;
+  /** Get all avaialable testprograms */
+  availableTestprograms: Array<Testprogram>;
+  /** Get the currently active testprogram */
+  activeTestprogram: Scalars["String"];
+  /** Get the provided testprogram and its sourcecode as base64 */
+  testprogram: FullTestProgramResponse;
 };
 
 export type BackendQuerySearchSupportedTargetsArgs = {
@@ -110,6 +147,10 @@ export type BackendQuerySearchSupportedTargetsArgs = {
 export type BackendQueryApplicationLogArgs = {
   application: Application;
   level: LogLevel;
+};
+
+export type BackendQueryTestprogramArgs = {
+  testprogramName: Scalars["String"];
 };
 
 /** Flattened version of [`ProbeState`] to use it in graphql api */
@@ -130,6 +171,13 @@ export type FlatTargetState = {
   __typename?: "FlatTargetState";
   state: State;
   data?: Maybe<TargetInfo>;
+};
+
+export type FullTestProgramResponse = {
+  __typename?: "FullTestProgramResponse";
+  testprogram: Testprogram;
+  codeArm: Scalars["String"];
+  codeRiscv: Scalars["String"];
 };
 
 /** Wrapper for [`log::Level`] to use it in graphql api */
@@ -170,6 +218,27 @@ export type TargetInfo = {
   __typename?: "TargetInfo";
   name: Scalars["String"];
 };
+
+export type Testprogram = {
+  __typename?: "Testprogram";
+  name: Scalars["String"];
+  testprogramArm: TestprogramArchitecture;
+  testprogramRiscv: TestprogramArchitecture;
+};
+
+/** The sub-instance of [`Testprogram`] which contains all architecture specific functionality */
+export type TestprogramArchitecture = {
+  __typename?: "TestprogramArchitecture";
+  architecture: Architecture;
+  status: TestprogramStatus;
+  compileMessage: Scalars["String"];
+};
+
+export enum TestprogramStatus {
+  NotInitialized = "NOT_INITIALIZED",
+  CompileFailure = "COMPILE_FAILURE",
+  Ok = "OK",
+}
 
 export type UserResponse = {
   __typename?: "UserResponse";
