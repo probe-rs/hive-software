@@ -15,7 +15,7 @@
 - [X] Implement hive auth to supply jwt in http only cookie
 - [X] authenticate_user Function in webserver auth is very slow, fix performance
 - [ ] ~~consider switching to base64 ct encoding instead of base64 for tokens etc.~~
-- [ ] Implement proper initialization which blocks the monitor in case no initialization has been done, also add reinitialization which can be triggered automatically or by the user
+- [X] Implement proper initialization which blocks the monitor in case no initialization has been done, also add reinitialization which can be triggered automatically or by the user
 - [X] Move all blocking functions in async context into blocking tokio tasks
 - [X] Check if axum layers are properly implemented. Scope them correctly to avoid having unnecessary layers on certain routes. Check if request limiting is required on public routes.
 - [X] Return data type on /test/run endpoint which can be either error or ok with testresults, the current implementation fails with a bad request status code in case an error occurred in the testmanager, which is not an actual http error but an application error.

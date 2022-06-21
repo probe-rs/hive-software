@@ -28,6 +28,12 @@ pub enum TargetState {
     NotConnected,
 }
 
+impl Default for TargetState {
+    fn default() -> Self {
+        Self::Unknown
+    }
+}
+
 impl From<String> for TargetState {
     fn from(str: String) -> Self {
         if str == "Unknown" {
@@ -51,6 +57,12 @@ pub enum ProbeState {
     Known(ProbeInfo),
     Unknown,
     NotConnected,
+}
+
+impl Default for ProbeState {
+    fn default() -> Self {
+        Self::Unknown
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SimpleObject)]

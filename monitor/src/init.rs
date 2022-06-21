@@ -130,13 +130,21 @@ fn init_tss(db: Arc<MonitorDb>) {
         .unwrap();
 }
 
-/// Initializes the provided [`HiveHardware`] according to the data provided by the DB. This function fails if the data in the DB is not in sync with the detected hardware.
+/// Initializes the provided [`HiveHardware`] according to the data provided by the DB. If no data is found in the DB the data is initialized from default values.
 ///
 /// # Panics
 /// If the data in the DB has not been initialized.
 fn init_hardware_from_db_data(db: Arc<MonitorDb>, hardware: &HiveHardware) {
-    let target_data = db.config_tree.c_get(&keys::config::ASSIGNED_TARGETS).unwrap().expect("Failed to get the target data in the DB. This function can only be called once the target data has been initialized in the DB.");
-    let probe_data = db.config_tree.c_get(&keys::config::ASSIGNED_PROBES).unwrap().expect("Failed to get the probe data in the DB. This function can only be called once the probe data has been initialized in the DB.");
+    let target_data = db
+        .config_tree
+        .c_get(&keys::config::ASSIGNED_TARGETS)
+        .unwrap()
+        .unwrap_or_default();
+    let probe_data = db
+        .config_tree
+        .c_get(&keys::config::ASSIGNED_PROBES)
+        .unwrap()
+        .unwrap_or_default();
 
     // Ignore desync error as it is autoresolved by the function
     let _ = hardware.initialize_target_data(target_data);
