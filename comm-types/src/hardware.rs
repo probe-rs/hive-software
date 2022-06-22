@@ -65,14 +65,11 @@ impl Default for ProbeState {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SimpleObject)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TargetInfo {
     pub name: String,
-    #[graphql(skip)]
     pub architecture: Option<Architecture>,
-    #[graphql(skip)]
     pub memory_address: Option<Memory>,
-    #[graphql(skip)]
     pub status: Result<(), String>,
 }
 
@@ -98,11 +95,26 @@ pub enum StackShieldStatus {
 }
 
 /// Information on a probe attached to Hive
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 pub struct ProbeInfo {
     pub identifier: String,
     pub vendor_id: u16,
     pub product_id: u16,
     pub serial_number: Option<String>,
     pub hid_interface: Option<u8>,
+}
+
+impl std::fmt::Debug for ProbeInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{} (VID: {:04x}, PID: {:04x}, {})",
+            self.identifier,
+            self.vendor_id,
+            self.product_id,
+            self.serial_number
+                .clone()
+                .map_or("".to_owned(), |v| format!("Serial: {}, ", v)),
+        )
+    }
 }

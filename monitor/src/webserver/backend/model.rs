@@ -14,7 +14,7 @@ use crate::testprogram::Testprogram;
 #[derive(SimpleObject, Debug)]
 pub(super) struct FlatTargetState {
     pub state: State,
-    pub data: Option<TargetInfo>,
+    pub data: Option<FlatTargetInfo>,
 }
 
 impl From<TargetState> for FlatTargetState {
@@ -22,7 +22,7 @@ impl From<TargetState> for FlatTargetState {
         match target_state {
             TargetState::Known(target_data) => Self {
                 state: State::Known,
-                data: Some(target_data),
+                data: Some(target_data.into()),
             },
             TargetState::Unknown => Self {
                 state: State::Unknown,
@@ -32,6 +32,38 @@ impl From<TargetState> for FlatTargetState {
                 state: State::NotConnected,
                 data: None,
             },
+        }
+    }
+}
+
+/// Flattened version of [`TargetInfo`] to use it in graphql api
+#[derive(Debug, SimpleObject)]
+pub(super) struct FlatTargetInfo {
+    name: String,
+    flash_status: ResultEnum,
+    flash_message: String,
+}
+
+impl From<TargetInfo> for FlatTargetInfo {
+    fn from(target_info: TargetInfo) -> Self {
+        let flash_status;
+        let flash_message;
+
+        match target_info.status {
+            Ok(_) => {
+                flash_status = ResultEnum::Ok;
+                flash_message = "No problems found".to_owned();
+            }
+            Err(err) => {
+                flash_status = ResultEnum::Error;
+                flash_message = err;
+            }
+        }
+
+        Self {
+            name: target_info.name,
+            flash_status,
+            flash_message,
         }
     }
 }

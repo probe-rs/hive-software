@@ -232,7 +232,7 @@ impl TestManager {
         testprogram::sync_binaries(self.db.clone(), &hardware);
 
         // Reflash testprograms
-        flash::flash_testbinaries(self.db.clone());
+        flash::flash_testbinaries(self.db.clone(), &hardware);
     }
 
     /// Prepare the test environment, run the tests and return the received result

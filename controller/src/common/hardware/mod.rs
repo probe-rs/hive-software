@@ -93,6 +93,13 @@ impl HiveHardware {
     ///
     /// In case of a data desync the probe data associated to the testchannel is reset to [`None`]
     pub fn initialize_probe_data(&self, data: HiveProbeData) -> Result<(), InitError> {
+        // Remove all probes which are still registered or opened in the struct
+        for testchannel in self.testchannels.iter() {
+            let testchannel = testchannel.lock().unwrap();
+
+            testchannel.remove_probe();
+        }
+
         let mut found_probes = Probe::list_all();
         let mut data_desync = false;
 
@@ -141,7 +148,7 @@ impl HiveHardware {
         }
 
         if data_desync {
-            log::error!("Encountered data desync during probe data initialization.\nData received:\n{:#?}\nProbes detected by the application, which are not found in the received data:\n{:#?}", data, found_probes);
+            log::warn!("Encountered data desync during probe data initialization.\nData received:\n{:#?}\nProbes detected by the application, which are not found in the received data:\n{:#?}", data, found_probes);
             return Err(InitError::ProbeInitDesync);
         }
 

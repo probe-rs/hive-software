@@ -17,9 +17,9 @@ pub(crate) fn run_standalone_mode(db: Arc<MonitorDb>, mut test_manager: TestMana
     init::init_hardware(db.clone(), &mut hardware);
 
     init::init_testprograms(db.clone(), &hardware);
-    drop(hardware);
 
-    flash::flash_testbinaries(db.clone());
+    flash::flash_testbinaries(db.clone(), &hardware);
+    drop(hardware);
 
     let rt = Arc::new(
         Builder::new_current_thread()

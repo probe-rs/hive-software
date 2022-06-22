@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 use comm_types::hardware::{Architecture, TargetInfo, TargetState};
+use controller::common::hardware::HiveHardware;
 use controller::common::hardware::{CombinedTestChannel, HardwareStatus};
 use hive_db::CborTransactional;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions, Format};
@@ -13,12 +14,13 @@ use probe_rs::{DebugProbeInfo, Session};
 use crossbeam_utils::thread;
 use sled::transaction::UnabortableTransactionError;
 
-use crate::database::{keys, MonitorDb};
-use crate::{HARDWARE};
+use crate::database::{self, keys, MonitorDb};
 use crate::testprogram::Testprogram;
 
 #[derive(Debug)]
 struct FlashStatus {
+    probe_identifier: String,
+    probe_serial_number: Option<String>,
     tss_pos: u8,
     target_name: String,
     result: Result<(), String>,
@@ -27,9 +29,7 @@ struct FlashStatus {
 /// Tries to flash the testbinaries onto all available targets.
 /// 
 /// This function does nothing in case the [`HARDWARE`] static is not [`HardwareStatus::Ready`]
-pub(crate) fn flash_testbinaries(db: Arc<MonitorDb>) {
-    let hardware = HARDWARE.lock().unwrap();
-
+pub(crate) fn flash_testbinaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     if hardware.hardware_status != HardwareStatus::Ready {
         return;
     }
@@ -116,26 +116,27 @@ pub(crate) fn flash_testbinaries(db: Arc<MonitorDb>) {
     // Update tss targets with the flash results
     for tss in hardware.tss.iter().filter_map(|tss| tss.as_ref()) {
         let mut tss = tss.lock().unwrap();
+        let tss_pos = tss.get_position();
 
-        if tss.get_targets().is_none() {
+        let targets = tss.get_targets_mut();
+
+        if targets.is_none() {
             // No daughterboard attached
             continue;
         }
 
-        let mut targets = tss.get_targets().clone();
+        let targets = targets.as_mut().unwrap();
 
-        for target in targets.as_mut().unwrap() {
+        for target in targets {
             if let TargetState::Known(target_info) = target {
                 let flash_results = flash_results.read().unwrap();
 
-                if flash_results
+                if !flash_results
                     .iter()
-                    .filter(|result| {
-                        result.tss_pos == tss.get_position()
+                    .any(|result| {
+                        result.tss_pos == tss_pos
                             && result.target_name == target_info.name
                     })
-                    .count()
-                    == 0
                 {
                     // Target is not included in the flash_results due to previous init errors
                     continue;
@@ -143,13 +144,11 @@ pub(crate) fn flash_testbinaries(db: Arc<MonitorDb>) {
 
                 if flash_results
                     .iter()
-                    .filter(|result| {
-                        result.tss_pos == tss.get_position()
+                    .any(|result| {
+                        result.tss_pos == tss_pos
                             && result.target_name == target_info.name
                             && result.result.is_ok()
                     })
-                    .count()
-                    != 0
                 {
                     target_info.status = Ok(());
                 } else {
@@ -158,12 +157,10 @@ pub(crate) fn flash_testbinaries(db: Arc<MonitorDb>) {
                 }
             }
         }
-
-        if targets.is_some() {
-            // save updated targets back to tss and ignore any data desyncs
-            let _ = tss.set_targets(targets);
-        }
     }
+
+    // Synchronize the target data in the DB with the runtime data
+    database::sync::sync_tss_target_data(db, hardware);
 
     log::info!(
         "Following results were pushed by the flashing threads: {:#?}",
@@ -192,13 +189,11 @@ fn flash_target(
     let flash_results = flash_results.read().unwrap();
     if flash_results
         .iter()
-        .filter(|result| {
+        .any(|result| {
             result.tss_pos == tss_pos
                 && result.target_name == target_info.name
                 && result.result.is_ok()
         })
-        .count()
-        != 0
     {
         return;
     }
@@ -232,9 +227,11 @@ fn flash_target(
 
     match flash_result {
         Ok(_) => result_sender.send(FlashStatus {
-            tss_pos,
-            target_name: target_info.name.clone(),
-            result: Ok(()),
+                probe_identifier: probe_info.identifier,
+                probe_serial_number: probe_info.serial_number,
+                tss_pos,
+                target_name: target_info.name.clone(),
+                result: Ok(()),
         }).expect("Failed to send results to main thread, the receiver might have been dropped unexpectedly."),
         Err(err) => {
             let source = match err.source(){
@@ -243,9 +240,11 @@ fn flash_target(
             };
             
             result_sender.send(FlashStatus {
-            tss_pos,
-            target_name: target_info.name.clone(),
-            result: Err(format!("{}: {}", err, source)),
+                probe_identifier: probe_info.identifier,
+                probe_serial_number: probe_info.serial_number,
+                tss_pos,
+                target_name: target_info.name.clone(),
+                result: Err(format!("{}: {}", err, source)),
         }).expect("Failed to send results to main thread, the receiver might have been dropped unexpectedly.")},
     }
 
