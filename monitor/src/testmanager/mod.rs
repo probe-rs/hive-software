@@ -166,7 +166,7 @@ impl TestManager {
                             ACTIVE_TESTPROGRAM_CHANGED.blocking_lock();
 
                         if !*hardware_data_changed && *testprogram_data_changed {
-                            testprogram::sync_binaries(self.db.clone());
+                            testprogram::sync_binaries(self.db.clone(), &hardware);
                             *testprogram_data_changed = false;
                         } else if *hardware_data_changed {
                             self.reinitialize_hardware(&mut hardware);
@@ -229,7 +229,7 @@ impl TestManager {
         }
 
         // Rebuild and link testbinaries
-        testprogram::sync_binaries(self.db.clone());
+        testprogram::sync_binaries(self.db.clone(), &hardware);
 
         // Reflash testprograms
         flash::flash_testbinaries(self.db.clone());
@@ -246,7 +246,7 @@ impl TestManager {
         let mut testprogram_data_changed = ACTIVE_TESTPROGRAM_CHANGED.blocking_lock();
 
         if !*hardware_data_changed && *testprogram_data_changed {
-            testprogram::sync_binaries(self.db.clone());
+            testprogram::sync_binaries(self.db.clone(), &hardware);
             *testprogram_data_changed = false;
         } else if *hardware_data_changed {
             self.reinitialize_hardware(hardware);

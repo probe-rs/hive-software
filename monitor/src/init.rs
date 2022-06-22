@@ -58,7 +58,7 @@ pub(crate) fn init_hardware(db: Arc<MonitorDb>, hardware: &mut HiveHardware) {
 ///
 /// # Panics
 /// In case the default test program is not (or only partially) found on the disk. This might indicate a corrupted monitor install.
-pub(crate) fn init_testprograms(db: Arc<MonitorDb>) {
+pub(crate) fn init_testprograms(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     log::debug!("Initializing testprograms");
 
     db.config_tree.transaction::<_, _, UnabortableTransactionError>(|tree|{
@@ -117,7 +117,7 @@ pub(crate) fn init_testprograms(db: Arc<MonitorDb>) {
     }).unwrap();
 
     // Sync binaries from cleaned DB data
-    testprogram::sync_binaries(db);
+    testprogram::sync_binaries(db, hardware);
 }
 
 /// Detect all connected TSS and update DB data

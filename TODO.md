@@ -21,7 +21,7 @@
 - [X] Return data type on /test/run endpoint which can be either error or ok with testresults, the current implementation fails with a bad request status code in case an error occurred in the testmanager, which is not an actual http error but an application error.
 - [X] Current DB implementation is prone to race conditions as there is no guarantee that the previously read out value is not changed by another function before the previously read value is modified and written back to the DB
 - [ ] get_and_init_target_address_ranges() it might be better to do this based on the DB data as the testmanager will ultimately reinitialized the hardware based on DB data and not runtime data
-- [ ] Deadlock when reloading the testrack hardware due to user request via graphql. Probably inside Testmanager
+- [X] Deadlock when reloading the testrack hardware due to user request via graphql. Probably inside Testmanager
 
 ## Runner
 - [ ] Add a proper shutdown procedure 

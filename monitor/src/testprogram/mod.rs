@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use async_graphql::{Enum, SimpleObject};
 use comm_types::hardware::Memory;
+use controller::common::hardware::HiveHardware;
 use hive_db::CborTransactional;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -92,8 +93,8 @@ impl Testprogram {
     }
 
     /// Builds binaries for each architecture after inserting the current hive defines. Automatically builds multiple binaries with different flash/ram start addresses according to the needs of the currently connected targets.
-    pub(crate) fn build_binaries(&mut self) -> Result<(), BuildError> {
-        let addresses = address::get_and_init_target_address_ranges();
+    pub(crate) fn build_binaries(&mut self, hardware: &HiveHardware) -> Result<(), BuildError> {
+        let addresses = address::get_and_init_target_address_ranges(hardware);
 
         self.insert_hive_defines();
 
@@ -310,7 +311,7 @@ impl TestprogramArchitecture {
 ///
 /// # Panics
 /// In case building or linking fails on the default testprogram.
-pub(crate) fn sync_binaries(db: Arc<MonitorDb>) {
+pub(crate) fn sync_binaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     let mut active_testprogram = db.config_tree.transaction::<_, _, UnabortableTransactionError>(|tree|{
         let active = tree.c_get(&keys::config::ACTIVE_TESTPROGRAM)?.expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known");
 
@@ -326,7 +327,7 @@ pub(crate) fn sync_binaries(db: Arc<MonitorDb>) {
         panic!("Failed to find active testprogram in database. This should not happen as it indicates a desync between the active testprogram DB data and the testprogram DB data.");
     }).unwrap();
 
-    if active_testprogram.is_ready() && active_testprogram.build_binaries().is_ok() {
+    if active_testprogram.is_ready() && active_testprogram.build_binaries(hardware).is_ok() {
         return;
     }
 
@@ -349,6 +350,6 @@ pub(crate) fn sync_binaries(db: Arc<MonitorDb>) {
     }).unwrap();
 
     active_testprogram
-        .build_binaries()
+        .build_binaries(hardware)
         .expect("Failed to build or link default testprogram.")
 }

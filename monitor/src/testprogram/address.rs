@@ -2,12 +2,11 @@
 use std::ops::Range;
 
 use comm_types::hardware::{Memory, TargetState};
+use controller::common::hardware::HiveHardware;
 use probe_rs::{
     config::{self, MemoryRegion},
     Architecture, Target,
 };
-
-use crate::HARDWARE;
 
 pub(crate) struct BaseAddressRanges {
     pub arm: Vec<Memory>,
@@ -15,9 +14,7 @@ pub(crate) struct BaseAddressRanges {
 }
 
 /// Returns all required address ranges for the currently connected targets. And updates the TargetInfo of each individual target to the correct range
-pub(crate) fn get_and_init_target_address_ranges() -> BaseAddressRanges {
-    let hardware = HARDWARE.lock().unwrap();
-
+pub(crate) fn get_and_init_target_address_ranges(hardware: &HiveHardware) -> BaseAddressRanges {
     let mut addresses = BaseAddressRanges {
         arm: vec![],
         riscv: vec![],
