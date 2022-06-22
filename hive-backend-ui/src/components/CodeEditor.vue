@@ -17,8 +17,8 @@ const props = defineProps({
   readOnly: {
     type: Boolean,
     required: true,
-  }
-})
+  },
+});
 
 const code = ref(props.code);
 
@@ -32,9 +32,16 @@ const editorTheme = computed(() => {
 </script>
 
 <template>
-  <VAceEditor style="height: 100%" :options="{
-    fontSize: 20,
-    fontFamily: 'Ubuntu Mono',
-    readOnly: props.readOnly,
-  }" wrap v-model:value="code" :theme="editorTheme" lang="assembly_x86" />
+  <VAceEditor
+    style="height: 100%"
+    :options="{
+      fontSize: 20,
+      fontFamily: 'Ubuntu Mono',
+      readOnly: props.readOnly,
+    }"
+    wrap
+    v-model:value="code"
+    :theme="editorTheme"
+    lang="assembly_x86"
+  />
 </template>

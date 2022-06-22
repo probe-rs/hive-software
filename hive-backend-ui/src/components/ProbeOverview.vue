@@ -171,13 +171,13 @@ function submit(probeName: string) {
   let probeState;
 
   switch (probeName) {
-    case State.Unknown:
+    case "Unknown":
       probeState = {
         state: State.Unknown,
         data: null,
       };
       break;
-    case State.NotConnected:
+    case "Not Connected":
       probeState = {
         state: State.NotConnected,
         data: null,

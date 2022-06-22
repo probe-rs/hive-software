@@ -10,6 +10,8 @@ import { logErrorMessages } from "@vue/apollo-util";
 import Cookies from "js-cookie";
 import router from "@/router/index";
 
+export const APOLLO_ERROR = "apolloError";
+
 // HTTP connection to the API
 const httpLink = createHttpLink({
   // You should use an absolute URL here
@@ -68,11 +70,30 @@ const errorLink = onError((error) => {
   if (error.networkError && error.networkError.statusCode === 401) {
     // Redirect unauthorized user to login
     router.push("/login");
+    return;
+  }
+
+  // @ts-ignore
+  if (error.networkError && error.networkError.statusCode === 403) {
+    // Ignore csrf token errors
+    return;
   }
 
   if (process.env.NODE_ENV !== "production") {
     logErrorMessages(error);
   }
+
+  let errorMessage = "Unknown";
+
+  if (error.networkError) {
+    errorMessage = error.networkError.message;
+  } else if (error.graphQLErrors) {
+    errorMessage = error.graphQLErrors[0].message;
+  }
+
+  const errorEvent = new CustomEvent(APOLLO_ERROR, { detail: errorMessage });
+
+  document.dispatchEvent(errorEvent);
 });
 
 // Auth error handler

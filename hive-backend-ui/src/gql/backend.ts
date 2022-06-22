@@ -166,11 +166,19 @@ export type FlatProbeStateInput = {
   data?: InputMaybe<ProbeInfoInput>;
 };
 
+/** Flattened version of [`TargetInfo`] to use it in graphql api */
+export type FlatTargetInfo = {
+  __typename?: "FlatTargetInfo";
+  name: Scalars["String"];
+  flashStatus: ResultEnum;
+  flashMessage: Scalars["String"];
+};
+
 /** Flattened version of [`TargetState`] to use it in graphql api */
 export type FlatTargetState = {
   __typename?: "FlatTargetState";
   state: State;
-  data?: Maybe<TargetInfo>;
+  data?: Maybe<FlatTargetInfo>;
 };
 
 export type FullTestProgramResponse = {
@@ -202,6 +210,11 @@ export type ProbeInfoInput = {
   serialNumber?: InputMaybe<Scalars["String"]>;
 };
 
+export enum ResultEnum {
+  Ok = "OK",
+  Error = "ERROR",
+}
+
 /** The possible roles a user can have */
 export enum Role {
   Admin = "ADMIN",
@@ -213,11 +226,6 @@ export enum State {
   Unknown = "UNKNOWN",
   NotConnected = "NOT_CONNECTED",
 }
-
-export type TargetInfo = {
-  __typename?: "TargetInfo";
-  name: Scalars["String"];
-};
 
 export type Testprogram = {
   __typename?: "Testprogram";

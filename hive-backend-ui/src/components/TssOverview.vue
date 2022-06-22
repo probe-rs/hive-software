@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import type { BackendMutation, BackendQuery } from "@/gql/backend";
+import {
+  type BackendMutation,
+  type BackendQuery,
+  ResultEnum,
+} from "@/gql/backend";
 
 import TargetOverview from "@/components/TargetOverview.vue";
 import { defineProps } from "vue";
@@ -25,6 +29,8 @@ const { loading, result } = useQuery<BackendQuery>(gql`
       state
       data {
         name
+        flashStatus
+        flashMessage
       }
     }
   }
@@ -101,7 +107,8 @@ const hasDaughterboard = computed(() => {
         <TargetOverview
           :tssPos="tssPos"
           :target="0"
-          :status="false"
+          :status="assignedTargets[tssPos]![0].data ? assignedTargets[tssPos]![0].data!.flashStatus : ResultEnum.Error"
+          :statusMessage="assignedTargets[tssPos]![0].data ? assignedTargets[tssPos]![0].data!.flashMessage : ''"
           :initialData="assignedTargets[tssPos]![0]"
         />
       </v-col>
@@ -109,7 +116,8 @@ const hasDaughterboard = computed(() => {
         <TargetOverview
           :tssPos="tssPos"
           :target="1"
-          :status="true"
+          :status="assignedTargets[tssPos]![1].data ? assignedTargets[tssPos]![1].data!.flashStatus : ResultEnum.Error"
+          :statusMessage="assignedTargets[tssPos]![1].data ? assignedTargets[tssPos]![1].data!.flashMessage : ''"
           :initialData="assignedTargets[tssPos]![1]"
         />
       </v-col>
@@ -119,7 +127,8 @@ const hasDaughterboard = computed(() => {
         <TargetOverview
           :tssPos="tssPos"
           :target="2"
-          :status="true"
+          :status="assignedTargets[tssPos]![2].data ? assignedTargets[tssPos]![2].data!.flashStatus : ResultEnum.Error"
+          :statusMessage="assignedTargets[tssPos]![2].data ? assignedTargets[tssPos]![2].data!.flashMessage : ''"
           :initialData="assignedTargets[tssPos]![2]"
         />
       </v-col>
@@ -127,7 +136,8 @@ const hasDaughterboard = computed(() => {
         <TargetOverview
           :tssPos="tssPos"
           :target="3"
-          :status="true"
+          :status="assignedTargets[tssPos]![3].data ? assignedTargets[tssPos]![3].data!.flashStatus : ResultEnum.Error"
+          :statusMessage="assignedTargets[tssPos]![3].data ? assignedTargets[tssPos]![3].data!.flashMessage : ''"
           :initialData="assignedTargets[tssPos]![3]"
         />
       </v-col>

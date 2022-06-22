@@ -1,18 +1,30 @@
 <script setup lang="ts">
 import type { BackendAuthMutation } from "@/gql/backendAuth";
 
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import AppSettings from "@/components/AppSettings.vue";
 import Navigation from "@/components/Navigation.vue";
+import ErrorSnackbar from "@/components/ErrorSnackbar.vue";
 import hiveLogo from "@/assets/probe-rs-icon.png";
 import { useMutation } from "@vue/apollo-composable";
 import gql from "graphql-tag";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/stores/userStore";
+import { APOLLO_ERROR } from "@/plugins/apollo";
 
 const router = useRouter();
 const userStore = useUserStore();
 const showNavigation = ref(true);
+const showError = ref(false);
+const errorMessage = ref("");
+
+onMounted(() => {
+  document.addEventListener(APOLLO_ERROR, (e) => {
+    //@ts-ignore
+    errorMessage.value = `Error: ${e.detail}`;
+    showError.value = true;
+  });
+});
 
 const { mutate: logout, onDone: onLogoutDone } =
   useMutation<BackendAuthMutation>(
@@ -81,4 +93,10 @@ function resizeEvent() {
       <slot />
     </v-container>
   </v-main>
+
+  <ErrorSnackbar
+    :is-error="showError"
+    :message="errorMessage"
+    @close-event="showError = false"
+  />
 </template>

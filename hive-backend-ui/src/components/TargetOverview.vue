@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  ResultEnum,
   State,
   type BackendMutation,
   type BackendMutationAssignTargetArgs,
@@ -18,7 +19,14 @@ const props = defineProps({
     type: Number,
     required: true,
   },
-  status: Boolean,
+  status: {
+    type: String as PropType<ResultEnum>,
+    required: true,
+  },
+  statusMessage: {
+    type: String,
+    required: true,
+  },
   tssPos: {
     type: Number,
     required: true,
@@ -73,6 +81,8 @@ const { mutate: submitTarget } = useMutation<
             state
             data {
               name
+              flashStatus
+              flashMessage
             }
           }
         }
@@ -86,7 +96,7 @@ const { mutate: submitTarget } = useMutation<
         return;
       }
 
-      let newTarget;
+      let newTarget: FlatTargetState;
 
       switch (assignTarget.targetName) {
         case "Unknown":
@@ -106,6 +116,8 @@ const { mutate: submitTarget } = useMutation<
             state: State.Known,
             data: {
               name: assignTarget.targetName,
+              flashStatus: ResultEnum.Error,
+              flashMessage: "Not initialized yet",
             },
           };
           break;
@@ -170,22 +182,24 @@ function submit(targetName: string) {
       Target {{ props.target }}
     </v-card-title>
 
-    <v-card-subtitle v-show="!props.status">
-      <v-icon icon="mdi-alert" size="18" color="error" class="mr-1 pb-1" />
+    <template v-if="props.initialData.state === State.Known">
+      <v-card-subtitle v-if="props.status === ResultEnum.Error">
+        <v-icon icon="mdi-alert" size="18" color="error" class="mr-1 pb-1" />
 
-      Failed to flash testprogram
-    </v-card-subtitle>
+        {{ props.statusMessage }}
+      </v-card-subtitle>
 
-    <v-card-subtitle v-show="props.status">
-      <v-icon
-        icon="mdi-checkbox-marked"
-        size="18"
-        color="success"
-        class="mr-1 pb-1"
-      />
+      <v-card-subtitle v-else>
+        <v-icon
+          icon="mdi-checkbox-marked"
+          size="18"
+          color="success"
+          class="mr-1 pb-1"
+        />
 
-      No problems found
-    </v-card-subtitle>
+        {{ props.statusMessage }}
+      </v-card-subtitle>
+    </template>
 
     <v-card-text class="pb-0">
       <v-autocomplete

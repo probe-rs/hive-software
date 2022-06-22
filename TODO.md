@@ -35,9 +35,9 @@
 - [ ] Add actual functionality to the testprogram view, currently it only looks nice
 - [X] User store does not stay persistent between page reloads, leading to wrongly denied routes
 - [X] Fix appearance of Hive Testrack. Currently the active animation will not reset. Probably due to reassigning the Konva Tween object (It then looses info on its state)
-- [ ] Display unhandled errors to user as snackbar
+- [X] Display unhandled errors to user as snackbar
 - [ ] Fix tooltips, most of them don't show at all. Might be related to using alpha/beta version of vuetify
-- [ ] Add status to target which matches the actual status in runtime
+- [X] Add status to target which matches the actual status in runtime
 
 ## Hive Setup
 - [ ] Do proper error handling in shell setup script
