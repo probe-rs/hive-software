@@ -1,5 +1,6 @@
 //! The test subcommand
 use anyhow::Result;
+use colored::Colorize;
 
 use crate::config::HiveConfig;
 use crate::CliArgs;
@@ -13,8 +14,10 @@ pub(crate) fn list(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
     )?;
 
     println!(
-        "Available Probes: {}\n\nAvailable Targets: {}",
+        "{}\n {}\n\n{}\n {}",
+        "Available Probes:".bold().blue(),
         capabilities.available_probes.join(", "),
+        "Available Targets:".bold().blue(),
         capabilities.available_targets.join(", ")
     );
 

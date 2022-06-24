@@ -17,7 +17,7 @@ pub(crate) mod test;
 /// # Error
 /// Returns an error in case the connection cannot be established or fails. Or the response contains unexpected data.
 fn get_testserver_capabilities(address: &Host, accept_invalid_certs: bool) -> Result<Capabilities> {
-    let client = client::get_client(accept_invalid_certs);
+    let client = client::get_http_client(accept_invalid_certs);
 
     client.get(format!("{}/test/capabilities", address.as_https_url())).send()
         .map_err(|err| {

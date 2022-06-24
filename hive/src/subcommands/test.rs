@@ -1,14 +1,12 @@
 //! The test subcommand
 use anyhow::{anyhow, bail, Result};
 use cargo_toml::Manifest;
-use comm_types::test::{TestResults, TestRunStatus};
 use ignore::Walk;
-use reqwest::blocking::{
-    multipart::{Form, Part},
-    Client,
-};
+use reqwest::blocking::multipart::{Form, Part};
 use tar::Builder;
+use tungstenite::Message;
 
+use crate::client::{get_http_client, get_ws_client};
 use crate::config::HiveConfig;
 use crate::{CliArgs, Commands};
 
@@ -38,9 +36,8 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
         bail!("This cargo project is not a workspace");
     }
 
-    let response = super::show_progress(&cli_args, |progress| {
+    super::show_progress(&cli_args, |progress| {
         progress.set_message("collecting files...");
-
         let tar_buffer = vec![];
         let mut tar = Builder::new(tar_buffer);
 
@@ -56,9 +53,8 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
 
         let tarfile = tar.into_inner()?;
 
-        progress.set_message("testing...");
-
-        let client = Client::new();
+        progress.set_message("Uploading files...");
+        let client = get_http_client(cli_args.accept_invalid_certs);
 
         let fileupload = Part::bytes(tarfile)
             .file_name("project.tar")
@@ -67,10 +63,10 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
 
         let form = Form::new().part("project", fileupload);
 
-        client
+        let response = client
             .post(format!(
                 "{}/test/run",
-                config.testserver.unwrap().as_https_url()
+                config.testserver.as_ref().unwrap().as_https_url()
             ))
             .multipart(form)
             .send()
@@ -79,13 +75,40 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
                     "Failed to send test request to testserver.\nCaused by: {}",
                     err
                 )
-            })
+            })?;
+
+        progress.set_message("Connecting websocket...");
+        let ws_ticket: String = response.json().map_err(|err| anyhow!("Failed to deserialize received testserver response. This Hive CLI version might not be compatible with the connected testserver.\n\nCaused by: {}", err))?;
+
+        let ws_url = format!(
+            "{}/test/socket?auth={}",
+            config.testserver.unwrap().as_wss_url(),
+            ws_ticket
+        );
+        let mut ws = get_ws_client(cli_args.accept_invalid_certs, ws_url)?;
+
+        loop {
+            match ws.read_message()? {
+                Message::Binary(bytes) => {
+                    todo!("parse json")
+                }
+                Message::Close(_) => {
+                    bail!("Websocket connection closed by testserver before receiving results.")
+                }
+                _ => (),
+            }
+        }
+
+        Ok(())
     })?;
 
-    let test_results: TestResults = response.json().map_err(|err| anyhow!("Failed to deserialize received testserver response. This Hive CLI version might not be compatible with the connected testserver.\n\nCaused by: {}", err))?;
+    /*let test_results: TestResults = response.json().map_err(|err| anyhow!("Failed to deserialize received testserver response. This Hive CLI version might not be compatible with the connected testserver.\n\nCaused by: {}", err))?;
 
     match test_results.status {
-        TestRunStatus::Ok => todo!("Implement test result formatting"),
+        TestRunStatus::Ok => {
+            println!("{:#?}", test_results.results.unwrap());
+            todo!("Implement test result formatting");
+        }
         TestRunStatus::Error => {
             let test_run_error = test_results.error.unwrap();
 
@@ -98,9 +121,7 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
                 None => bail!("Testserver failed to run tests: {}", test_run_error.err),
             }
         }
-    }
-
-    todo!("add test option to form");
+    }*/
 
     Ok(())
 }

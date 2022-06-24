@@ -8,9 +8,10 @@ description = "Hive cli which allows testing of probe-rs code directly in the te
 readme = "README.md"
 
 [dependencies]
-comm-types = {path = "../comm-types/", features = ["test", "hardware"]}
+comm-types = { path = "../comm-types/", features = ["test", "hardware"] }
 clap = { version = "3.1", features = ["derive", "color", "suggestions"] }
 clap-verbosity-flag = "1.0"
+colored = "2.0"
 validators = "0.24"
 dialoguer = "0.10"
 indicatif = "0.16"
@@ -22,5 +23,12 @@ directories = "4.0"
 serde_json = "1.0"
 cargo_toml = "0.11"
 ignore = "0.4"
+reqwest = { version = "0.11", features = [
+    "blocking",
+    "json",
+    "multipart",
+    "native-tls",
+] }
+tungstenite = { version = "0.17", features = ["native-tls"] }
 tar = "0.4"
-reqwest = { version = "0.11", features = ["blocking", "json", "multipart"] }
+native-tls = "0.2"

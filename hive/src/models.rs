@@ -26,6 +26,20 @@ impl Host {
             None => format!("https://{}", address),
         }
     }
+
+    /// Get the host as wss url
+    pub fn as_wss_url(&self) -> String {
+        let address = match &self.address {
+            Address::IPv4(addr) => addr.to_string(),
+            Address::IPv6(addr) => addr.to_string(),
+            Address::Domain(addr) => addr.to_string(),
+        };
+
+        match self.port {
+            Some(port) => format!("wss://{}:{}", address, port),
+            None => format!("wss://{}", address),
+        }
+    }
 }
 
 impl From<ValidHost> for Host {
