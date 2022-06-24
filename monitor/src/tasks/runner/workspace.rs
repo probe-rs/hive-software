@@ -10,7 +10,7 @@ use fs_extra::dir::CopyOptions;
 use tar::Archive;
 use thiserror::Error;
 
-use super::TestManagerError;
+use super::TaskRunnerError;
 
 /// Path to the Hive workspace where the provided project is unpacked and built
 const WORKSPACE_PATH: &str = "./data/workspace";
@@ -48,7 +48,7 @@ pub(super) fn prepare_workspace(probe_rs_project: &Bytes) -> Result<()> {
 
     tarball.unpack(project_path)?;
 
-    let cargofile_path = project_path.join("probe-rs/Cargo.toml");
+    let cargofile_path = project_path.join("Cargo.toml");
 
     if !cargofile_path.exists() {
         return Err(CargofileError::NoCargoFile.into());
@@ -78,18 +78,16 @@ pub(super) fn prepare_workspace(probe_rs_project: &Bytes) -> Result<()> {
 pub(super) fn restore_workspace() {
     let workspace_contents = fs::read_dir(WORKSPACE_PATH).expect("Failed to read Hive workspace directory. This might be caused by a corrupted installation of Hive or missing permissions.");
 
-    for entry in workspace_contents {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            if path.is_dir() {
-                fs::remove_dir_all(path).expect("Failed to delete directory on workspace cleanup. Ensure that this function is only called when no part of the program is accessing it.");
-            } else {
-                fs::remove_file(path).expect("Failed to delete file on workspace cleanup. Ensure that this function is only called when no part of the program is accessing it.")
-            }
+    for entry in workspace_contents.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            fs::remove_dir_all(path).expect("Failed to delete directory on workspace cleanup. Ensure that this function is only called when no part of the program is accessing it.");
+        } else {
+            fs::remove_file(path).expect("Failed to delete file on workspace cleanup. Ensure that this function is only called when no part of the program is accessing it.")
         }
     }
 
-    let mut copy_options = CopyOptions::default();
+    let mut copy_options = CopyOptions::new();
     copy_options.overwrite = true;
     copy_options.copy_inside = true;
     fs_extra::copy_items(&[RUNNER_SOURCE_PATH], WORKSPACE_PATH, &copy_options).expect("Failed to copy runner source files into Hive workspace. This is likely due to a corrupted installation or missing permissions.");
@@ -103,14 +101,12 @@ pub(super) fn restore_workspace() {
 fn clean_workspace() {
     let testcandidate_contents = fs::read_dir(TESTCANDIDATE_SOURCE_PATH).expect("Failed to read Hive workspace testcandidate directory. This might be caused by a corrupted installation of Hive or missing permissions.");
 
-    for entry in testcandidate_contents {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            if path.is_dir() {
-                fs::remove_dir_all(path).expect("Failed to delete directory on workspace cleanup. Ensure that this function is only called when no part of the program is accessing it.");
-            } else {
-                fs::remove_file(path).expect("Failed to delete file on workspace cleanup. Ensure that this function is only called when no part of the program is accessing it.")
-            }
+    for entry in testcandidate_contents.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            fs::remove_dir_all(path).expect("Failed to delete directory on workspace cleanup. Ensure that this function is only called when no part of the program is accessing it.");
+        } else {
+            fs::remove_file(path).expect("Failed to delete file on workspace cleanup. Ensure that this function is only called when no part of the program is accessing it.")
         }
     }
 }
@@ -137,7 +133,7 @@ pub(super) fn build_runner() -> Result<()> {
         .expect("Failed to run cargo build. Is Cargo installed and accessible to the application?");
 
     if !build_output.status.success() {
-        return Err(TestManagerError::BuildError(
+        return Err(TaskRunnerError::BuildError(
             String::from_utf8(build_output.stdout)
                 .unwrap_or_else(|_| "Could not parse cargo build output to utf8".to_owned()),
         )

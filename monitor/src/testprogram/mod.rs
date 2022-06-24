@@ -226,14 +226,12 @@ impl TestprogramArchitecture {
 
         let workspace_contents = fs::read_dir(ASSEMBLER_TEMP_WORKSPACE_PATH).expect("Failed to read Hive assembler workspace directory. This might be caused by a corrupted installation of Hive or missing permissions.");
 
-        for entry in workspace_contents {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_dir() {
-                    fs::remove_dir_all(path).expect("Failed to delete directory on workspace cleanup. Ensure that this function is only called when no part of the program is accessing it.");
-                } else {
-                    fs::remove_file(path).expect("Failed to delete file on workspace cleanup. Ensure that this function is only called when no part of the program is accessing it.")
-                }
+        for entry in workspace_contents.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                fs::remove_dir_all(path).expect("Failed to delete directory on workspace cleanup. Ensure that this function is only called when no part of the program is accessing it.");
+            } else {
+                fs::remove_file(path).expect("Failed to delete file on workspace cleanup. Ensure that this function is only called when no part of the program is accessing it.")
             }
         }
 
@@ -273,15 +271,14 @@ impl TestprogramArchitecture {
             Architecture::Riscv => build::assemble_binary_riscv(&self.path),
         };
 
-        if assemble_result.is_err() {
-            let err = assemble_result.unwrap_err();
+        if let Err(err) = assemble_result {
             log::warn!("{}", err);
             self.compile_message = err.to_string();
             self.status = TestprogramStatus::CompileFailure;
 
             Err(err)
         } else {
-            Ok(assemble_result.unwrap())
+            Ok(())
         }
     }
 
@@ -294,15 +291,14 @@ impl TestprogramArchitecture {
             Architecture::Riscv => build::link_binary_riscv(&self.path, address_range),
         };
 
-        if link_result.is_err() {
-            let err = link_result.unwrap_err();
+        if let Err(err) = link_result {
             log::warn!("{}", err);
             self.compile_message = err.to_string();
             self.status = TestprogramStatus::CompileFailure;
 
             Err(err)
         } else {
-            Ok(link_result.unwrap())
+            Ok(())
         }
     }
 }

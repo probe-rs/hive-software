@@ -10,16 +10,12 @@ pub(super) type BackendSchema =
     Schema<query::BackendQuery, mutation::BackendMutation, EmptySubscription>;
 
 pub(super) fn build_schema() -> BackendSchema {
-    let schema = Schema::build(
+    Schema::build(
         query::BackendQuery,
         mutation::BackendMutation,
         EmptySubscription,
     )
-    .finish();
-
-    println!("{}", schema.sdl());
-
-    schema
+    .finish()
 }
 
 #[cfg(test)]

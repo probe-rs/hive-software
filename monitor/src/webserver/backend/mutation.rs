@@ -10,14 +10,14 @@ use comm_types::hardware::{ProbeInfo, ProbeState, TargetState};
 use hive_db::{CborTransactional};
 use probe_rs::Probe;
 use sled::transaction::{abort, TransactionError};
-use tokio::sync::mpsc::Sender;
 use tower_cookies::Cookies;
 
 use crate::ACTIVE_TESTPROGRAM_CHANGED;
+use crate::tasks::TaskManager;
 use crate::testprogram::{Testprogram, DEFAULT_TESTPROGRAM_NAME};
 use crate::{
     database::{hasher, keys, MonitorDb},
-    testmanager::ReinitializationTask,
+    tasks::ReinitializationTask,
     webserver::auth,
     HARDWARE_DB_DATA_CHANGED,
 };
@@ -159,13 +159,13 @@ impl BackendMutation {
 
     /// Manually reinitialize the hardware in the runtime
     async fn reinitialize_hardware<'ctx>(&self, ctx: &Context<'ctx>) -> GraphQlResult<bool> {
-        let reinit_task_sender = ctx.data::<Sender<ReinitializationTask>>().unwrap();
+        let task_manager = ctx.data::<Arc<TaskManager>>().unwrap();
 
         let (task, completed_receiver) = ReinitializationTask::new();
 
-        reinit_task_sender.send(task).await?;
+        task_manager.register_reinit_task(task).await;
 
-        completed_receiver.await?;
+        completed_receiver.await??;
 
         Ok(true)
     }
@@ -422,10 +422,10 @@ impl BackendMutation {
                         user = DbUser {
                             username: new_username
                                 .as_ref()
-                                .unwrap_or_else(|| &user.username)
+                                .unwrap_or(&user.username)
                                 .to_owned(),
-                            hash: hash.as_ref().unwrap_or_else(|| &user.hash).to_owned(),
-                            role: new_role.unwrap_or_else(|| user.role),
+                            hash: hash.as_ref().unwrap_or(&user.hash).to_owned(),
+                            role: new_role.unwrap_or(user.role),
                         };
 
                         users.push(user.clone());
@@ -469,7 +469,7 @@ impl BackendMutation {
                 }
 
                 let mut bytes = vec![];
-                file.content.read(&mut bytes).unwrap();
+                file.content.read_to_end(&mut bytes).unwrap();
 
                 let architecture = match file.filename.as_str() {
                     "arm_main.S" => Architecture::Arm,
@@ -508,8 +508,8 @@ impl BackendMutation {
 
                     for (_, architecture, bytes) in verified_code_files.iter() {
                         match architecture {
-                            Architecture::Arm => testprogram.get_arm_mut().check_source_code(&bytes),
-                            Architecture::Riscv => testprogram.get_riscv_mut().check_source_code(&bytes),
+                            Architecture::Arm => testprogram.get_arm_mut().check_source_code(bytes),
+                            Architecture::Riscv => testprogram.get_riscv_mut().check_source_code(bytes),
                         }
                     }
 

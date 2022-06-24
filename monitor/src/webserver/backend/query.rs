@@ -37,14 +37,12 @@ impl BackendQuery {
             .unwrap()
             .expect("DB not initialized");
 
-        let connected = targets
+        targets
             .into_iter()
             .map(|target| target.is_some())
             .collect::<Vec<bool>>()
             .try_into()
-            .unwrap();
-
-        connected
+            .unwrap()
     }
 
     /// The currently connected TSS
@@ -217,7 +215,7 @@ impl BackendQuery {
         let testprogram = testprograms
             .into_iter()
             .find(|testprogram| testprogram.get_name() == testprogram_name)
-            .ok_or(anyhow!("Failed to find provided testprogram"))?;
+            .ok_or_else(|| anyhow!("Failed to find provided testprogram"))?;
 
         let (code_arm, code_riscv, testprogram) = tokio::task::spawn_blocking(move || {
             let arm_code = base64::encode(

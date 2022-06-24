@@ -2,21 +2,23 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use axum::extract::multipart::MultipartError;
-use axum::extract::{ContentLengthLimit, Multipart};
+use axum::extract::Query;
+use axum::extract::{ContentLengthLimit, Multipart, WebSocketUpgrade};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
-use axum_macros::debug_handler;
 use comm_types::hardware::TargetState;
 use comm_types::hardware::{Capabilities, ProbeState};
-use comm_types::test::{TestOptions, TestResults};
+use comm_types::test::TestOptions;
 use hive_db::CborDb;
+use serde::{Deserialize, Serialize};
 use thiserror::Error as ThisError;
-use tokio::sync::mpsc::Sender;
 
+use crate::tasks::ws::WsTicket;
+use crate::tasks::{ws, TaskManager, TaskManagerError};
 use crate::{
     database::{keys, MonitorDb},
-    testmanager::TestTask,
+    tasks::TestTask,
 };
 
 #[derive(Debug, ThisError)]
@@ -25,6 +27,8 @@ pub(super) enum TestRequestError {
     MultipartParse(#[from] MultipartError),
     #[error("Failed to parse json: {0}")]
     JsonParse(#[from] serde_json::Error),
+    #[error(transparent)]
+    TaskManager(#[from] TaskManagerError),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
@@ -76,12 +80,11 @@ pub(super) async fn capabilities(Extension(db): Extension<Arc<MonitorDb>>) -> Js
     })
 }
 
-/// Test the provided probe-rs project
-#[debug_handler]
+/// Endpoint to initiate a test request
 pub(super) async fn test(
-    Extension(test_task_sender): Extension<Sender<TestTask>>,
+    Extension(task_manager): Extension<Arc<TaskManager>>,
     content: ContentLengthLimit<Multipart, 50_000_000>,
-) -> Result<Json<TestResults>, TestRequestError> {
+) -> Result<Json<WsTicket>, TestRequestError> {
     let mut multipart = content.0;
 
     let mut options: Option<TestOptions> = None;
@@ -128,16 +131,29 @@ pub(super) async fn test(
 
     let project = project.unwrap();
 
-    let (test_task, test_result_receiver) = TestTask::new(project, options.unwrap_or_default());
+    let test_task = TestTask::new(project, options.unwrap_or_default());
 
-    test_task_sender
-        .send(test_task)
-        .await
-        .expect("Test task receiver closed but axum server was still active");
+    let ws_ticket = task_manager.register_test_task(test_task).await?;
 
-    let results = test_result_receiver
-        .await
-        .expect("Oneshot sender was unexpectedly dropped by testmanager.");
+    Ok(Json(ws_ticket))
+}
 
-    Ok(Json(results))
+#[derive(Debug, Serialize, Deserialize)]
+pub(super) struct WsQueryParams {
+    pub auth: String,
+}
+
+/// Test websocket handler which reports status on test progress and finally sends back the result
+pub(super) async fn ws_handler(
+    Query(query): Query<WsQueryParams>,
+    ws: WebSocketUpgrade,
+    Extension(task_manager): Extension<Arc<TaskManager>>,
+) -> Result<impl IntoResponse, TaskManagerError> {
+    let receiver = task_manager
+        .validate_test_task_ticket(query.auth.into())
+        .await?;
+
+    Ok(ws
+        .protocols(["application/json"])
+        .on_upgrade(|socket| ws::socket_handler(socket, receiver)))
 }

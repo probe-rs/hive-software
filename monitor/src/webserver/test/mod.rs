@@ -3,25 +3,25 @@ use std::sync::Arc;
 
 use axum::routing::{get, post};
 use axum::{Extension, Router};
-use tokio::sync::mpsc::Sender;
 use tower::ServiceBuilder;
 
 use crate::database::MonitorDb;
-use crate::testmanager::TestTask;
+use crate::tasks::TaskManager;
 
 mod handlers;
 
-pub(super) fn test_routes(db: Arc<MonitorDb>, test_task_sender: Sender<TestTask>) -> Router {
+pub(super) fn test_routes(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) -> Router {
     Router::new()
         .route("/capabilities", get(handlers::capabilities))
         .route("/run", post(handlers::test))
+        .route("/socket", get(handlers::ws_handler))
         .layer(
             ServiceBuilder::new()
                 .layer(Extension(db))
-                .layer(Extension(test_task_sender)),
+                .layer(Extension(task_manager)),
         )
 }
-
+/*
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
@@ -41,7 +41,7 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::database::{keys, MonitorDb};
-    use crate::testmanager::TestTask;
+    use crate::tasks::TestTask;
 
     use super::test_routes;
 
@@ -527,4 +527,4 @@ mod tests {
         assert_eq!(results.status, TestRunStatus::Ok);
         assert!(results.results.unwrap().is_empty());
     }
-}
+}*/

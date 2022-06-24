@@ -4,18 +4,17 @@ use std::sync::Arc;
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::extract::Extension;
 use comm_types::auth::JwtClaims;
-use tokio::sync::mpsc::Sender;
 use tower_cookies::Cookies;
 
 use crate::database::MonitorDb;
-use crate::testmanager::ReinitializationTask;
+use crate::tasks::TaskManager;
 
 use super::backend::auth::BackendAuthSchema;
 use super::backend::BackendSchema;
 
 pub(super) async fn graphql_backend(
     Extension(db): Extension<Arc<MonitorDb>>,
-    Extension(reinit_task_sender): Extension<Sender<ReinitializationTask>>,
+    Extension(task_manager): Extension<Arc<TaskManager>>,
     Extension(cookies): Extension<Cookies>,
     schema: Extension<BackendSchema>,
     req: GraphQLRequest,
@@ -26,7 +25,7 @@ pub(super) async fn graphql_backend(
             req.into_inner()
                 .data(claims)
                 .data(db)
-                .data(reinit_task_sender)
+                .data(task_manager)
                 .data(cookies),
         )
         .await

@@ -1,15 +1,14 @@
-//! Handles the running of tests and starts/stops the runner and communicates with it
+//! The task runner, which receives tasks from the [`TaskManager`] and executes them to completion
 use std::process::Command;
 use std::sync::Arc;
 
 use anyhow::Result;
-use axum::body::Bytes;
-use comm_types::test::{TestOptions, TestResults, TestRunError, TestRunStatus};
+use comm_types::test::{TestResults, TestRunError, TestRunStatus};
 use controller::common::hardware::HiveHardware;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{self, Receiver as MpscReceiver, Sender as MpscSender};
-use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
+use tokio::sync::mpsc::{self, Receiver as MpscReceiver};
 
 use crate::database::MonitorDb;
 use crate::{
@@ -17,14 +16,13 @@ use crate::{
     SHUTDOWN_SIGNAL,
 };
 
+use super::{TaskManager, TaskType, TestTask};
+
 mod ipc;
 mod workspace;
 
-/// The maximum amount of tasks which are allowed in the test task queue.
-const TASK_CHANNEL_BUF_SIZE: usize = 10;
-
 #[derive(Debug, Error)]
-pub(crate) enum TestManagerError {
+pub(super) enum TaskRunnerError {
     #[error("The testserver is shutting down and the test request was discarded")]
     Shutdown,
     #[error("Failed to receive the test results from the runner.\n\n Runner output: \n{0}")]
@@ -33,94 +31,47 @@ pub(crate) enum TestManagerError {
     BuildError(String),
 }
 
+/// Status and result/error messages which are sent from the [`TaskRunner`] to the corresponding websocket of the [`TestTask`]
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) enum TaskRunnerMessage {
+    Status(String),
+    Error(String),
+    Results(TestResults),
+}
+
 /// The testmanager of the monitor accepts external test tasks and returns the test results to the requesting party
-pub(crate) struct TestManager {
-    test_task_sender: MpscSender<TestTask>,
-    test_task_receiver: MpscReceiver<TestTask>,
-    reinit_task_sender: MpscSender<ReinitializationTask>,
-    reinit_task_receiver: MpscReceiver<ReinitializationTask>,
+pub(crate) struct TaskRunner {
     test_result_receiver: Option<MpscReceiver<TestResults>>,
     db: Arc<MonitorDb>,
 }
 
-/// The possible task types the testmanager can handle
-enum TaskType {
-    TestTask(TestTask),
-    ReinitTask(ReinitializationTask),
-    Shutdown,
-}
-
-/// A test task which can be sent to a [`TestManager`]
-#[derive(Debug)]
-pub(crate) struct TestTask {
-    pub result_sender: OneshotSender<TestResults>,
-    pub probe_rs_project: Bytes,
-    pub options: TestOptions,
-}
-
-impl TestTask {
-    pub fn new(
-        probe_rs_project: Bytes,
-        options: TestOptions,
-    ) -> (Self, OneshotReceiver<TestResults>) {
-        let (result_sender, result_receiver) = oneshot::channel();
-
-        (
-            Self {
-                result_sender,
-                probe_rs_project,
-                options,
-            },
-            result_receiver,
-        )
-    }
-}
-
-/// A hardware reinitialization task which can be sent to a [`TestManager`]
-pub(crate) struct ReinitializationTask {
-    task_complete_sender: OneshotSender<()>,
-}
-
-impl ReinitializationTask {
-    pub fn new() -> (Self, OneshotReceiver<()>) {
-        let (task_complete_sender, task_complete_receiver) = oneshot::channel();
-
-        (
-            Self {
-                task_complete_sender,
-            },
-            task_complete_receiver,
-        )
-    }
-}
-
-impl TestManager {
+impl TaskRunner {
     /// Create a new [`TestManager`]
     pub fn new(db: Arc<MonitorDb>) -> Self {
-        let (test_task_sender, test_task_receiver) = mpsc::channel(TASK_CHANNEL_BUF_SIZE);
-        let (reinit_task_sender, reinit_task_receiver) = mpsc::channel(1);
-
         Self {
-            test_task_sender,
-            test_task_receiver,
-            reinit_task_sender,
-            reinit_task_receiver,
             test_result_receiver: None,
             db,
         }
     }
 
-    pub fn run(&mut self, db: Arc<MonitorDb>, runtime: Arc<Runtime>) {
-        let mut shutdown_receiver = SHUTDOWN_SIGNAL.subscribe();
+    /// Runs the testmanager
+    ///
+    /// This starts all necessary async tasks and runs forever until [`SHUTDOWN_SIGNAL`] is received
+    pub fn run(mut self, runtime: Arc<Runtime>, task_manager: &TaskManager) {
+        // Restore workspace to its defaults (as it is located on a ramdisk)
+        workspace::restore_workspace();
 
+        // Start IPC server used for communication with the runner
         let (test_result_sender, test_result_receiver) = mpsc::channel(1);
         self.test_result_receiver = Some(test_result_receiver);
+        runtime.spawn(ipc::ipc_server(self.db.clone(), test_result_sender));
 
-        // start IPC server used for communication with the runner
-        runtime.spawn(ipc::ipc_server(db, test_result_sender));
+        // Start task receiver
+        self.run_task(runtime, task_manager);
+    }
 
-        // restore workspace to its defaults (as it is located on a ramdisk)
-        workspace::restore_workspace();
+    fn run_task(&mut self, runtime: Arc<Runtime>, task_manager: &TaskManager) {
+        let mut shutdown_receiver = SHUTDOWN_SIGNAL.subscribe();
 
         loop {
             let task;
@@ -128,26 +79,21 @@ impl TestManager {
             // Poll task receiver and shutdown receiver
             loop {
                 let task_type = runtime.block_on(async {
-                    tokio::select! {
-                        received = self.reinit_task_receiver.recv() => {
-                            match received {
-                                Some(reinit_task) => TaskType::ReinitTask(reinit_task),
-                                None => panic!("Reinitialization task sender has been dropped before the taskmanager was shut down"),
-                            }
+                    // TODO this is basically busy looping, find an impoved solution
+                    loop {
+                        if shutdown_receiver.try_recv().is_ok() {
+                            return TaskType::Shutdown;
                         }
 
-                        received = self.test_task_receiver.recv() => {
-                            match received {
-                                Some(received_task) => TaskType::TestTask(received_task),
-                                None => panic!("Test task sender has been dropped before the taskmanager was shut down"),
-                            }
+                        let init_task = task_manager.get_next_reinit_task().await;
+
+                        if let Some(init_task) = init_task {
+                            return TaskType::ReinitTask(init_task);
                         }
 
-                        received = shutdown_receiver.recv() => {
-                            match received {
-                                Ok(_) => TaskType::Shutdown,
-                                Err(_) => panic!("Shutdown sender has been dropped before the taskmanager was shut down"),
-                            }
+                        let test_task = task_manager.get_next_test_task().await;
+                        if let Some(test_task) = test_task {
+                            return TaskType::TestTask(test_task);
                         }
                     }
                 });
@@ -177,7 +123,7 @@ impl TestManager {
                         drop(hardware_data_changed);
                         drop(testprogram_data_changed);
 
-                        reinit_task.task_complete_sender.send(()).expect("Failed to send reinit task complete to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the reinitialization.")
+                        reinit_task.task_complete_sender.send(Ok(())).expect("Failed to send reinit task complete to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the reinitialization.")
                     }
                     TaskType::Shutdown => return,
                 }
@@ -196,20 +142,13 @@ impl TestManager {
                         }),
                     });
 
-            task.result_sender.send(test_results).expect("Failed to send test results to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the test run.");
+            let _ = task
+                .status_and_result_sender
+                .unwrap()
+                .send(TaskRunnerMessage::Results(test_results));
 
             self.reinitialize_hardware(&mut hardware);
         }
-    }
-
-    /// Returns a new task sender, which can then be used to send new [`TestTask`]s to the testmanager
-    pub fn get_test_task_sender(&self) -> MpscSender<TestTask> {
-        self.test_task_sender.clone()
-    }
-
-    /// Returns a new task sender, which can then be used to send new [`ReinitializationTask`]s to the testmanager
-    pub fn get_reinit_task_sender(&self) -> MpscSender<ReinitializationTask> {
-        self.reinit_task_sender.clone()
     }
 
     fn reinitialize_hardware(&self, hardware: &mut HiveHardware) {
@@ -229,16 +168,21 @@ impl TestManager {
         }
 
         // Rebuild and link testbinaries
-        testprogram::sync_binaries(self.db.clone(), &hardware);
+        testprogram::sync_binaries(self.db.clone(), hardware);
 
         // Reflash testprograms
-        flash::flash_testbinaries(self.db.clone(), &hardware);
+        flash::flash_testbinaries(self.db.clone(), hardware);
     }
 
     /// Prepare the test environment, run the tests and return the received result
     fn run_test(&mut self, hardware: &mut HiveHardware, task: &TestTask) -> Result<TestResults> {
+        let status_sender = task.status_and_result_sender.as_ref().unwrap();
+
+        status_sender.blocking_send(TaskRunnerMessage::Status("Preparing workspace".to_owned()))?;
         workspace::prepare_workspace(&task.probe_rs_project)?;
 
+        status_sender
+            .blocking_send(TaskRunnerMessage::Status("Building test runner".to_owned()))?;
         workspace::build_runner()?;
 
         // Check if a reinitialization is required due to changes to the hardware data in the DB or changes to the testprogram
@@ -246,9 +190,15 @@ impl TestManager {
         let mut testprogram_data_changed = ACTIVE_TESTPROGRAM_CHANGED.blocking_lock();
 
         if !*hardware_data_changed && *testprogram_data_changed {
-            testprogram::sync_binaries(self.db.clone(), &hardware);
+            status_sender.blocking_send(TaskRunnerMessage::Status(
+                "Building testbinaries".to_owned(),
+            ))?;
+            testprogram::sync_binaries(self.db.clone(), hardware);
             *testprogram_data_changed = false;
         } else if *hardware_data_changed {
+            status_sender.blocking_send(TaskRunnerMessage::Status(
+                "Reinitializing hardware".to_owned(),
+            ))?;
             self.reinitialize_hardware(hardware);
             *hardware_data_changed = false;
             *testprogram_data_changed = false;
@@ -267,6 +217,9 @@ impl TestManager {
         // TODO later this should start up the vm and run the runner there
 
         // Start runner and execute tests
+        status_sender.blocking_send(TaskRunnerMessage::Status(
+            "Starting runner and executing tests".to_owned(),
+        ))?;
         let runner_output = Command::new(format!("{}/runner", workspace::RUNNER_BINARY_PATH))
             .output()
             .expect(
@@ -274,10 +227,11 @@ impl TestManager {
             );
 
         // Try to receive a value as the runner command blocks until the runner is finished. If no message is received by then something went wrong
+        status_sender.blocking_send(TaskRunnerMessage::Status("Collecting results".to_owned()))?;
         match self.test_result_receiver.as_mut().unwrap().try_recv() {
             Ok(results) => Ok(results),
             Err(err) => match err {
-                mpsc::error::TryRecvError::Empty => Err(TestManagerError::RunnerError(
+                mpsc::error::TryRecvError::Empty => Err(TaskRunnerError::RunnerError(
                     String::from_utf8(runner_output.stdout)
                         .unwrap_or_else(|_| "Could not parse runner output to utf8".to_owned()),
                 )
@@ -285,7 +239,7 @@ impl TestManager {
                 mpsc::error::TryRecvError::Disconnected => {
                     // This might be a bug or simply a shutdown operation
                     log::warn!("Testresult sender part has been dropped, stopping test manager");
-                    Err(TestManagerError::Shutdown.into())
+                    Err(TaskRunnerError::Shutdown.into())
                 }
             },
         }

@@ -9,13 +9,12 @@ use axum::routing::{self, post};
 use axum::{middleware, BoxError, Extension, Router};
 use axum_server::tls_rustls::RustlsConfig;
 use hyper::StatusCode;
-use tokio::sync::mpsc::Sender;
 use tower::ServiceBuilder;
 use tower_cookies::CookieManagerLayer;
 use tower_http::services::{ServeDir, ServeFile};
 
 use crate::database::MonitorDb;
-use crate::testmanager::{ReinitializationTask, TestTask};
+use crate::tasks::TaskManager;
 use crate::SHUTDOWN_SIGNAL;
 
 mod auth;
@@ -32,12 +31,8 @@ const GLOBAL_RATE_LIMIT_REQUEST_AMOUNT: u64 = 20;
 const GLOBAL_RATE_LIMIT_DURATION_SECS: u64 = 1;
 const GLOBAL_REQUEST_BUFFER_SIZE: usize = 40;
 
-pub(crate) async fn web_server(
-    db: Arc<MonitorDb>,
-    test_task_sender: Sender<TestTask>,
-    reinit_task_sender: Sender<ReinitializationTask>,
-) {
-    let app = app(db, test_task_sender, reinit_task_sender);
+pub(crate) async fn web_server(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) {
+    let app = app(db, task_manager);
     let addr = SocketAddr::from(([0, 0, 0, 0], 4356));
     let tls_config = RustlsConfig::from_pem_file(PEM_CERT, PEM_KEY).await.unwrap_or_else(|_| panic!("Failed to find the PEM certificate file. It should be stored in the application data folder: Cert: {} Key: {}", PEM_CERT, PEM_KEY));
 
@@ -51,11 +46,7 @@ pub(crate) async fn web_server(
 }
 
 /// Builds the webserver with all endpoints
-fn app(
-    db: Arc<MonitorDb>,
-    test_task_sender: Sender<TestTask>,
-    reinit_task_sender: Sender<ReinitializationTask>,
-) -> Router {
+fn app(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) -> Router {
     let graphql_routes = Router::new()
         .route("/backend", post(handlers::graphql_backend))
         .layer(
@@ -63,7 +54,7 @@ fn app(
                 .layer(middleware::from_fn(csrf::require_csrf_token))
                 .layer(extractor_middleware::<auth::HiveAuth>())
                 .layer(Extension(db.clone()))
-                .layer(Extension(reinit_task_sender))
+                .layer(Extension(task_manager.clone()))
                 .layer(Extension(backend::build_schema())),
         );
 
@@ -82,7 +73,7 @@ fn app(
         // Graphql handlers
         .nest("/graphql", graphql_routes)
         // REST test request endpoint
-        .nest("/test", test::test_routes(db, test_task_sender))
+        .nest("/test", test::test_routes(db, task_manager))
         // Static fileserver used to host the hive-backend-ui Vue app
         .fallback(
             routing::get_service(
