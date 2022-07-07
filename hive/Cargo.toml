@@ -32,3 +32,4 @@ reqwest = { version = "0.11", features = [
 tungstenite = { version = "0.17", features = ["native-tls"] }
 tar = "0.4"
 native-tls = "0.2"
+pathdiff = "0.2"

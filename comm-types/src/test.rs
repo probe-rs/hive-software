@@ -1,6 +1,14 @@
 //! Hive test request and result types
 use serde::{Deserialize, Serialize};
 
+/// Status and result/error messages which are sent from the task runner to the corresponding websocket of the test task
+#[derive(Debug, Serialize, Deserialize)]
+pub enum TaskRunnerMessage {
+    Status(String),
+    Error(String),
+    Results(TestResults),
+}
+
 /// Test options which are passed on a test request
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct TestOptions {

@@ -1,6 +1,11 @@
 //! The test subcommand
+use std::fs;
+use std::path::Path;
+
 use anyhow::{anyhow, bail, Result};
 use cargo_toml::Manifest;
+use colored::Colorize;
+use comm_types::test::{TaskRunnerMessage, TestResults, TestRunStatus};
 use ignore::Walk;
 use reqwest::blocking::multipart::{Form, Part};
 use tar::Builder;
@@ -19,7 +24,8 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
 
     super::show_testserver_prompt_if_none(&mut config, &cli_args)?;
 
-    let project_path = subcommand_args.path.clone().unwrap_or_else(|| "./".into());
+    let project_path =
+        fs::canonicalize(subcommand_args.path.clone().unwrap_or_else(|| "./".into()))?;
     let cargofile_path = project_path.join("Cargo.toml");
 
     if !cargofile_path.is_file() {
@@ -36,16 +42,22 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
         bail!("This cargo project is not a workspace");
     }
 
-    super::show_progress(&cli_args, |progress| {
+    let test_results = super::show_progress(&cli_args, |progress| {
         progress.set_message("collecting files...");
         let tar_buffer = vec![];
         let mut tar = Builder::new(tar_buffer);
 
-        for result in Walk::new(project_path) {
+        for result in Walk::new(&project_path) {
             match result {
                 Ok(entry) => {
-                    tar.append_path(entry.path())?;
-                    progress.inc(1);
+                    let relative_path = pathdiff::diff_paths(entry.path(), &project_path).unwrap();
+
+                    if relative_path == Path::new("") {
+                        // Ignore basepath as it does not add anything to the archive
+                        continue;
+                    }
+
+                    tar.append_path_with_name(entry.path(), relative_path)?;
                 }
                 Err(err) => bail!("Failed to read project files: {}", err),
             }
@@ -82,15 +94,31 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
 
         let ws_url = format!(
             "{}/test/socket?auth={}",
-            config.testserver.unwrap().as_wss_url(),
+            config.testserver.as_ref().unwrap().as_wss_url(),
             ws_ticket
         );
-        let mut ws = get_ws_client(cli_args.accept_invalid_certs, ws_url)?;
+        let mut ws = get_ws_client(
+            cli_args.accept_invalid_certs,
+            config.testserver.as_ref().unwrap(),
+            ws_url,
+        )?;
+
+        let test_results;
 
         loop {
             match ws.read_message()? {
                 Message::Binary(bytes) => {
-                    todo!("parse json")
+                    let message: TaskRunnerMessage = serde_json::from_slice(&bytes).expect("Failed to parse json from testserver websocket. Does the client version match the testserver version?");
+                    match message {
+                        TaskRunnerMessage::Status(status) => {
+                            progress.set_message(format!("{}...", status))
+                        }
+                        TaskRunnerMessage::Error(err) => bail!("Test run failed: {}", err),
+                        TaskRunnerMessage::Results(results) => {
+                            test_results = results;
+                            break;
+                        }
+                    }
                 }
                 Message::Close(_) => {
                     bail!("Websocket connection closed by testserver before receiving results.")
@@ -99,29 +127,27 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
             }
         }
 
-        Ok(())
+        Ok(test_results)
     })?;
 
-    /*let test_results: TestResults = response.json().map_err(|err| anyhow!("Failed to deserialize received testserver response. This Hive CLI version might not be compatible with the connected testserver.\n\nCaused by: {}", err))?;
-
-    match test_results.status {
-        TestRunStatus::Ok => {
-            println!("{:#?}", test_results.results.unwrap());
-            todo!("Implement test result formatting");
-        }
-        TestRunStatus::Error => {
-            let test_run_error = test_results.error.unwrap();
-
-            match test_run_error.source {
-                Some(source) => bail!(
-                    "Testserver failed to run tests: {}\n\nCaused by: {}",
-                    test_run_error.err,
-                    source
-                ),
-                None => bail!("Testserver failed to run tests: {}", test_run_error.err),
-            }
-        }
-    }*/
+    print_test_results(test_results);
 
     Ok(())
+}
+
+/// Pretty print the provided [`TestResults`]
+fn print_test_results(results: TestResults) {
+    println!("{}\n", "Hive Test Results:".bold());
+
+    match results.status {
+        TestRunStatus::Ok => todo!("pretty print ok"),
+        TestRunStatus::Error => {
+            let err = results.error.unwrap();
+
+            println!("\t{} {}", "Error: ".bold().red(), err.err);
+            if let Some(source) = err.source {
+                println!("\n\n{} {}", "Caused by:".bold(), source);
+            }
+        }
+    }
 }

@@ -20,13 +20,23 @@
 - [X] Check if axum layers are properly implemented. Scope them correctly to avoid having unnecessary layers on certain routes. Check if request limiting is required on public routes.
 - [X] Return data type on /test/run endpoint which can be either error or ok with testresults, the current implementation fails with a bad request status code in case an error occurred in the testmanager, which is not an actual http error but an application error.
 - [X] Current DB implementation is prone to race conditions as there is no guarantee that the previously read out value is not changed by another function before the previously read value is modified and written back to the DB
-- [ ] get_and_init_target_address_ranges() it might be better to do this based on the DB data as the testmanager will ultimately reinitialized the hardware based on DB data and not runtime data
+- [ ] get_and_init_target_address_ranges() it might be better to do this based on the DB data as the testmanager will ultimately reinitialize the hardware based on DB data and not runtime data
 - [X] Deadlock when reloading the testrack hardware due to user request via graphql. Probably inside Testmanager
 - [ ] The debugprobe info on the JLINK probe is incomplete (missing S/N and wrong identifier) when `probe::list()` is called while the probe is in use by the program. This leads to the software suggesting a third available probe to the user which does not actually exist. Might be a problem in probe-rs, needs further investigation
 - [ ] Add possibility to filter targets and probes on a test request which would allow for only testing the requested targets
+- [ ] Implementation of testprogram status is not sound, there should be a better solution for checking user input before handling it as actual testprogram
+- [ ] Determine wheter it is necessary to sandbox the build process of the runner, as build scripts of dependencies might contain malicious code
+- [ ] Execute runner in a VM, determine best ways to make VM access hardware securely
+- [ ] Something is not quite correct in the way WS tickets for test tasks are handled, as some test task WS connection requests yield 401 HTTP status codes with tickets which should be correct
+- [ ] Add tests for new testprogram mutations
+- [X] Move IPC socket file into data folder of the program
+- [ ] Determine how to handle cargo workspace target folder size to not reach memory limit of the tempfs but also to avoid excessive wait times if building off clean workspace on every test request
+- [ ] Replace task manager busy loop with more efficient implementation
+- [ ] Fix test endpoint tests
 
 ## Runner
 - [ ] Add a proper shutdown procedure 
+- [ ] Runner assumes data desync if not all connected probes have been assigned to a testchannel. This should be considered fine and not cause a data desync
 
 ## Hive Backend UI
 - [X] Current appollo retrylink is useless as it does not call fetch function to change headers. Write own retry function which tries to append csrf header on each retry
@@ -39,6 +49,9 @@
 - [X] Display unhandled errors to user as snackbar
 - [ ] Fix tooltips, most of them don't show at all. Might be related to using alpha/beta version of vuetify
 - [X] Add status to target which matches the actual status in runtime
+
+## Hive CLI 
+- [ ] Implement pretty print for test results
 
 ## Hive Setup
 - [ ] Do proper error handling in shell setup script

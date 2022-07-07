@@ -102,7 +102,7 @@ pub(crate) fn init_testprograms(db: Arc<MonitorDb>, hardware: &HiveHardware) {
                 panic!("Could not find the default testprogram. The installation might be corrupted, please reinstall the program.");
             } else {
                 let mut testprograms = vec![];
-                let default_testprogram = Testprogram::new(DEFAULT_TESTPROGRAM_NAME.to_owned());
+                let default_testprogram = Testprogram::create_default();
 
                 tree.c_insert(&keys::config::ACTIVE_TESTPROGRAM, &default_testprogram.get_name().to_owned())?;
 

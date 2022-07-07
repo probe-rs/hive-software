@@ -35,4 +35,4 @@ ciborium = "0.2"
 anyhow = "1.0"
 serde = "1.0"
 
-probe-rs-test = { package = "probe-rs", path = "../probe-rs-testcandidate/probe-rs/probe-rs/" }
+probe-rs-test = { package = "probe-rs", path = "../probe-rs-testcandidate/probe-rs/" }

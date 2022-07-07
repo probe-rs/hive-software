@@ -19,7 +19,7 @@ use crate::SHUTDOWN_SIGNAL;
 
 mod handlers;
 
-const SOCKET_PATH: &str = "/tmp/hive/monitor/ipc_sock";
+const SOCKET_PATH: &str = "./data/runner/ipc_sock";
 
 struct IpcStreamListener {
     listener: UnixListener,

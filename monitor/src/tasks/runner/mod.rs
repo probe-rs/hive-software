@@ -3,9 +3,8 @@ use std::process::Command;
 use std::sync::Arc;
 
 use anyhow::Result;
-use comm_types::test::{TestResults, TestRunError, TestRunStatus};
+use comm_types::test::{TaskRunnerMessage, TestResults, TestRunError, TestRunStatus};
 use controller::common::hardware::HiveHardware;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver};
@@ -25,18 +24,10 @@ mod workspace;
 pub(super) enum TaskRunnerError {
     #[error("The testserver is shutting down and the test request was discarded")]
     Shutdown,
-    #[error("Failed to receive the test results from the runner.\n\n Runner output: \n{0}")]
+    #[error("Failed to receive the test results from the runner\n\n Runner output: \n{0}")]
     RunnerError(String),
-    #[error("Failed to build the provided project.\n\n Cargo output: \n{0}")]
+    #[error("Failed to build the provided project\n\n Cargo output: \n{0}")]
     BuildError(String),
-}
-
-/// Status and result/error messages which are sent from the [`TaskRunner`] to the corresponding websocket of the [`TestTask`]
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) enum TaskRunnerMessage {
-    Status(String),
-    Error(String),
-    Results(TestResults),
 }
 
 /// The testmanager of the monitor accepts external test tasks and returns the test results to the requesting party
@@ -142,12 +133,19 @@ impl TaskRunner {
                         }),
                     });
 
+            // Error is ignored as the websocket connection might have failed for some reason which means that the receiver has been dropped
             let _ = task
                 .status_and_result_sender
+                .as_ref()
                 .unwrap()
-                .send(TaskRunnerMessage::Results(test_results));
+                .blocking_send(TaskRunnerMessage::Results(test_results));
+
+            log::info!("Finished task, reinitializing...");
 
             self.reinitialize_hardware(&mut hardware);
+
+            // Wait for channel to get closed before dropping the sender for a clean channel shutdown
+            while !task.status_and_result_sender.as_ref().unwrap().is_closed() {}
         }
     }
 
@@ -179,10 +177,12 @@ impl TaskRunner {
         let status_sender = task.status_and_result_sender.as_ref().unwrap();
 
         status_sender.blocking_send(TaskRunnerMessage::Status("Preparing workspace".to_owned()))?;
+        log::info!("Preparing workspace");
         workspace::prepare_workspace(&task.probe_rs_project)?;
 
         status_sender
             .blocking_send(TaskRunnerMessage::Status("Building test runner".to_owned()))?;
+        log::info!("Building test runner");
         workspace::build_runner()?;
 
         // Check if a reinitialization is required due to changes to the hardware data in the DB or changes to the testprogram
@@ -193,12 +193,14 @@ impl TaskRunner {
             status_sender.blocking_send(TaskRunnerMessage::Status(
                 "Building testbinaries".to_owned(),
             ))?;
+            log::info!("Building testbinaries");
             testprogram::sync_binaries(self.db.clone(), hardware);
             *testprogram_data_changed = false;
         } else if *hardware_data_changed {
             status_sender.blocking_send(TaskRunnerMessage::Status(
                 "Reinitializing hardware".to_owned(),
             ))?;
+            log::info!("Reinitializing hardware");
             self.reinitialize_hardware(hardware);
             *hardware_data_changed = false;
             *testprogram_data_changed = false;
@@ -220,14 +222,16 @@ impl TaskRunner {
         status_sender.blocking_send(TaskRunnerMessage::Status(
             "Starting runner and executing tests".to_owned(),
         ))?;
+        log::info!("Starting runner and executing tests");
         let runner_output = Command::new(format!("{}/runner", workspace::RUNNER_BINARY_PATH))
             .output()
             .expect(
-                "Failed to run the runner. Is the runner command accessible to the application?",
+                "Failed to run the runner. This is an implementation error or a configuration issue.",
             );
 
         // Try to receive a value as the runner command blocks until the runner is finished. If no message is received by then something went wrong
         status_sender.blocking_send(TaskRunnerMessage::Status("Collecting results".to_owned()))?;
+        log::info!("Collecting results");
         match self.test_result_receiver.as_mut().unwrap().try_recv() {
             Ok(results) => Ok(results),
             Err(err) => match err {

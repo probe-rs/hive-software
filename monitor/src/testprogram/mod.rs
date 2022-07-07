@@ -79,6 +79,28 @@ impl Testprogram {
         }
     }
 
+    /// Create the default testprogram
+    pub(crate) fn create_default() -> Self {
+        let path = PathBuf::from_str(TESTPROGRAM_PATH)
+            .unwrap()
+            .join(DEFAULT_TESTPROGRAM_NAME);
+
+        let mut testprogram_arm =
+            TestprogramArchitecture::new(DEFAULT_TESTPROGRAM_NAME.to_owned(), Architecture::Arm);
+        let mut testprogram_riscv =
+            TestprogramArchitecture::new(DEFAULT_TESTPROGRAM_NAME.to_owned(), Architecture::Riscv);
+
+        testprogram_arm.set_status(TestprogramStatus::Ok);
+        testprogram_riscv.set_status(TestprogramStatus::Ok);
+
+        Self {
+            name: DEFAULT_TESTPROGRAM_NAME.to_owned(),
+            path,
+            testprogram_arm,
+            testprogram_riscv,
+        }
+    }
+
     pub(crate) fn get_name(&self) -> &str {
         &self.name
     }
@@ -185,8 +207,13 @@ impl TestprogramArchitecture {
         }
     }
 
+    /// Manually set the status of this testprogram
+    pub fn set_status(&mut self, status: TestprogramStatus) {
+        self.status = status;
+    }
+
     /// Get the path to the elf file with the provided memory address range
-    pub(crate) fn get_elf_path(&self, memory_address: &Memory) -> PathBuf {
+    pub fn get_elf_path(&self, memory_address: &Memory) -> PathBuf {
         self.path.join(format!(
             "main_{:#x}_{:#x}.elf",
             memory_address.nvm.start, memory_address.ram.start

@@ -1,6 +1,6 @@
 //! Functions used to manage the build workspace and build the runner with the provided probe-rs code
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::Result;
@@ -15,7 +15,7 @@ use super::TaskRunnerError;
 /// Path to the Hive workspace where the provided project is unpacked and built
 const WORKSPACE_PATH: &str = "./data/workspace";
 /// Path to where the built runner binary is stored
-pub(super) const RUNNER_BINARY_PATH: &str = "./runner";
+pub(super) const RUNNER_BINARY_PATH: &str = "./data/runner";
 /// Path to the sourcefiles used to build the runner application
 const RUNNER_SOURCE_PATH: &str = "./data/source";
 const TESTCANDIDATE_SOURCE_PATH: &str = "./data/workspace/probe-rs-testcandidate";
@@ -90,7 +90,14 @@ pub(super) fn restore_workspace() {
     let mut copy_options = CopyOptions::new();
     copy_options.overwrite = true;
     copy_options.copy_inside = true;
-    fs_extra::copy_items(&[RUNNER_SOURCE_PATH], WORKSPACE_PATH, &copy_options).expect("Failed to copy runner source files into Hive workspace. This is likely due to a corrupted installation or missing permissions.");
+
+    let source_contents = fs::read_dir(RUNNER_SOURCE_PATH).expect("Failed to read Hive source directory. This might be caused by a corrupted installation of Hive or missing permissions.");
+    let paths: Vec<PathBuf> = source_contents
+        .flatten()
+        .map(|entry| entry.path())
+        .collect();
+
+    fs_extra::copy_items(&paths, WORKSPACE_PATH, &copy_options).expect("Failed to copy runner source files into Hive workspace. This is likely due to a corrupted installation or missing permissions.");
 }
 
 /// Cleans the workspace after the build procedure.
@@ -121,24 +128,24 @@ pub(super) fn build_runner() -> Result<()> {
     }
 
     let build_output = Command::new("cargo")
-        .args([
-            "build",
-            "-p",
-            "runner",
-            "--target-dir",
-            RUNNER_BINARY_PATH,
-            "--release",
-        ])
+        .args(["build", "-p", "runner", "--release"])
+        .current_dir(WORKSPACE_PATH)
         .output()
         .expect("Failed to run cargo build. Is Cargo installed and accessible to the application?");
 
     if !build_output.status.success() {
         return Err(TaskRunnerError::BuildError(
-            String::from_utf8(build_output.stdout)
+            String::from_utf8(build_output.stderr)
                 .unwrap_or_else(|_| "Could not parse cargo build output to utf8".to_owned()),
         )
         .into());
     }
+
+    let mut copy_options = CopyOptions::new();
+    copy_options.overwrite = true;
+
+    // Copy runner from workspace to runner directory
+    fs_extra::copy_items(&[&format!("{}/target/aarch64-unknown-linux-gnu/release/runner", WORKSPACE_PATH)], RUNNER_BINARY_PATH, &copy_options).expect("Failed to copy runner binary to runner directory. This is likely a configuration issue. Please make sure that the ramdisk for storing the runner binary is correctly mounted at the requested path.");
 
     clean_workspace();
 

@@ -40,6 +40,17 @@ impl Host {
             None => format!("wss://{}", address),
         }
     }
+
+    /// Return a tuple containing the host and the associated port. If no port is defined in the struct 443 is used
+    pub fn as_secure_parts(&self) -> (String, u16) {
+        let address = match &self.address {
+            Address::IPv4(addr) => addr.to_string(),
+            Address::IPv6(addr) => addr.to_string(),
+            Address::Domain(addr) => addr.to_string(),
+        };
+
+        (address, self.port.unwrap_or(443))
+    }
 }
 
 impl From<ValidHost> for Host {

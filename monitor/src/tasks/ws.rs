@@ -49,6 +49,11 @@ pub(crate) async fn socket_handler(
         }
 
         while let Some(msg) = receiver.recv().await {
+            if let TaskRunnerMessage::Results(_) = msg {
+                // Close channel once results were received so the senders can be dropped and perform a graceful shutdown of the channel
+                receiver.close();
+            }
+
             if send_json(&mut socket, msg).await.is_err() {
                 // Connection closed
                 break;

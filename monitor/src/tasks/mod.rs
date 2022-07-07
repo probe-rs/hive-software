@@ -6,14 +6,13 @@ use axum::body::Bytes;
 use axum::response::IntoResponse;
 use cached::stores::TimedCache;
 use cached::Cached;
-use comm_types::test::TestOptions;
+use comm_types::test::{TaskRunnerMessage, TestOptions};
 use hyper::StatusCode;
 use thiserror::Error;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver, Sender as MpscSender};
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
 use tokio::sync::Mutex as AsyncMutex;
 
-use self::runner::TaskRunnerMessage;
 use self::ws::WsTicket;
 
 pub mod runner;
@@ -21,7 +20,7 @@ pub mod ws;
 
 const TASK_CACHE_LIMIT: usize = 10;
 /// Duration until a cached test request is invalidated if no websocket for the corresponding [`TestTask`] has been created
-const WS_CONNECT_TIMEOUT_SECS: u64 = 10;
+const WS_CONNECT_TIMEOUT_SECS: u64 = 30;
 
 /// The possible task types the testmanager can handle
 pub(super) enum TaskType {

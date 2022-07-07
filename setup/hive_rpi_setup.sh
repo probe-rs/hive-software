@@ -11,11 +11,19 @@ FSTAB=/etc/fstab
 JOURNAL=/etc/systemd/journald.conf
 HIVE_LOGS=./data/logs
 HIVE_WORKSPACE=./data/workspace
+HIVE_RUNNER_BINARY=./data/runner
 ASSEMBLER_WORKSPACE=./data/assembler_workspace
+
+HIVE_GROUP=hive
 
 ####################################################################
 ##                           Functions                            ##
 ####################################################################
+
+configure_groups() {
+    groupadd $HIVE_GROUP
+    printf "\tCreated group for Hive with name: $HIVE_GROUP"
+}
 
 configure_hardware() {
     # Add [all] tag to CONFIG end
@@ -55,24 +63,32 @@ configure_os() {
 }
 
 configure_storage() {
+    hive_gid=getent group $HIVE_GROUP | cut -d: -f3
+
     sed -i -e '$a# ==============Hive Configuration==============' $FSTAB
 
     # Create tempfs for runner and monitor logs
     mkdir -p $HIVE_LOGS
     abs_path=$(readlink -f $HIVE_LOGS)
-    sed -i -e "\$atmpfs $abs_path tmpfs nodev,user,noexec,noatime,rw,size=100M 0 0" $FSTAB
+    sed -i -e "\$atmpfs $abs_path tmpfs nodev,nouser,gid=$hive_gid,mode=775,noexec,noatime,rw,size=100M 0 0" $FSTAB
     printf "\tCreated $abs_path tempfs to store Hive logs\n"
 
     # Create tempfs for building the runner
     mkdir -p $HIVE_WORKSPACE
     abs_path=$(readlink -f $HIVE_WORKSPACE)
-    sed -i -e "\$atmpfs $abs_path tmpfs nodev,user,noexec,noatime,rw,size=600M 0 0" $FSTAB
+    sed -i -e "\$atmpfs $abs_path tmpfs nodev,nouser,gid=$hive_gid,mode=774,noexec,noatime,rw,size=1000M 0 0" $FSTAB
     printf "\tCreated $abs_path tempfs to use as workspace for building the runner\n"
+
+    # Create tempfs for storing the runner binary
+    mkdir -p $HIVE_RUNNER_BINARY
+    abs_path=$(readlink -f $HIVE_RUNNER_BINARY)
+    sed -i -e "\$atmpfs $HIVE_RUNNER_BINARY tmpfs nodev,nouser,gid=$hive_gid,mode=774,exec,noatime,rw,size=30M 0 0" $FSTAB
+    printf "\tCreated $abs_path tempfs to use as tmp folder to store the runner binary\n"
 
     # Create tempfs for assembler
     mkdir -p $ASSEMBLER_WORKSPACE
     abs_path=$(readlink -f $ASSEMBLER_WORKSPACE)
-    sed -i -e "\$atmpfs $abs_path tmpfs nodev,user,noexec,noatime,rw,size=10M 0 0" $FSTAB
+    sed -i -e "\$atmpfs $abs_path tmpfs nodev,nouser,gid=$hive_gid,mode=774,noexec,noatime,rw,size=10M 0 0" $FSTAB
     printf "\tCreated $abs_path tempfs to use as workspace for the assembler\n"
 
     sed -i -e '$a# ==============End of Hive Configuration==============' $FSTAB
@@ -82,6 +98,10 @@ configure_user() {
     # Add user to dialout group
     usermod -a -G dialout $USER
     printf "\tAdded user to dialout group\n"
+
+    # Add user to hive group
+    usermod -a -G $HIVE_GROUP $USER
+    printf "\tAdded user to hive group\n"
 }
 
 ####################################################################
@@ -94,6 +114,11 @@ if [ $EUID -ne 0 ]; then
 fi
 
 printf "\033[1mSetting up Rpi for usage as Hive-Testrack\033[0m\n"
+
+printf "Configuring groups\n"
+
+configure_groups
+
 printf "Configuring hardware\n"
 
 configure_hardware

@@ -27,4 +27,4 @@ ciborium = "0.2"
 tokio-retry = "0.3"
 
 # probe-rs version which is being tested
-probe-rs-test = { package = "probe-rs", path = "../probe-rs-testcandidate/probe-rs/probe-rs/" }
+probe-rs-test = { package = "probe-rs", path = "../probe-rs-testcandidate/probe-rs/" }
