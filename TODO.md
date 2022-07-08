@@ -37,7 +37,7 @@
 
 ## Runner
 - [X] Add a proper shutdown procedure 
-- [ ] Runner assumes data desync if not all connected probes have been assigned to a testchannel. This should be considered fine and not cause a data desync
+- [ ] ~~Runner assumes data desync if not all connected probes have been assigned to a testchannel. This should be considered fine and not cause a data desync~~ -> Related to JLINK not showing S/N if listed during use
 
 ## Hive Backend UI
 - [X] Current appollo retrylink is useless as it does not call fetch function to change headers. Write own retry function which tries to append csrf header on each retry
@@ -52,7 +52,7 @@
 - [X] Add status to target which matches the actual status in runtime
 
 ## Hive CLI 
-- [ ] Implement pretty print for test results
+- [X] Implement pretty print for test results
 
 ## Hive Setup
 - [ ] Do proper error handling in shell setup script

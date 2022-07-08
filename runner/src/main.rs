@@ -69,7 +69,7 @@ fn main() {
     let run_is_err = run(comm_sender, init_data_receiver, notify_results_ready).is_err();
 
     if run_is_err {
-        // Manually stop async tasks from executing
+        // Manually stop async comm tasks from executing
         shutdown_err();
     }
 

@@ -1,12 +1,14 @@
 //! The test subcommand
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
 use anyhow::{anyhow, bail, Result};
 use cargo_toml::Manifest;
 use colored::Colorize;
-use comm_types::test::{TaskRunnerMessage, TestResults, TestRunStatus};
+use comm_types::test::{TaskRunnerMessage, TestResult, TestResults, TestRunStatus, TestStatus};
 use ignore::Walk;
+use prettytable::{cell, format, row, Table};
 use reqwest::blocking::multipart::{Form, Part};
 use tar::Builder;
 use tungstenite::Message;
@@ -137,17 +139,127 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
 
 /// Pretty print the provided [`TestResults`]
 fn print_test_results(results: TestResults) {
-    println!("{}\n", "Hive Test Results:".bold());
+    let table_format = format::FormatBuilder::new()
+        .borders(' ')
+        .column_separator(' ')
+        .build();
+
+    let mut table = Table::new();
+    table.set_format(table_format);
 
     match results.status {
-        TestRunStatus::Ok => todo!("pretty print ok"),
+        TestRunStatus::Ok => {
+            let results = results.results.unwrap();
+
+            let mut target_map: HashMap<String, HashMap<String, Vec<TestResult>>> = HashMap::new();
+
+            for result in results.into_iter() {
+                // Use both S/N and name as key in case the same probe model is used multiple times (for whatever strange reason)
+                let probe_key = format!("{} (S/N: {})", result.probe_name, result.probe_sn);
+
+                if !target_map.contains_key(&result.target_name) {
+                    target_map.insert(result.target_name.clone(), HashMap::new());
+                }
+
+                let probe_map = target_map.get_mut(&result.target_name).unwrap();
+                if !probe_map.contains_key(&probe_key) {
+                    probe_map.insert(probe_key, vec![result]);
+                    continue;
+                }
+
+                probe_map.get_mut(&probe_key).unwrap().push(result);
+            }
+
+            // TODO preliminary implementation, it needs to be determined which sortings make sense (Sort by name, test order, ...)
+            table.set_titles(row![buH3c-> "Hive Test Results:"]);
+
+            for (target_name, probe_map) in target_map.into_iter() {
+                table.add_row(row![bH3-> target_name]);
+
+                for (probe_name, results) in probe_map.into_iter() {
+                    table.add_row(row![FmH3-> format!(
+                        "  > {}",
+                        probe_name
+                    )]);
+
+                    let mut skip_reason = None;
+                    if results.iter().all(|result| {
+                        if let TestStatus::Skipped(ref reason) = result.status {
+                            if skip_reason.is_none() {
+                                skip_reason = Some(reason);
+                                return true;
+                            } else {
+                                return skip_reason == Some(reason);
+                            }
+                        }
+                        false
+                    }) {
+                        if let Some(reason) = skip_reason {
+                            table.add_row(row!["", b->"all tests", bFyr-> "skipped"]);
+                            table.add_row(row!["", iH2->pad_string(2, reason)]);
+                        }
+                        continue;
+                    }
+
+                    for result in results.into_iter() {
+                        let test_fn_name = match result.should_panic {
+                            true => format!("{} {}", result.test_name, "(should panic)".italic()),
+                            false => result.test_name,
+                        };
+
+                        match result.status {
+                            TestStatus::Passed => {
+                                table.add_row(row!["", test_fn_name, bFgr-> "passed"]);
+                            }
+                            TestStatus::Failed(reason) => {
+                                table.add_row(row!["", test_fn_name, bFrr-> "failed"]);
+                                table.add_row(row!["", iH2->pad_string(2, &reason)]);
+                            }
+                            TestStatus::Skipped(reason) => {
+                                table.add_row(row!["", test_fn_name, bFyr-> "skipped"]);
+                                table.add_row(row!["", iH2->pad_string(2, &reason)]);
+                            }
+                        }
+                    }
+                }
+
+                table.add_empty_row();
+                table.add_empty_row();
+            }
+        }
         TestRunStatus::Error => {
             let err = results.error.unwrap();
 
-            println!("\t{} {}", "Error: ".bold().red(), err.err);
+            table.set_titles(row![buH2c-> "Hive Test Results:"]);
+
+            table.add_row(row![bFr->"Error:", err.err]);
+
             if let Some(source) = err.source {
-                println!("\n\n{} {}", "Caused by:".bold(), source);
+                table.add_empty_row();
+                table.add_row(row![i->"Caused by:", source]);
             }
         }
     }
+
+    println!("");
+    table.printstd();
+}
+
+/// Add a whitespace padding on multiline strings
+fn pad_string(padding: usize, string: &str) -> String {
+    let pad = vec![' ' as u8; padding];
+    let pad_string = String::from_utf8(pad).unwrap();
+    let mut new_string = String::from(&pad_string);
+
+    let last_line_idx = string.lines().count() - 1;
+
+    for (idx, line) in string.lines().enumerate() {
+        new_string.push_str(line);
+        if idx != last_line_idx {
+            new_string.push('\n');
+            new_string.push_str(&pad_string);
+        }
+    }
+
+    new_string
 }
