@@ -443,6 +443,9 @@ mod tests {
     }
 
     mod mutation {
+        use std::sync::Arc;
+        use std::time::Duration;
+
         use async_graphql::{value, Request};
         use comm_types::auth::{DbUser, JwtClaims, Role};
         use comm_types::hardware::ProbeState;
@@ -451,6 +454,7 @@ mod tests {
         use tower_cookies::Cookies;
 
         use crate::database::keys;
+        use crate::tasks::TaskManager;
         use crate::webserver::auth::{self, AUTH_COOKIE_KEY};
         use crate::webserver::backend::build_schema;
 
@@ -1399,6 +1403,85 @@ mod tests {
             assert_eq!(db_users[0], expected_user);
 
             super::restore_db();
+        }
+
+        #[tokio::test]
+        async fn reinit_hardware() {
+            let task_manager = Arc::new(TaskManager::new());
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                reinitializeHardware
+            }"#;
+
+            // Spawn separate task which will send a successful reinit task completion back to the handler, once the task is received
+            let task_manager_cloned = task_manager.clone();
+            tokio::spawn(async move {
+                loop {
+                    if let Some(task) = task_manager_cloned.get_next_reinit_task().await {
+                        task.task_complete_sender.send(Ok(())).unwrap();
+                        break;
+                    } else {
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                    }
+                }
+            });
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()).data(task_manager))
+                .await
+                .into_result()
+                .unwrap();
+
+            assert_eq!(result.data, value!({ "reinitializeHardware": true }));
+        }
+
+        #[tokio::test]
+        async fn reinit_hardware_discarded() {
+            let task_manager = Arc::new(TaskManager::new());
+
+            let query = r#"mutation{
+                reinitializeHardware
+            }"#;
+
+            // Send a first request and wait for response
+            let first_req_task_manager = task_manager.clone();
+            let first_req_handle = tokio::spawn(async move {
+                let schema = build_schema();
+
+                let first_req = schema
+                    .execute(
+                        Request::new(query)
+                            .data(DB.clone())
+                            .data(first_req_task_manager),
+                    )
+                    .await;
+
+                return first_req;
+            });
+
+            // Second request invalidates first request
+            let second_req_task_manager = task_manager.clone();
+            let second_req_handle = tokio::spawn(async move {
+                let schema = build_schema();
+
+                let second_req = schema
+                    .execute(
+                        Request::new(query)
+                            .data(DB.clone())
+                            .data(second_req_task_manager),
+                    )
+                    .await;
+
+                return second_req;
+            });
+
+            let first_req_response = first_req_handle.await.unwrap();
+            second_req_handle.abort();
+
+            assert!(first_req_response.is_err());
+
+            assert_eq!(first_req_response.errors[0].message, "Discarded this reinitialization task as it has been replaced by a newer reinit request");
         }
     }
 }

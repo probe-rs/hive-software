@@ -65,7 +65,7 @@ impl TestTask {
 
 /// A hardware reinitialization task which can be sent to a [`TestManager`]
 pub(crate) struct ReinitializationTask {
-    task_complete_sender: OneshotSender<Result<(), TaskManagerError>>,
+    pub task_complete_sender: OneshotSender<Result<(), TaskManagerError>>,
 }
 
 impl ReinitializationTask {
@@ -196,14 +196,14 @@ impl TaskManager {
     }
 
     /// Get the next pending test task for execution. Returns [`None`] if the queue is currently empty
-    async fn get_next_test_task(&self) -> Option<TestTask> {
+    pub async fn get_next_test_task(&self) -> Option<TestTask> {
         let mut test_queue = self.valid_test_queue.lock().await;
 
         test_queue.pop_front()
     }
 
     /// Get the next pending reinitialization task for execution. Returns [`None`] if the queue is currently empty
-    async fn get_next_reinit_task(&self) -> Option<ReinitializationTask> {
+    pub async fn get_next_reinit_task(&self) -> Option<ReinitializationTask> {
         let mut reinit_queue = self.reinit_queue.lock().await;
 
         reinit_queue.take()
