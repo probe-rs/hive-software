@@ -8,7 +8,6 @@ use std::{io, pin::Pin};
 use axum::http::Uri;
 use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
 use comm_types::test::{TestResult, TestResults, TestRunStatus};
-use controller::common::hardware::InitError;
 use hyper::client::connect::{Connected, Connection};
 use hyper::{Body, Client};
 use lazy_static::lazy_static;
@@ -16,6 +15,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::oneshot::Sender;
 use tokio::sync::{Mutex, Notify};
 use tokio::{net::UnixStream, sync::mpsc::Receiver};
+
+use crate::SHUTDOWN_SIGNAL;
 
 mod requests;
 mod retry;
@@ -30,7 +31,6 @@ lazy_static! {
 /// Messages which are passed between the [`std::thread`] used for testing, and the tokio runtime
 #[derive(Debug)]
 pub(crate) enum Message {
-    InitError(InitError),
     TestResult(TestResult),
 }
 
@@ -85,12 +85,25 @@ pub(crate) async fn ipc(
     let socket_path = Path::new(SOCKET_PATH);
 
     let mpsc_handler = tokio::spawn(async move {
-        while let Some(msg) = receiver.recv().await {
-            match msg {
-                Message::InitError(_) => todo!(),
-                Message::TestResult(result) => {
-                    let mut results = TEST_RESULTS.lock().await;
-                    results.push(result);
+        let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
+
+        loop {
+            tokio::select! {
+                msg = receiver.recv() => {
+                    if let Some(msg) = msg {
+                        match msg {
+                            Message::TestResult(result) => {
+                                let mut results = TEST_RESULTS.lock().await;
+                                results.push(result);
+                            }
+                        }
+                    }else{
+                        break;
+                    }
+                }
+                result = shutdown_signal.recv() => {
+                    result.expect("Failed to receive global shutdown signal");
+                    break;
                 }
             }
         }
@@ -139,7 +152,16 @@ pub(crate) async fn ipc(
         let client_copy = client.clone();
 
         let result_waiter = tokio::spawn(async move {
-            notify_results_ready.notified().await;
+            let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
+
+            tokio::select! {
+                _ = notify_results_ready.notified() => {}
+                result = shutdown_signal.recv() => {
+                    result.expect("Failed to receive global shutdown signal");
+                    return;
+                }
+            }
+
             let mut results = TEST_RESULTS.lock().await;
             retry::try_request(
                 client_copy,

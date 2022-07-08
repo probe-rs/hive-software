@@ -36,7 +36,7 @@
 - [X] Shutdown might hang if hive cli is stopped while the websocket connection is established. Probably something wrong with detecting a broken/closed websocket which should lead to abortion of a test task.
 
 ## Runner
-- [ ] Add a proper shutdown procedure 
+- [X] Add a proper shutdown procedure 
 - [ ] Runner assumes data desync if not all connected probes have been assigned to a testchannel. This should be considered fine and not cause a data desync
 
 ## Hive Backend UI

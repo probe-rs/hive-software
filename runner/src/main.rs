@@ -1,10 +1,10 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
 
+use anyhow::Result;
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
-use controller::common::hardware::{self, HiveHardware, HiveIoExpander, InitError, MAX_TSS};
+use controller::common::hardware::{self, HiveHardware, HiveIoExpander, MAX_TSS};
 use controller::common::logger;
 use hurdles::Barrier;
 use lazy_static::lazy_static;
@@ -13,14 +13,16 @@ use rppal::i2c::I2c;
 use shared_bus::BusManager;
 use test::TEST_FUNCTIONS;
 use tokio::runtime::Builder;
-use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::sync::oneshot;
+use tokio::sync::broadcast::{self, Sender as BroadcastSender};
+use tokio::sync::mpsc::{Receiver as MpscReceiver, Sender as MpscSender};
+use tokio::sync::oneshot::{self, Receiver as OneshotReceiver};
 use tokio::sync::Notify;
 
 use crate::comm::Message;
 
 mod comm;
 mod hive_tests;
+mod init;
 mod test;
 
 const LOGFILE_PATH: &str = "./data/logs/runner.log";
@@ -34,6 +36,10 @@ lazy_static! {
     };
     static ref EXPANDERS: [HiveIoExpander; MAX_TSS] = hardware::create_expanders(&SHARED_I2C);
     static ref HARDWARE: HiveHardware = HiveHardware::new(&SHARED_I2C, &EXPANDERS);
+    static ref SHUTDOWN_SIGNAL: BroadcastSender<()> = {
+        let (sender, _) = broadcast::channel::<()>(1);
+        sender
+    };
 }
 
 fn main() {
@@ -44,12 +50,10 @@ fn main() {
     );
     log::info!("starting the runner");
 
-    initialize_statics();
-
-    let mut testing_threads = vec![];
+    init::initialize_statics();
 
     let rt = Builder::new_current_thread().enable_all().build().unwrap();
-    let (comm_sender, comm_receiver): (_, Receiver<Message>) = tokio::sync::mpsc::channel(30);
+    let (comm_sender, comm_receiver): (_, MpscReceiver<Message>) = tokio::sync::mpsc::channel(30);
     let (init_data_sender, init_data_receiver) = oneshot::channel();
     let notify_results_ready = Arc::new(Notify::new());
     let notify_results_ready_copy = notify_results_ready.clone();
@@ -62,20 +66,39 @@ fn main() {
         })
         .unwrap();
 
-    // Wait until the init data was received from monitor
-    let (probe_data, target_data) = match init_data_receiver.blocking_recv() {
-        Ok(data) => data,
-        Err(_) => {
-            log::error!(
-                "The oneshot sender in the async comm-thread has been dropped, shutting down. This is either caused by a panic in the comm-thread or an error in the code.",
-            );
+    let run_is_err = run(comm_sender, init_data_receiver, notify_results_ready).is_err();
 
-            shutdown_on_init(comm_sender);
-            unreachable!();
-        }
+    if run_is_err {
+        // Manually stop async tasks from executing
+        shutdown_err();
+    }
+
+    // Wait for communications to finish
+    comm_tread.join().unwrap();
+
+    let exit_code = match run_is_err {
+        true => 1,
+        false => 0,
     };
 
-    match init_hardware_from_monitor_data(target_data, probe_data) {
+    std::process::exit(exit_code);
+}
+
+/// Run the main thread
+fn run(
+    comm_sender: MpscSender<Message>,
+    init_data_receiver: OneshotReceiver<(HiveProbeData, HiveTargetData)>,
+    notify_results_ready: Arc<Notify>,
+) -> Result<()> {
+    // Wait until the init data was received from monitor
+    let (probe_data, target_data) = init_data_receiver.blocking_recv().map_err(|err| {
+        log::error!(
+            "The oneshot sender in the async comm-thread has been dropped, shutting down. This is either caused by a panic in the comm-thread or an error in the code.",
+        );
+        err
+    })?;
+
+    match init::init_hardware_from_monitor_data(target_data, probe_data) {
         Ok(_) => log::debug!("Successfully initialized hardware from monitor data."),
         Err(err) => {
             log::error!(
@@ -83,16 +106,13 @@ fn main() {
                 err
             );
 
-            comm_sender
-                .blocking_send(comm::Message::InitError(err))
-                .unwrap();
-
-            shutdown_on_init(comm_sender);
-            unreachable!();
+            return Err(err.into());
         }
     }
 
     let mut panic_hook_sync = Barrier::new(get_available_channel_count() + 1);
+
+    let mut testing_threads = vec![];
 
     for (idx, test_channel) in HARDWARE.testchannels.iter().enumerate() {
         let channel = test_channel.lock().unwrap();
@@ -146,24 +166,9 @@ fn main() {
 
     notify_results_ready.notify_one();
 
-    // Wait for communications to finish
-    comm_tread.join().unwrap();
     log::info!("Finished testing task, shutting down...");
-}
 
-fn init_hardware_from_monitor_data(
-    target_data: HiveTargetData,
-    probe_data: HiveProbeData,
-) -> Result<(), InitError> {
-    HARDWARE.initialize_target_data(target_data)?;
-    HARDWARE.initialize_probe_data(probe_data)
-}
-
-pub(crate) fn initialize_statics() {
-    lazy_static::initialize(&SHARED_I2C);
-    lazy_static::initialize(&EXPANDERS);
-    lazy_static::initialize(&HARDWARE);
-    lazy_static::initialize(&TEST_FUNCTIONS);
+    Ok(())
 }
 
 /// Returns the amount of testchannels which are ready for testing (A testchannel is considered ready once a probe has been bound to it)
@@ -180,10 +185,8 @@ fn get_available_channel_count() -> usize {
     available_channels
 }
 
-/// Handles the shutdown procedure, if the runner needs to shutdown during the init phase (before any tests were ran)
-fn shutdown_on_init(comm_sender: Sender<Message>) {
-    drop(comm_sender);
-    // Timeout before shutting down comm thread
-    thread::sleep(Duration::from_secs(2));
-    std::process::exit(1);
+fn shutdown_err() {
+    SHUTDOWN_SIGNAL
+        .send(())
+        .expect("Failed to send shutdown signal as there are no receivers active");
 }
