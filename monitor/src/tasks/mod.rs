@@ -1,7 +1,4 @@
 //! Handles all tasks which can be triggered by external users. For example test and hardware reinit tasks
-use std::collections::VecDeque;
-use std::sync::Arc;
-
 use axum::body::Bytes;
 use axum::response::IntoResponse;
 use cached::stores::TimedCache;
@@ -11,7 +8,7 @@ use hyper::StatusCode;
 use thiserror::Error;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver, Sender as MpscSender};
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
-use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::{Mutex as AsyncMutex, MutexGuard};
 
 use self::ws::WsTicket;
 
@@ -111,23 +108,29 @@ impl IntoResponse for TaskManagerError {
 
 /// Manages all incoming tasks
 pub(crate) struct TaskManager {
-    //TODO Arc is probably not needed if I can do all within this struct
-    reinit_queue: Arc<AsyncMutex<Option<ReinitializationTask>>>,
+    reinit_task_sender: MpscSender<ReinitializationTask>,
+    reinit_task_receiver: AsyncMutex<MpscReceiver<ReinitializationTask>>,
     /// The initial cache which contains all valid test requests which do not yet have a websocket connection
-    test_cache: Arc<AsyncMutex<TimedCache<WsTicket, TestTask>>>,
-    /// Test queue which contains all test that do have a valid websocket connection and are ready for testing
-    valid_test_queue: Arc<AsyncMutex<VecDeque<TestTask>>>,
+    test_cache: AsyncMutex<TimedCache<WsTicket, TestTask>>,
+    // Test queue which contains all test that do have a valid websocket connection and are ready for testing
+    valid_test_task_sender: MpscSender<TestTask>,
+    valid_test_task_receiver: AsyncMutex<MpscReceiver<TestTask>>,
 }
 
 impl TaskManager {
     pub fn new() -> Self {
+        let (valid_test_task_sender, valid_test_task_receiver) = mpsc::channel(TASK_CACHE_LIMIT);
+        let (reinit_task_sender, reinit_task_receiver) = mpsc::channel(1);
+
         Self {
-            reinit_queue: Arc::new(AsyncMutex::new(None)),
-            test_cache: Arc::new(AsyncMutex::new(TimedCache::with_lifespan_and_capacity(
+            reinit_task_sender,
+            reinit_task_receiver: AsyncMutex::new(reinit_task_receiver),
+            test_cache: AsyncMutex::new(TimedCache::with_lifespan_and_capacity(
                 WS_CONNECT_TIMEOUT_SECS,
                 TASK_CACHE_LIMIT,
-            ))),
-            valid_test_queue: Arc::new(AsyncMutex::new(VecDeque::new())),
+            )),
+            valid_test_task_sender,
+            valid_test_task_receiver: AsyncMutex::new(valid_test_task_receiver),
         }
     }
 
@@ -172,40 +175,41 @@ impl TaskManager {
 
         test_task.insert_status_and_result_sender(sender);
 
-        let mut valid_test_queue = self.valid_test_queue.lock().await;
-
-        valid_test_queue.push_back(test_task);
+        self.valid_test_task_sender
+            .try_send(test_task)
+            .map_err(|err| match err {
+                mpsc::error::TrySendError::Full(_) => TaskManagerError::TestQueueFull,
+                mpsc::error::TrySendError::Closed(_) => unreachable!(),
+            })?;
 
         Ok(receiver)
     }
 
     /// Register a new reinitialization task
     ///
-    /// In case a previous reinitialization task is still in queue it is discarded in favor of the newly registered one
+    /// In case a previous reinitialization task is still in queue the task which is being registered is discarded in favor of the already waiting task
     pub async fn register_reinit_task(&self, task: ReinitializationTask) {
-        let mut reinit_queue = self.reinit_queue.lock().await;
-
-        if reinit_queue.is_some() {
-            let old_task = reinit_queue.take().unwrap();
-            let _ = old_task
-                .task_complete_sender
-                .send(Err(TaskManagerError::ReinitTaskDiscarded));
+        if let Err(err) = self.reinit_task_sender.try_send(task) {
+            match err {
+                mpsc::error::TrySendError::Full(task) => {
+                    let _ = task
+                        .task_complete_sender
+                        .send(Err(TaskManagerError::ReinitTaskDiscarded));
+                }
+                mpsc::error::TrySendError::Closed(_) => unreachable!(),
+            }
         }
-
-        *reinit_queue = Some(task);
     }
 
-    /// Get the next pending test task for execution. Returns [`None`] if the queue is currently empty
-    pub async fn get_next_test_task(&self) -> Option<TestTask> {
-        let mut test_queue = self.valid_test_queue.lock().await;
-
-        test_queue.pop_front()
+    /// Get the test task receiver to asynchronously receive new test tasks
+    pub async fn get_test_task_receiver<'a>(&'a self) -> MutexGuard<'a, MpscReceiver<TestTask>> {
+        self.valid_test_task_receiver.lock().await
     }
 
-    /// Get the next pending reinitialization task for execution. Returns [`None`] if the queue is currently empty
-    pub async fn get_next_reinit_task(&self) -> Option<ReinitializationTask> {
-        let mut reinit_queue = self.reinit_queue.lock().await;
-
-        reinit_queue.take()
+    /// Get the reinit task receiver to asynchronously receive new reinit tasks
+    pub async fn get_reinit_task_receiver<'a>(
+        &'a self,
+    ) -> MutexGuard<'a, MpscReceiver<ReinitializationTask>> {
+        self.reinit_task_receiver.lock().await
     }
 }

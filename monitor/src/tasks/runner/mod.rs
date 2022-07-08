@@ -70,21 +70,22 @@ impl TaskRunner {
             // Poll task receiver and shutdown receiver
             loop {
                 let task_type = runtime.block_on(async {
-                    // TODO this is basically busy looping, find an impoved solution
+                    let mut test_task_receiver = task_manager.get_test_task_receiver().await;
+                    let mut reinit_task_receiver = task_manager.get_reinit_task_receiver().await;
+                    
                     loop {
-                        if shutdown_receiver.try_recv().is_ok() {
-                            return TaskType::Shutdown;
-                        }
-
-                        let init_task = task_manager.get_next_reinit_task().await;
-
-                        if let Some(init_task) = init_task {
-                            return TaskType::ReinitTask(init_task);
-                        }
-
-                        let test_task = task_manager.get_next_test_task().await;
-                        if let Some(test_task) = test_task {
-                            return TaskType::TestTask(test_task);
+                        tokio::select! {
+                            result = shutdown_receiver.recv() => {result.expect("Failed to receive global shutdown signal")}
+                            test_task = test_task_receiver.recv() => {
+                                if let Some(task) = test_task {
+                                    return TaskType::TestTask(task);
+                                }
+                            }
+                            reinit_task = reinit_task_receiver.recv() => {
+                                if let Some(task) = reinit_task {
+                                    return TaskType::ReinitTask(task);
+                                }
+                            }
                         }
                     }
                 });

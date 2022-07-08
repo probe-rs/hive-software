@@ -20,7 +20,7 @@
 - [X] Check if axum layers are properly implemented. Scope them correctly to avoid having unnecessary layers on certain routes. Check if request limiting is required on public routes.
 - [X] Return data type on /test/run endpoint which can be either error or ok with testresults, the current implementation fails with a bad request status code in case an error occurred in the testmanager, which is not an actual http error but an application error.
 - [X] Current DB implementation is prone to race conditions as there is no guarantee that the previously read out value is not changed by another function before the previously read value is modified and written back to the DB
-- [ ] get_and_init_target_address_ranges() it might be better to do this based on the DB data as the testmanager will ultimately reinitialize the hardware based on DB data and not runtime data
+- [ ] ~~get_and_init_target_address_ranges() it might be better to do this based on the DB data as the testmanager will ultimately reinitialize the hardware based on DB data and not runtime data~~
 - [X] Deadlock when reloading the testrack hardware due to user request via graphql. Probably inside Testmanager
 - [ ] The debugprobe info on the JLINK probe is incomplete (missing S/N and wrong identifier) when `probe::list()` is called while the probe is in use by the program. This leads to the software suggesting a third available probe to the user which does not actually exist. Might be a problem in probe-rs, needs further investigation
 - [ ] Add possibility to filter targets and probes on a test request which would allow for only testing the requested targets
@@ -31,7 +31,7 @@
 - [ ] Add tests for new testprogram mutations
 - [X] Move IPC socket file into data folder of the program
 - [ ] Determine how to handle cargo workspace target folder size to not reach memory limit of the tempfs but also to avoid excessive wait times if building off clean workspace on every test request
-- [ ] Replace task manager busy loop with more efficient implementation
+- [X] Replace task manager busy loop with more efficient implementation
 - [X] Fix test endpoint tests
 - [X] Shutdown might hang if hive cli is stopped while the websocket connection is established. Probably something wrong with detecting a broken/closed websocket which should lead to abortion of a test task.
 

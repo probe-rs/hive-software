@@ -13,7 +13,7 @@ pub(crate) struct BaseAddressRanges {
     pub riscv: Vec<Memory>,
 }
 
-/// Returns all required address ranges for the currently connected targets. And updates the TargetInfo of each individual target to the correct range
+/// Returns all required address ranges for the currently connected targets and updates the TargetInfo of each individual target to the correct range
 pub(crate) fn get_and_init_target_address_ranges(hardware: &HiveHardware) -> BaseAddressRanges {
     let mut addresses = BaseAddressRanges {
         arm: vec![],
