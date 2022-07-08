@@ -32,7 +32,7 @@
 - [X] Move IPC socket file into data folder of the program
 - [ ] Determine how to handle cargo workspace target folder size to not reach memory limit of the tempfs but also to avoid excessive wait times if building off clean workspace on every test request
 - [ ] Replace task manager busy loop with more efficient implementation
-- [ ] Fix test endpoint tests
+- [X] Fix test endpoint tests
 - [X] Shutdown might hang if hive cli is stopped while the websocket connection is established. Probably something wrong with detecting a broken/closed websocket which should lead to abortion of a test task.
 
 ## Runner

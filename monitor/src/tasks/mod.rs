@@ -20,7 +20,7 @@ pub mod ws;
 
 const TASK_CACHE_LIMIT: usize = 10;
 /// Duration until a cached test request is invalidated if no websocket for the corresponding [`TestTask`] has been created
-const WS_CONNECT_TIMEOUT_SECS: u64 = 30;
+pub(crate) const WS_CONNECT_TIMEOUT_SECS: u64 = 30;
 
 /// The possible task types the testmanager can handle
 pub(super) enum TaskType {

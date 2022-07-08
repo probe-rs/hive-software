@@ -21,27 +21,26 @@ pub(super) fn test_routes(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) ->
                 .layer(Extension(task_manager)),
         )
 }
-/*
+
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
     use std::sync::Arc;
+    use std::time::Duration;
 
     use axum::body::Body;
     use axum::http::{header, Method, Request, StatusCode};
     use comm_types::hardware::{Capabilities, ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData};
-    use comm_types::test::{TestOptions, TestResults, TestRunStatus};
+    use comm_types::test::TestOptions;
     use hive_db::CborDb;
     use hyper::Request as HyperRequest;
     use lazy_static::lazy_static;
     use multipart::client::multipart::{Body as MultipartBody, Form};
-    use tokio::sync::mpsc;
-    use tokio::sync::mpsc::{Receiver, Sender};
     use tower::ServiceExt;
 
     use crate::database::{keys, MonitorDb};
-    use crate::tasks::TestTask;
+    use crate::tasks::{TaskManager, WS_CONNECT_TIMEOUT_SECS};
 
     use super::test_routes;
 
@@ -165,45 +164,10 @@ mod tests {
         ];
     }
 
-    /// A mock implementation of the actual TestManager struct
-    struct TestManagerMock {
-        task_sender: Sender<TestTask>,
-        task_receiver: Receiver<TestTask>,
-    }
-
-    impl TestManagerMock {
-        pub fn new() -> Self {
-            let (task_sender, task_receiver) = mpsc::channel(1);
-
-            Self {
-                task_sender,
-                task_receiver,
-            }
-        }
-
-        pub fn get_task_sender(&self) -> Sender<TestTask> {
-            self.task_sender.clone()
-        }
-
-        /// Tries to receive a test task and sends an empty [`TestResults`] struct back to the task creator via the provided oneshot channel
-        pub async fn receive_test_task(&mut self) {
-            if let Some(task) = self.task_receiver.recv().await {
-                let dummy_results = TestResults {
-                    status: TestRunStatus::Ok,
-                    results: Some(vec![]),
-                    error: None,
-                };
-                task.result_sender.send(dummy_results).expect("Failed to send dummy test results via oneshot channel. Has the receiver been dropped?");
-            } else {
-                panic!("The task receiver failed to receive any value as it was considered closed or no messages can be received anymore because all senders have been dropped.");
-            }
-        }
-    }
-
     #[tokio::test]
     async fn capabilities_endpoint() {
-        let test_manager_mock = TestManagerMock::new();
-        let test_routes = test_routes(DB.clone(), test_manager_mock.get_task_sender());
+        let task_manager = Arc::new(TaskManager::new());
+        let test_routes = test_routes(DB.clone(), task_manager);
 
         let res = test_routes
             .oneshot(
@@ -261,8 +225,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_endpoint_wrong_content_type() {
-        let test_manager_mock = TestManagerMock::new();
-        let test_routes = test_routes(DB.clone(), test_manager_mock.get_task_sender());
+        let task_manager = Arc::new(TaskManager::new());
+        let test_routes = test_routes(DB.clone(), task_manager);
 
         let res = test_routes
             .oneshot(
@@ -282,8 +246,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_endpoint_content_length() {
-        let test_manager_mock = TestManagerMock::new();
-        let test_routes = test_routes(DB.clone(), test_manager_mock.get_task_sender());
+        let task_manager = Arc::new(TaskManager::new());
+        let test_routes = test_routes(DB.clone(), task_manager);
 
         let res = test_routes
             .oneshot(
@@ -303,8 +267,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_endpoint_unknown_field_name() {
-        let test_manager_mock = TestManagerMock::new();
-        let test_routes = test_routes(DB.clone(), test_manager_mock.get_task_sender());
+        let task_manager = Arc::new(TaskManager::new());
+        let test_routes = test_routes(DB.clone(), task_manager);
 
         let mut form = Form::default();
         form.add_text("unknown", "some text");
@@ -342,8 +306,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_endpoint_missing_project_field() {
-        let test_manager_mock = TestManagerMock::new();
-        let test_routes = test_routes(DB.clone(), test_manager_mock.get_task_sender());
+        let task_manager = Arc::new(TaskManager::new());
+        let test_routes = test_routes(DB.clone(), task_manager);
 
         let options = TestOptions {};
 
@@ -383,8 +347,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_endpoint_wrong_project_field_data_type() {
-        let test_manager_mock = TestManagerMock::new();
-        let test_routes = test_routes(DB.clone(), test_manager_mock.get_task_sender());
+        let task_manager = Arc::new(TaskManager::new());
+        let test_routes = test_routes(DB.clone(), task_manager);
 
         let mut form = Form::default();
 
@@ -430,8 +394,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_endpoint_wrong_project_field_file_type() {
-        let test_manager_mock = TestManagerMock::new();
-        let test_routes = test_routes(DB.clone(), test_manager_mock.get_task_sender());
+        let task_manager = Arc::new(TaskManager::new());
+        let test_routes = test_routes(DB.clone(), task_manager);
 
         let mut form = Form::default();
 
@@ -477,8 +441,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_endpoint_correct() {
-        let mut test_manager_mock = TestManagerMock::new();
-        let test_routes = test_routes(DB.clone(), test_manager_mock.get_task_sender());
+        let task_manager = Arc::new(TaskManager::new());
+        let test_routes = test_routes(DB.clone(), task_manager.clone());
 
         let mut form = Form::default();
 
@@ -507,16 +471,11 @@ mod tests {
 
         let req = HyperRequest::from_parts(parts, body.into());
 
-        // We instruct the testmanager mock to return data to the request, in case it received a request
-        // This needs to happen in a separate task as we only receive a valid response if the testmanager
-        // is ready to handle tasks
-        tokio::spawn(async move { test_manager_mock.receive_test_task().await });
-
         let res = test_routes.oneshot(req).await.unwrap();
 
         assert_eq!(res.status(), StatusCode::OK);
 
-        let results: TestResults = serde_json::from_reader(
+        let ws_ticket: String = serde_json::from_reader(
             hyper::body::to_bytes(res.into_body())
                 .await
                 .unwrap()
@@ -524,7 +483,62 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(results.status, TestRunStatus::Ok);
-        assert!(results.results.unwrap().is_empty());
+        assert!(task_manager
+            .validate_test_task_ticket(ws_ticket.into())
+            .await
+            .is_ok());
     }
-}*/
+
+    #[tokio::test]
+    async fn test_endpoint_timed_out_ticket() {
+        let task_manager = Arc::new(TaskManager::new());
+        let test_routes = test_routes(DB.clone(), task_manager.clone());
+
+        let mut form = Form::default();
+
+        let data = Cursor::new("Some data");
+
+        form.add_reader_file_with_mime(
+            "project",
+            data,
+            "some_tar_file.tar",
+            mime::APPLICATION_OCTET_STREAM,
+        );
+
+        // TODO This whole thing looks like a really whack way of transforming the MultipartBody into a Hyper Body.
+        // It appears the From impl fails to transform it when directly inserting the initial req object into the oneshot
+
+        let req = form
+            .set_body::<MultipartBody>(
+                HyperRequest::builder()
+                    .method(Method::POST)
+                    .uri("/run")
+                    .header(header::CONTENT_LENGTH, "0"),
+            )
+            .unwrap();
+
+        let (parts, body) = req.into_parts();
+
+        let req = HyperRequest::from_parts(parts, body.into());
+
+        let res = test_routes.oneshot(req).await.unwrap();
+
+        assert_eq!(res.status(), StatusCode::OK);
+
+        let ws_ticket: String = serde_json::from_reader(
+            hyper::body::to_bytes(res.into_body())
+                .await
+                .unwrap()
+                .as_ref(),
+        )
+        .unwrap();
+
+        // sleep until ws ticket should be invalid
+        tokio::time::sleep(Duration::from_secs(WS_CONNECT_TIMEOUT_SECS + 5)).await;
+
+        assert!(task_manager
+            .validate_test_task_ticket(ws_ticket.into())
+            .await
+            .is_err());
+    }
+}

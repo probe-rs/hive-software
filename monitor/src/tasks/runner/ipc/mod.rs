@@ -116,12 +116,13 @@ mod tests {
     use axum::body::Body;
     use axum::http::{header, Method, Request, StatusCode};
     use ciborium::de::from_reader;
+    use ciborium::ser::into_writer;
     use comm_types::hardware::{ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
-    use comm_types::test::TestResults;
+    use comm_types::test::{TestResults, TestRunStatus};
     use hive_db::CborDb;
     use lazy_static::lazy_static;
-    use tokio::sync::mpsc::Sender;
+    use tokio::sync::mpsc::{Receiver, Sender};
     use tower::ServiceExt;
 
     use crate::database::{keys, MonitorDb};
@@ -137,10 +138,6 @@ mod tests {
             db.config_tree.c_insert(&keys::config::ASSIGNED_TARGETS, &*TARGET_DATA).unwrap();
 
             Arc::new(db)
-        };
-        static ref DUMMY_TEST_RESULT_SENDER: Sender<TestResults> = {
-            let (sender, _) = tokio::sync::mpsc::channel(1);
-            sender
         };
         static ref PROBE_DATA: HiveProbeData = [
             ProbeState::Known(ProbeInfo {
@@ -252,9 +249,35 @@ mod tests {
         ];
     }
 
+    /// Small mock interface which mimics the function of the TaskRunner
+    struct MockTestResultManager {
+        sender: Sender<TestResults>,
+        receiver: Receiver<TestResults>,
+    }
+
+    impl MockTestResultManager {
+        pub fn new() -> Self {
+            let (sender, receiver) = tokio::sync::mpsc::channel(1);
+            Self { sender, receiver }
+        }
+
+        pub fn get_sender(&self) -> Sender<TestResults> {
+            self.sender.clone()
+        }
+
+        /// Try to receive the next TestResults
+        ///
+        /// # Panics
+        /// In case receiving fails, or no TestResults are available
+        pub fn receive(&mut self) -> TestResults {
+            self.receiver.try_recv().unwrap()
+        }
+    }
+
     #[tokio::test]
     async fn wrong_rest_method() {
-        let ipc_server = app(DB.clone(), DUMMY_TEST_RESULT_SENDER.clone());
+        let mock_test_result_manager = MockTestResultManager::new();
+        let ipc_server = app(DB.clone(), mock_test_result_manager.get_sender());
 
         let res = ipc_server
             .oneshot(
@@ -273,7 +296,8 @@ mod tests {
 
     #[tokio::test]
     async fn probe_endpoint() {
-        let ipc_server = app(DB.clone(), DUMMY_TEST_RESULT_SENDER.clone());
+        let mock_test_result_manager = MockTestResultManager::new();
+        let ipc_server = app(DB.clone(), mock_test_result_manager.get_sender());
 
         let res = ipc_server
             .oneshot(
@@ -313,7 +337,8 @@ mod tests {
 
     #[tokio::test]
     async fn target_endpoint() {
-        let ipc_server = app(DB.clone(), DUMMY_TEST_RESULT_SENDER.clone());
+        let mock_test_result_manager = MockTestResultManager::new();
+        let ipc_server = app(DB.clone(), mock_test_result_manager.get_sender());
 
         let res = ipc_server
             .oneshot(
@@ -347,6 +372,52 @@ mod tests {
             }))
         } else {
             panic!("Expected IpcMessage::TargetInitData, but found {:?}", data);
+        }
+    }
+
+    #[tokio::test]
+    async fn result_endpoint() {
+        let mut mock_test_result_manager = MockTestResultManager::new();
+        let ipc_server = app(DB.clone(), mock_test_result_manager.get_sender());
+
+        let dummy_test_results = TestResults {
+            status: TestRunStatus::Error,
+            results: None,
+            error: None,
+        };
+
+        let mut bytes = vec![];
+        into_writer(
+            &IpcMessage::TestResults(Box::new(dummy_test_results)),
+            &mut bytes,
+        )
+        .unwrap();
+
+        let res = ipc_server
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/runner/results")
+                    .header(header::CONTENT_TYPE, "application/cbor")
+                    .body(Body::from(bytes))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::OK);
+
+        let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let data: IpcMessage = from_reader(&bytes[..]).unwrap();
+
+        if let IpcMessage::Empty = data {
+            let received = mock_test_result_manager.receive();
+
+            assert_eq!(received.status, TestRunStatus::Error);
+            assert!(received.error.is_none());
+            assert!(received.results.is_none());
+        } else {
+            panic!("Expected IpcMessage::Empty, but found {:?}", data);
         }
     }
 }
