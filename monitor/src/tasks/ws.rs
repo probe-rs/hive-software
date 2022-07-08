@@ -21,7 +21,9 @@ impl WsTicket {
         let mut random_bytes = [0; 16];
         rng.fill_bytes(&mut random_bytes);
 
-        let ticket = base64::encode(random_bytes);
+        // As the ticket will later be used in a url query string it should be url safe
+        let base64_config = base64::Config::new(base64::CharacterSet::UrlSafe, true);
+        let ticket = base64::encode_config(random_bytes, base64_config);
 
         Self(ticket)
     }

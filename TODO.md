@@ -27,12 +27,13 @@
 - [ ] Implementation of testprogram status is not sound, there should be a better solution for checking user input before handling it as actual testprogram
 - [ ] Determine wheter it is necessary to sandbox the build process of the runner, as build scripts of dependencies might contain malicious code
 - [ ] Execute runner in a VM, determine best ways to make VM access hardware securely
-- [ ] Something is not quite correct in the way WS tickets for test tasks are handled, as some test task WS connection requests yield 401 HTTP status codes with tickets which should be correct
+- [X] Something is not quite correct in the way WS tickets for test tasks are handled, as some test task WS connection requests yield 401 HTTP status codes with tickets which should be correct
 - [ ] Add tests for new testprogram mutations
 - [X] Move IPC socket file into data folder of the program
 - [ ] Determine how to handle cargo workspace target folder size to not reach memory limit of the tempfs but also to avoid excessive wait times if building off clean workspace on every test request
 - [ ] Replace task manager busy loop with more efficient implementation
 - [ ] Fix test endpoint tests
+- [ ] Shutdown might hang if hive cli is stopped while the websocket connection is established. Probably something wrong with detecting a broken/closed websocket which should lead to abortion of a test task.
 
 ## Runner
 - [ ] Add a proper shutdown procedure 
