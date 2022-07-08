@@ -10,6 +10,8 @@ use tokio::sync::mpsc::Receiver as MpscReceiver;
 
 use super::TaskRunnerMessage;
 
+use crate::SHUTDOWN_SIGNAL;
+
 /// A ticket which is used by the client to open a websocket connection for the corresponding [`TestTask`]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub(crate) struct WsTicket(String);
@@ -40,6 +42,8 @@ pub(crate) async fn socket_handler(
     mut receiver: MpscReceiver<TaskRunnerMessage>,
 ) {
     tokio::spawn(async move {
+        let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
+
         if send_json(
             &mut socket,
             TaskRunnerMessage::Status("Waiting in task queue for execution".to_owned()),
@@ -50,15 +54,29 @@ pub(crate) async fn socket_handler(
             return;
         }
 
-        while let Some(msg) = receiver.recv().await {
-            if let TaskRunnerMessage::Results(_) = msg {
-                // Close channel once results were received so the senders can be dropped and perform a graceful shutdown of the channel
-                receiver.close();
-            }
+        loop {
+            tokio::select! {
+                msg = receiver.recv() => {
+                    if let Some(msg) = msg {
+                        if let TaskRunnerMessage::Results(_) = msg {
+                            // Close channel once results were received so the senders can be dropped and perform a graceful shutdown of the channel
+                            receiver.close();
+                        }
 
-            if send_json(&mut socket, msg).await.is_err() {
-                // Connection closed
-                break;
+                        if send_json(&mut socket, msg).await.is_err() {
+                            // Connection closed
+                            // Close the receiver to force the running task to fail once it tries to send any message to the websocket
+                            receiver.close();
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                result = shutdown_signal.recv() => {
+                    result.expect("Failed to receive global shutdown signal");
+                    break;
+                }
             }
         }
 
