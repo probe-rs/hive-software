@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::error_handling::HandleErrorLayer;
-use axum::extract::extractor_middleware;
+use axum::middleware::from_extractor;
 use axum::routing::{self, post};
 use axum::{middleware, BoxError, Extension, Router};
 use axum_server::tls_rustls::RustlsConfig;
@@ -52,7 +52,7 @@ fn app(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) -> Router {
         .layer(
             ServiceBuilder::new()
                 .layer(middleware::from_fn(csrf::require_csrf_token))
-                .layer(extractor_middleware::<auth::HiveAuth>())
+                .layer(from_extractor::<auth::HiveAuth>())
                 .layer(Extension(db.clone()))
                 .layer(Extension(task_manager.clone()))
                 .layer(Extension(backend::build_schema())),

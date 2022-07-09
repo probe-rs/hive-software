@@ -444,7 +444,6 @@ mod tests {
 
     mod mutation {
         use std::sync::Arc;
-        use std::time::Duration;
 
         use async_graphql::{value, Request};
         use comm_types::auth::{DbUser, JwtClaims, Role};
@@ -547,8 +546,8 @@ mod tests {
                 result,
                 value!({
                     "assignTarget": {
-                        "tssPos": 0 as u8,
-                        "targetPos": 2 as u8,
+                        "tssPos": 0_u8,
+                        "targetPos": 2_u8,
                         "targetName": "Some Target",
                     }
                 })
@@ -655,7 +654,7 @@ mod tests {
                 result,
                 value!({
                     "assignProbe": {
-                        "probePos": 3 as u8,
+                        "probePos": 3_u8,
                         "data": {
                             "state": "NOT_CONNECTED",
                             "data": null
@@ -1417,13 +1416,12 @@ mod tests {
             // Spawn separate task which will send a successful reinit task completion back to the handler, once the task is received
             let task_manager_cloned = task_manager.clone();
             tokio::spawn(async move {
-                loop {
-                    if let Some(task) = task_manager_cloned.get_next_reinit_task().await {
-                        task.task_complete_sender.send(Ok(())).unwrap();
-                        break;
-                    } else {
-                        tokio::time::sleep(Duration::from_millis(100)).await;
-                    }
+                let mut task_receiver = task_manager_cloned.get_reinit_task_receiver().await;
+
+                if let Some(task) = task_receiver.recv().await {
+                    task.task_complete_sender.send(Ok(())).unwrap();
+                } else {
+                    panic!("Failed to receive test task");
                 }
             });
 
@@ -1457,10 +1455,10 @@ mod tests {
                     )
                     .await;
 
-                return first_req;
+                first_req
             });
 
-            // Second request invalidates first request
+            // Second request should be discarded as first request is still waiting
             let second_req_task_manager = task_manager.clone();
             let second_req_handle = tokio::spawn(async move {
                 let schema = build_schema();
@@ -1473,15 +1471,15 @@ mod tests {
                     )
                     .await;
 
-                return second_req;
+                second_req
             });
 
-            let first_req_response = first_req_handle.await.unwrap();
-            second_req_handle.abort();
+            let second_req_response = second_req_handle.await.unwrap();
+            first_req_handle.abort();
 
-            assert!(first_req_response.is_err());
+            assert!(second_req_response.is_err());
 
-            assert_eq!(first_req_response.errors[0].message, "Discarded this reinitialization task as it has been replaced by a newer reinit request");
+            assert_eq!(second_req_response.errors[0].message, "Discarded this reinitialization task as another reinitialization task is still waiting for execution");
         }
     }
 }

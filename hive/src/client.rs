@@ -51,7 +51,7 @@ pub(crate) fn get_ws_client(
         }
     }
 
-    if let None = tcp_stream {
+    if tcp_stream.is_none() {
         bail!("Failed to connect tcp socket to testserver");
     }
 

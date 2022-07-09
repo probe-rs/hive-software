@@ -1,7 +1,6 @@
 //! Contains all Hive hardware shared types
 use std::ops::Range;
 
-use async_graphql::SimpleObject;
 use serde::{Deserialize, Serialize};
 
 /// The overall capabilities of the tesrack. Contains the most important information such as available probes and targets to test

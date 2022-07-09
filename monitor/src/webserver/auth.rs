@@ -187,7 +187,7 @@ fn check_jwt(token: &str) -> Result<JwtClaims, ()> {
 mod tests {
     use std::sync::Arc;
 
-    use axum::extract::extractor_middleware;
+    use axum::middleware::from_extractor;
     use axum::routing::get;
     use axum::Router;
     use comm_types::auth::DbUser;
@@ -242,7 +242,7 @@ mod tests {
         Router::new().route("/", get(get_handler)).layer(
             ServiceBuilder::new()
                 .layer(CookieManagerLayer::new())
-                .layer(extractor_middleware::<HiveAuth>()),
+                .layer(from_extractor::<HiveAuth>()),
         )
     }
 

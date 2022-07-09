@@ -58,10 +58,11 @@ impl TaskRunner {
         runtime.spawn(ipc::ipc_server(self.db.clone(), test_result_sender));
 
         // Start task receiver
-        self.run_task(runtime, task_manager);
+        self.run_tasks(runtime, task_manager);
     }
 
-    fn run_task(&mut self, runtime: Arc<Runtime>, task_manager: &TaskManager) {
+    /// Receives and runs tasks
+    fn run_tasks(&mut self, runtime: Arc<Runtime>, task_manager: &TaskManager) {
         let mut shutdown_receiver = SHUTDOWN_SIGNAL.subscribe();
 
         loop {
@@ -72,10 +73,13 @@ impl TaskRunner {
                 let task_type = runtime.block_on(async {
                     let mut test_task_receiver = task_manager.get_test_task_receiver().await;
                     let mut reinit_task_receiver = task_manager.get_reinit_task_receiver().await;
-                    
+
                     loop {
                         tokio::select! {
-                            result = shutdown_receiver.recv() => {result.expect("Failed to receive global shutdown signal")}
+                            result = shutdown_receiver.recv() => {
+                                result.expect("Failed to receive global shutdown signal");
+                                return TaskType::Shutdown;
+                            }
                             test_task = test_task_receiver.recv() => {
                                 if let Some(task) = test_task {
                                     return TaskType::TestTask(task);

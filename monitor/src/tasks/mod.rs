@@ -83,7 +83,7 @@ pub(crate) enum TaskManagerError {
     #[error("The test queue is full. Please try again later.")]
     TestQueueFull,
     #[error(
-        "Discarded this reinitialization task as it has been replaced by a newer reinit request"
+        "Discarded this reinitialization task as another reinitialization task is still waiting for execution"
     )]
     ReinitTaskDiscarded,
     #[error("The provided ticket is invalid or the client took too long to connect the websocket after the initial test request")]
@@ -202,14 +202,14 @@ impl TaskManager {
     }
 
     /// Get the test task receiver to asynchronously receive new test tasks
-    pub async fn get_test_task_receiver<'a>(&'a self) -> MutexGuard<'a, MpscReceiver<TestTask>> {
+    pub async fn get_test_task_receiver(&self) -> MutexGuard<'_, MpscReceiver<TestTask>> {
         self.valid_test_task_receiver.lock().await
     }
 
     /// Get the reinit task receiver to asynchronously receive new reinit tasks
-    pub async fn get_reinit_task_receiver<'a>(
-        &'a self,
-    ) -> MutexGuard<'a, MpscReceiver<ReinitializationTask>> {
+    pub async fn get_reinit_task_receiver(
+        &self,
+    ) -> MutexGuard<'_, MpscReceiver<ReinitializationTask>> {
         self.reinit_task_receiver.lock().await
     }
 }

@@ -17,7 +17,7 @@ axum = { version = "0.5", features = ["multipart"] }
 axum-server = { version = "0.4", features = ["tls-rustls"] }
 axum-macros = "0.2"
 hyper = "0.14"
-tower = { version = "0.4", features = ["limit", "load-shed"] }
+tower = { version = "0.4", features = ["limit", "load-shed", "buffer"] }
 tower-http = { version = "0.3", features = ["fs"] }
 http-body = "0.4"
 tower-cookies = { version = "0.6", features = ["signed"] }

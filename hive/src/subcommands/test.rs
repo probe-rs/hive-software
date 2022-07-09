@@ -1,4 +1,5 @@
 //! The test subcommand
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -157,13 +158,13 @@ fn print_test_results(results: TestResults) {
                 // Use both S/N and name as key in case the same probe model is used multiple times (for whatever strange reason)
                 let probe_key = format!("{} (S/N: {})", result.probe_name, result.probe_sn);
 
-                if !target_map.contains_key(&result.target_name) {
-                    target_map.insert(result.target_name.clone(), HashMap::new());
+                if let Entry::Vacant(entry) = target_map.entry(result.target_name.clone()) {
+                    entry.insert(HashMap::new());
                 }
 
                 let probe_map = target_map.get_mut(&result.target_name).unwrap();
-                if !probe_map.contains_key(&probe_key) {
-                    probe_map.insert(probe_key, vec![result]);
+                if let Entry::Vacant(entry) = probe_map.entry(probe_key.clone()) {
+                    entry.insert(vec![result]);
                     continue;
                 }
 
@@ -241,13 +242,13 @@ fn print_test_results(results: TestResults) {
         }
     }
 
-    println!("");
+    println!();
     table.printstd();
 }
 
 /// Add a whitespace padding on multiline strings
 fn pad_string(padding: usize, string: &str) -> String {
-    let pad = vec![' ' as u8; padding];
+    let pad = vec![b' '; padding];
     let pad_string = String::from_utf8(pad).unwrap();
     let mut new_string = String::from(&pad_string);
 
