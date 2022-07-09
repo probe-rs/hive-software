@@ -22,7 +22,7 @@ mod requests;
 mod retry;
 
 /// The location of the socketfile used for communication between runner and monitor
-const SOCKET_PATH: &str = "./ipc_sock";
+const SOCKET_PATH: &str = "./data/runner/ipc_sock";
 
 lazy_static! {
     static ref TEST_RESULTS: Mutex<Vec<TestResult>> = Mutex::new(vec![]);
