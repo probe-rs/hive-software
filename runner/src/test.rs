@@ -7,16 +7,17 @@ use antidote::Mutex as PoisonFreeMutex;
 use comm_types::hardware::TargetInfo;
 use comm_types::test::{TestResult, TestStatus};
 use controller::common::hardware::CombinedTestChannel;
-use controller::runner::TestChannelHandle;
-use hive_test::HiveTestFunction;
+use hive_test::TestChannelHandle;
 use lazy_static::lazy_static;
 use tokio::sync::mpsc::Sender;
 
+use probe_rs_test::Session;
+
 lazy_static! {
-    pub(crate) static ref TEST_FUNCTIONS: Vec<&'static HiveTestFunction> = {
-        let mut tests: Vec<&HiveTestFunction> = vec![];
+    pub(crate) static ref TEST_FUNCTIONS: Vec<&'static HiveTestFunction<Session>> = {
+        let mut tests: Vec<&HiveTestFunction<Session>> = vec![];
         // We order the tests according to the order field
-        for test in inventory::iter::<HiveTestFunction> {
+        for test in inventory::iter::<HiveTestFunction<Session>> {
             tests.push(test);
         }
 
@@ -27,6 +28,7 @@ lazy_static! {
 }
 
 use crate::comm::Message;
+use crate::hive::tests::HiveTestFunction;
 
 pub(crate) fn run_tests(
     testchannel: &mut CombinedTestChannel,
@@ -81,7 +83,7 @@ pub(crate) fn run_tests(
                 match panic::catch_unwind(|| {
                     (test.test_fn)(
                         &mut *testchannel.get_rpi().lock() as &mut dyn TestChannelHandle,
-                        &mut session.lock(),
+                        &mut *session.lock(),
                         &target_info.clone().into(),
                     );
                 }) {

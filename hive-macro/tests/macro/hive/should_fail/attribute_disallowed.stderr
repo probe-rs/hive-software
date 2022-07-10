@@ -1,0 +1,8 @@
+error: This macro does not support attributes
+
+         = help: Remove any macro attributes
+
+ --> tests/macro/hive/should_fail/attribute_disallowed.rs:1:20
+  |
+1 | #[hive_macro::hive(disallowed_attribute = 1)]
+  |                    ^^^^^^^^^^^^^^^^^^^^

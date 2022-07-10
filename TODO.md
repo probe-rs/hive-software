@@ -54,5 +54,11 @@
 ## Hive CLI 
 - [X] Implement pretty print for test results
 
+## Hive Macro
+- [ ] Make it possible to use submodules inside top-level tests module on hive macro. The HiveTestFunction struct should be passed automatically from the top-level module to the sub level modules. Ensure that the used dependencies are in the allowed list in each module
+
+## Hive Test
+- [X] The usefulness of this crate is highly questionnable right now as it only reexports functionality from other crates. 
+
 ## Hive Setup
 - [ ] Do proper error handling in shell setup script

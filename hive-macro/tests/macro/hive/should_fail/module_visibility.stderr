@@ -1,0 +1,16 @@
+error: Top level module for Hive tests must be public
+
+         = help: Set the module visibility to public
+         = note: example:
+
+       #[hive]
+       pub mod tests {
+           // Testfunctions etc...
+       }
+
+ --> tests/macro/hive/should_fail/module_visibility.rs:1:1
+  |
+1 | #[hive_macro::hive]
+  | ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `hive_macro::hive` (in Nightly builds, run with -Z macro-backtrace for more info)

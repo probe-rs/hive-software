@@ -3,7 +3,7 @@ error: Function should not take self as argument.
          = help: Hive testfunctions do not use self, see the example below.
          = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo);
 
- --> tests/macro/should_fail/function_argument_self.rs:2:18
+ --> tests/macro/hive_test/should_fail/function_argument_self.rs:2:18
   |
 2 | fn test_function(self, handle: String, info: String) {}
   |                  ^^^^

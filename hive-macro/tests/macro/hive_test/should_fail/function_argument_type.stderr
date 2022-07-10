@@ -3,7 +3,7 @@ error: Wrong function argument type
          = help: Only the argument types listed in the example below are valid types to use in a Hive testfunction.
          = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo);
 
- --> tests/macro/should_fail/function_argument_type.rs:2:37
+ --> tests/macro/hive_test/should_fail/function_argument_type.rs:2:37
   |
 2 | fn test_function(test_channel: &mut String, handle: String, info: String) {}
   |                                     ^^^^^^

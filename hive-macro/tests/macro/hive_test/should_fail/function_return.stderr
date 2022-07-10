@@ -3,7 +3,7 @@ error: Non () return type found
          = help: Hive testfunctions should not have any return value.
          = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo);
 
- --> tests/macro/should_fail/function_return.rs:2:20
+ --> tests/macro/hive_test/should_fail/function_return.rs:2:20
   |
 2 | fn test_function() -> u8 {}
   |                    ^^

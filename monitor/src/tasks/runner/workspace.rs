@@ -29,8 +29,8 @@ pub(super) enum WorkspaceError {
     WrongProject,
     #[error("Cargofile in root is not a workspace")]
     NoWorkspace,
-    #[error("No hive.rs file with testfunctions found in provided probe-rs tests folder")]
-    NoHiveFile,
+    #[error("No hive directory with testfunctions found in provided probe-rs tests folder")]
+    NoHiveDir,
 }
 
 /// Unpack the provided probe-rs tarball into the workspace and check if it is a valid probe-rs project.
@@ -70,18 +70,19 @@ pub(super) fn prepare_workspace(probe_rs_project: &Bytes) -> Result<()> {
     // The workspace cargofile has to be deleted, otherwise the build fails due to cargo discovering an unknown nested workspace
     fs::remove_file(cargofile_path).expect("Failed to delete workspace cargofile of probe-rs testcandidate. This is likely caused by insufficient permissions");
 
-    let hive_rs_path = project_path.join("probe-rs/tests/hive.rs");
+    let hive_rs_path = project_path.join("probe-rs/tests/hive");
 
     if !hive_rs_path.exists() {
-        return Err(WorkspaceError::NoHiveFile.into());
+        return Err(WorkspaceError::NoHiveDir.into());
     }
 
     // Copy the hive.rs file into the runner source
     let mut copy_options = CopyOptions::new();
     copy_options.overwrite = true;
+    copy_options.copy_inside = true;
 
     let runner_hive_rs_path = workspace_path.join("runner/src/");
-    fs_extra::copy_items(&[hive_rs_path], runner_hive_rs_path, &copy_options).expect("Failed to copy hive.rs file from probe-rs testcandidate to runner source files. This is likely due to a corrupted installation or missing permissions.");
+    fs_extra::copy_items(&[hive_rs_path], runner_hive_rs_path, &copy_options).expect("Failed to copy hive directory from probe-rs testcandidate to runner source files. This is likely due to a corrupted installation or missing permissions.");
 
     Ok(())
 }
