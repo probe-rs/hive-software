@@ -59,6 +59,15 @@ pub fn run(attr: TokenStream, item: TokenStream) -> TokenStream {
         );
     }
 
+    // Check if a module body exists
+    if input.content.is_none() {
+        abort!(
+            input.span(), "Top level module for Hive must have a body";
+            help = "Add a module body";
+            example = "example: {}", MODULE_EXAMPLE
+        );
+    }
+
     check_test_module_dependencies(&input.content.as_ref().unwrap().1);
 
     let test_fn_declaration = syn::parse_macro_input::parse::<ItemStruct>(

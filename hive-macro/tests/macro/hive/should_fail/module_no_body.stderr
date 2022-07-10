@@ -1,0 +1,22 @@
+error[E0658]: non-inline modules in proc macro input are unstable
+ --> tests/macro/hive/should_fail/module_no_body.rs:2:1
+  |
+2 | pub mod tests;
+  | ^^^^^^^^^^^^^^
+  |
+  = note: see issue #54727 <https://github.com/rust-lang/rust/issues/54727> for more information
+
+error: Top level module for Hive must have a body
+
+         = help: Add a module body
+         = note: example:
+
+       #[hive]
+       pub mod tests {
+           // Testfunctions etc...
+       }
+
+ --> tests/macro/hive/should_fail/module_no_body.rs:2:1
+  |
+2 | pub mod tests;
+  | ^^^
