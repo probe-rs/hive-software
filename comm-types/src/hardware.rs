@@ -64,6 +64,26 @@ impl Default for ProbeState {
     }
 }
 
+/// Provides information on the currently used target in a Hive testfunction
+#[derive(Debug)]
+pub struct HiveTargetInfo {
+    pub name: String,
+    pub architecture: Architecture,
+    pub memory_address: Memory,
+}
+
+impl From<TargetInfo> for HiveTargetInfo {
+    /// # Panics
+    /// If either architecture or memory_address is [`None`] at the time of conversion
+    fn from(info: TargetInfo) -> Self {
+        Self {
+            name: info.name,
+            architecture: info.architecture.unwrap(),
+            memory_address: info.memory_address.unwrap(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TargetInfo {
     pub name: String,
@@ -78,6 +98,7 @@ pub enum Architecture {
     RISCV,
 }
 
+/// The used memory address range of a target
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Memory {
     pub ram: Range<u32>,

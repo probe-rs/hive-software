@@ -1556,6 +1556,7 @@ dependencies = [
 name = "hive-test"
 version = "0.1.0"
 dependencies = [
+ "comm-types",
  "controller",
  "hive-macro",
  "inventory",

@@ -21,7 +21,7 @@ use tokio::sync::Notify;
 use crate::comm::Message;
 
 mod comm;
-mod hive_tests;
+mod hive;
 mod init;
 mod test;
 

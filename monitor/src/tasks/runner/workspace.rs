@@ -20,18 +20,21 @@ pub(super) const RUNNER_BINARY_PATH: &str = "./data/runner";
 const RUNNER_SOURCE_PATH: &str = "./data/source";
 const TESTCANDIDATE_SOURCE_PATH: &str = "./data/workspace/probe-rs-testcandidate";
 
-/// Errors which happen if the provided cargofile for testing is invalid
+/// Errors which happen if the provided probe-rs project is not correct
 #[derive(Debug, Error)]
-pub(super) enum CargofileError {
+pub(super) enum WorkspaceError {
     #[error("No cargofile found in root folder")]
     NoCargoFile,
     #[error("Crate probe-rs and its required dependencies not found in provided project")]
     WrongProject,
     #[error("Cargofile in root is not a workspace")]
     NoWorkspace,
+    #[error("No hive.rs file with testfunctions found in provided probe-rs tests folder")]
+    NoHiveFile,
 }
 
-/// Unpack the provided probe-rs tarball into the workspace and check if it is a valid probe-rs project
+/// Unpack the provided probe-rs tarball into the workspace and check if it is a valid probe-rs project.
+/// If the checks succeed, the hive.rs file in the tests folder of the probe-rs project is copied into the runner for compilation.
 ///
 /// # Panics
 /// If the [`WORKSPACE_PATH`] does not exist. This means that the environment in which the monitor runs in has not been configured properly or if removing the cargofile of the provided tarball fails which is likely a permission issue.
@@ -51,21 +54,34 @@ pub(super) fn prepare_workspace(probe_rs_project: &Bytes) -> Result<()> {
     let cargofile_path = project_path.join("Cargo.toml");
 
     if !cargofile_path.exists() {
-        return Err(CargofileError::NoCargoFile.into());
+        return Err(WorkspaceError::NoCargoFile.into());
     }
 
     let manifest = Manifest::from_path(&cargofile_path)?;
 
     if let Some(workspace) = manifest.workspace {
         if !workspace.members.contains(&"probe-rs".to_owned()) {
-            return Err(CargofileError::WrongProject.into());
+            return Err(WorkspaceError::WrongProject.into());
         }
     } else {
-        return Err(CargofileError::NoWorkspace.into());
+        return Err(WorkspaceError::NoWorkspace.into());
     }
 
     // The workspace cargofile has to be deleted, otherwise the build fails due to cargo discovering an unknown nested workspace
     fs::remove_file(cargofile_path).expect("Failed to delete workspace cargofile of probe-rs testcandidate. This is likely caused by insufficient permissions");
+
+    let hive_rs_path = project_path.join("probe-rs/tests/hive.rs");
+
+    if !hive_rs_path.exists() {
+        return Err(WorkspaceError::NoHiveFile.into());
+    }
+
+    // Copy the hive.rs file into the runner source
+    let mut copy_options = CopyOptions::new();
+    copy_options.overwrite = true;
+
+    let runner_hive_rs_path = workspace_path.join("runner/src/");
+    fs_extra::copy_items(&[hive_rs_path], runner_hive_rs_path, &copy_options).expect("Failed to copy hive.rs file from probe-rs testcandidate to runner source files. This is likely due to a corrupted installation or missing permissions.");
 
     Ok(())
 }

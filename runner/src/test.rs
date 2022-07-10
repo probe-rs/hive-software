@@ -82,6 +82,7 @@ pub(crate) fn run_tests(
                     (test.test_fn)(
                         &mut *testchannel.get_rpi().lock() as &mut dyn TestChannelHandle,
                         &mut session.lock(),
+                        &target_info.clone().into(),
                     );
                 }) {
                     Ok(_) => {

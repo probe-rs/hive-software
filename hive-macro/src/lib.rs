@@ -22,11 +22,13 @@ struct TestOptions {
 const ATTRIBUTE_EXAMPLE: &str = "#[hive_test(order = 1, should_panic = true)]";
 const ATTRIBUTE_KEYS: &str = "'order = usize', 'should_panic = bool'";
 const FUNCTION_EXAMPLE: &str =
-    "fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session);";
+    "fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo);";
 
-const TESTFUNCTION_ARGUMENT_LENGTH: usize = 2;
-const TESTFUNCTION_ARGUMENT_IDENT: [&str; 2] = ["test_channel", "session"];
-const TESTFUNCTION_ARGUMENT_TYPE: [&str; 2] = ["TestChannelHandle", "Session"];
+const TESTFUNCTION_ARGUMENT_LENGTH: usize = 3;
+const TESTFUNCTION_ARGUMENT_IDENT: [&str; 3] = ["test_channel", "session", "target_info"];
+const TESTFUNCTION_ARGUMENT_TYPE: [&str; 3] = ["TestChannelHandle", "Session", "HiveTargetInfo"];
+/// Whether the argument at the respective position should be mutable or not
+const TESTFUNCTION_ARGUMENT_REFERENCE_MUTABILITY: [bool; 3] = [true, true, false];
 
 /// The macro to annotate a Hive testfunction
 ///
@@ -45,10 +47,7 @@ const TESTFUNCTION_ARGUMENT_TYPE: [&str; 2] = ["TestChannelHandle", "Session"];
 /// Basic usage:
 /// ```rust
 /// #[hive_test]
-///fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
-///    let _channel = test_channel;
-///    let _session = session;
-///
+///fn my_fancy_test(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session, _target_info: &HiveTargetInfo) {
 ///    // Doing important test
 ///    let mut i = 0;
 ///    i += 1;
@@ -59,10 +58,7 @@ const TESTFUNCTION_ARGUMENT_TYPE: [&str; 2] = ["TestChannelHandle", "Session"];
 /// Advanced usage with attributes:
 ///```rust
 /// #[hive_test(order = 100, should_panic = true)]
-///fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session) {
-///    let _channel = test_channel;
-///    let _session = session;
-///
+///fn my_fancy_test(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session, _target_info: &HiveTargetInfo) {
 ///    // Intentional panic
 ///    panic!();
 ///}
@@ -188,10 +184,17 @@ fn check_fn_arg_type(pos: usize, input: &PatType) {
             );
         }
 
-        if reference.mutability.is_none() {
+        if reference.mutability.is_none() && TESTFUNCTION_ARGUMENT_REFERENCE_MUTABILITY[pos] {
             abort!(
-                reference.span(), "Function arguments should be mutable";
-                help = "All arguments in a Hive testfunction are mutable references.";
+                reference.span(), "Function argument should be mutable";
+                help = "This argument in a Hive testfunction is a mutable reference.";
+                example = "example: {}", FUNCTION_EXAMPLE
+            );
+        } else if reference.mutability.is_some() && !TESTFUNCTION_ARGUMENT_REFERENCE_MUTABILITY[pos]
+        {
+            abort!(
+                reference.span(), "Function argument should not be mutable";
+                help = "This argument in a Hive testfunction is an immutable reference.";
                 example = "example: {}", FUNCTION_EXAMPLE
             );
         }

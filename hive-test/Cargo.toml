@@ -10,5 +10,6 @@ readme = "README.md"
 [dependencies]
 hive-macro = {path = "../hive-macro/"}
 controller = {path = "../controller/", features = ["runner"]}
+comm-types = {path = "../comm-types/", features = ["hardware"]}
 inventory = "0.2"
 probe-rs-test = {package = "probe-rs", path = "../probe-rs-testcandidate/probe-rs/"}

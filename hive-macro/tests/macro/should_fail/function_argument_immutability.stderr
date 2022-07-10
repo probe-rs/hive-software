@@ -1,0 +1,9 @@
+error: Function argument should not be mutable
+
+         = help: This argument in a Hive testfunction is an immutable reference.
+         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo);
+
+  --> tests/macro/should_fail/function_argument_immutability.rs:11:18
+   |
+11 |     target_info: &mut String,
+   |                  ^
