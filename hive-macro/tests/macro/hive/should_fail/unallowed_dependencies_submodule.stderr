@@ -1,0 +1,8 @@
+error: The dependency 'quote' is not allowed in Hive test modules
+
+         = help: The Hive testserver does not support this dependency. If it is required nonetheless, please file an issue
+
+  --> tests/macro/hive/should_fail/unallowed_dependencies_submodule.rs:11:18
+   |
+11 |                 {quote, std::alloc, std::io},
+   |                  ^^^^^

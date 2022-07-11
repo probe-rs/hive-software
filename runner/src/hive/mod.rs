@@ -10,6 +10,7 @@ pub mod tests {
     /// It is implemented to allow checks to pass during development
     pub struct HiveTestFunction<Session> {
         pub name: &'static str,
+        pub module_path: &'static str,
         pub ordered: usize,
         pub should_panic: bool,
         pub test_fn: fn(

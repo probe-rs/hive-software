@@ -205,8 +205,13 @@ fn print_test_results(results: TestResults) {
 
                     for result in results.into_iter() {
                         let test_fn_name = match result.should_panic {
-                            true => format!("{} {}", result.test_name, "(should panic)".italic()),
-                            false => result.test_name,
+                            true => format!(
+                                " {} > {} {}",
+                                result.module_path,
+                                result.test_name,
+                                "(should panic)".italic()
+                            ),
+                            false => format!("{} > {}", result.module_path, result.test_name),
                         };
 
                         match result.status {

@@ -29,6 +29,7 @@ pub struct TestResult {
     pub status: TestStatus,
     pub should_panic: bool,
     pub test_name: String,
+    pub module_path: String,
     pub target_name: String,
     pub probe_name: String,
     pub probe_sn: String,

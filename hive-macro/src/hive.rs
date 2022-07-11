@@ -4,7 +4,8 @@ use proc_macro2::Span;
 use proc_macro_error::abort;
 use quote::quote;
 use syn::{
-    spanned::Spanned, AttributeArgs, Item, ItemMacro, ItemMod, ItemStruct, UseTree, Visibility,
+    spanned::Spanned, AttributeArgs, Item, ItemConst, ItemMacro, ItemMod, ItemStruct, ItemUse,
+    UseTree, Visibility,
 };
 
 const MODULE_EXAMPLE: &str = "\n\n#[hive]\npub mod tests {\n\t// Testfunctions etc...\n}";
@@ -68,12 +69,16 @@ pub fn run(attr: TokenStream, item: TokenStream) -> TokenStream {
         );
     }
 
+    let mut path_tree = vec![];
+    insert_module_path_and_check_dependencies(&mut input, 0, &mut path_tree);
+
     check_test_module_dependencies(&input.content.as_ref().unwrap().1);
 
     let test_fn_declaration = syn::parse_macro_input::parse::<ItemStruct>(
         quote! {
                 pub struct HiveTestFunction<Session> {
                     pub name: &'static str,
+                    pub module_path: &'static str,
                     pub ordered: usize,
                     pub should_panic: bool,
                     pub test_fn: fn(
@@ -107,6 +112,67 @@ pub fn run(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     quote!(#input).into()
+}
+
+/// Recursively insert module paths and HiveTestFunction use declarations as well as check the dependencies of each encountered module
+fn insert_module_path_and_check_dependencies(
+    module: &mut ItemMod,
+    depth: usize,
+    path_tree: &mut Vec<String>,
+) {
+    if let Some((_, ref mut content)) = module.content {
+        check_test_module_dependencies(content);
+
+        if depth != 0 {
+            content.push(get_hive_test_fn_use().into());
+        }
+
+        content.push(get_module_path(depth, module.ident.to_string(), path_tree).into());
+
+        for item in content.iter_mut() {
+            if let Item::Mod(module) = item {
+                let new_depth = depth + 1;
+                insert_module_path_and_check_dependencies(module, new_depth, path_tree);
+            }
+        }
+    }
+}
+
+/// Returns a constant &str which contains the current module path up to the top level test module which is used by the hive_test macro to locate the individual test functions in a module context
+fn get_module_path(depth: usize, module_name: String, path_tree: &mut Vec<String>) -> ItemConst {
+    if path_tree.len() <= depth {
+        path_tree.push(module_name);
+    } else {
+        path_tree[depth] = module_name;
+    }
+
+    let mut path = String::new();
+    for idx in 0..=depth {
+        if idx != 0 {
+            path.push_str("::");
+        }
+
+        path.push_str(path_tree[idx].as_str());
+    }
+
+    syn::parse_macro_input::parse::<ItemConst>(
+        quote! {
+            const MODULE_PATH: &str = #path;
+        }
+        .into(),
+    )
+    .unwrap()
+}
+
+/// Get the use declaration for the HiveTestFn struct
+fn get_hive_test_fn_use() -> ItemUse {
+    syn::parse_macro_input::parse::<ItemUse>(
+        quote! {
+            use crate::hive::tests::HiveTestFunction;
+        }
+        .into(),
+    )
+    .unwrap()
 }
 
 /// Checks the dependencies of the provided test module and aborts in case the user is using dependencies which are not available on the Hive test runner.

@@ -111,6 +111,7 @@ pub fn run(attr: TokenStream, item: TokenStream) -> TokenStream {
         inventory::submit! {
             HiveTestFunction{
                 name: #test_fn_name,
+                module_path: MODULE_PATH,
                 ordered: #order,
                 should_panic: #panics,
                 test_fn: #test_fn_ident,
