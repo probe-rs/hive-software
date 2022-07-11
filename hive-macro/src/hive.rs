@@ -11,7 +11,7 @@ const MODULE_EXAMPLE: &str = "\n\n#[hive]\npub mod tests {\n\t// Testfunctions e
 /// The mandatory name of the Hive test top level module which is annotated with the `#[hive]` macro
 const TOP_LEVEL_MODULE_NAME: &str = "tests";
 /// List of allowed crates as dependencies in Hive test modules
-const ALLOWED_DEPENDENCIES: [&str; 4] = ["std", "probe_rs", "hive_test", "probe_rs_test"];
+const ALLOWED_DEPENDENCIES: [&str; 3] = ["std", "hive_test", "probe_rs_test"];
 
 pub fn run(attr: TokenStream, item: TokenStream) -> TokenStream {
     // parse macro attributes
@@ -118,8 +118,18 @@ fn check_test_module_dependencies(items: &[Item]) {
             let (is_allowed, name, span) = is_allowed_dependency(&dependency.tree);
 
             if !is_allowed {
+                let name = name.unwrap();
+
+                if name == "probe_rs" {
+                    abort!(
+                        span.unwrap(), "The dependency '{}' is not allowed in Hive test modules", name;
+                        help = "Use the alias 'probe_rs_test' instead";
+                        example = "example: use probe_rs_test::Session;"
+                    )
+                }
+
                 abort!(
-                    span.unwrap(), "The dependency '{}' is not allowed in Hive test modules", name.unwrap();
+                    span.unwrap(), "The dependency '{}' is not allowed in Hive test modules", name;
                     help = "The Hive testserver does not support this dependency. If it is required nonetheless, please file an issue"
                 )
             }
