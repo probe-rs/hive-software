@@ -27,6 +27,7 @@ pub struct TestResults {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestResult {
     pub status: TestStatus,
+    pub backtrace: Option<String>,
     pub should_panic: bool,
     pub test_name: String,
     pub module_path: String,

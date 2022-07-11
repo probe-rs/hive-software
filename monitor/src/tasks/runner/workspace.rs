@@ -199,7 +199,7 @@ pub(super) fn build_runner() -> Result<()> {
     }
 
     let build_output = Command::new("cargo")
-        .args(["build", "-p", "runner", "--release"])
+        .args(["build", "-p", "runner"])
         .current_dir(WORKSPACE_PATH)
         .output()
         .expect("Failed to run cargo build. Is Cargo installed and accessible to the application?");

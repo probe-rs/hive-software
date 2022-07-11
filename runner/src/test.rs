@@ -4,6 +4,7 @@ use std::error::Error;
 use std::panic::{self, PanicInfo};
 
 use antidote::Mutex as PoisonFreeMutex;
+use backtrace::Backtrace;
 use comm_types::hardware::TargetInfo;
 use comm_types::test::{TestResult, TestStatus};
 use controller::common::hardware::CombinedTestChannel;
@@ -80,6 +81,7 @@ pub(crate) fn run_tests(
             let session = PoisonFreeMutex::new(session);
 
             for test in TEST_FUNCTIONS.iter() {
+                let backtrace = Backtrace::new();
                 match panic::catch_unwind(|| {
                     (test.test_fn)(
                         &mut *testchannel.get_rpi().lock() as &mut dyn TestChannelHandle,
@@ -95,6 +97,7 @@ pub(crate) fn run_tests(
 
                         let result = TestResult {
                             status,
+                            backtrace: None,
                             should_panic: test.should_panic,
                             test_name: test.name.to_owned(),
                             module_path: test.module_path.to_owned(),
@@ -120,6 +123,7 @@ pub(crate) fn run_tests(
 
                         let result = TestResult {
                             status,
+                            backtrace: Some(format!("{:?}", backtrace)),
                             should_panic: test.should_panic,
                             test_name: test.name.to_owned(),
                             module_path: test.module_path.to_owned(),
@@ -202,6 +206,7 @@ fn skip_tests(
     for test in TEST_FUNCTIONS.iter() {
         let result = TestResult {
             status: TestStatus::Skipped(reason.to_owned()),
+            backtrace: None,
             should_panic: test.should_panic,
             test_name: test.name.to_owned(),
             module_path: test.module_path.to_owned(),

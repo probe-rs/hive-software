@@ -221,6 +221,9 @@ fn print_test_results(results: TestResults) {
                             TestStatus::Failed(reason) => {
                                 table.add_row(row!["", test_fn_name, bFrr-> "failed"]);
                                 table.add_row(row!["", iH2->pad_string(2, &reason)]);
+                                table.add_row(
+                                    row!["", iH2->pad_string(2, &result.backtrace.unwrap())],
+                                );
                             }
                             TestStatus::Skipped(reason) => {
                                 table.add_row(row!["", test_fn_name, bFyr-> "skipped"]);
