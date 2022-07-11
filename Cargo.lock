@@ -2106,6 +2106,7 @@ dependencies = [
  "tar",
  "thiserror",
  "tokio",
+ "toml",
  "tower",
  "tower-cookies",
  "tower-http",

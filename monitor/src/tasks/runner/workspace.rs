@@ -5,7 +5,7 @@ use std::process::Command;
 
 use anyhow::Result;
 use axum::body::Bytes;
-use cargo_toml::Manifest;
+use cargo_toml::{Dependency, DependencyDetail, Manifest};
 use fs_extra::dir::CopyOptions;
 use tar::Archive;
 use thiserror::Error;
@@ -24,7 +24,9 @@ const TESTCANDIDATE_SOURCE_PATH: &str = "./data/workspace/probe-rs-testcandidate
 #[derive(Debug, Error)]
 pub(super) enum WorkspaceError {
     #[error("No cargofile found in root folder")]
-    NoCargoFile,
+    NoWorkspaceCargoFile,
+    #[error("No cargofile found in probe-rs folder")]
+    NoProbeRsCargoFile,
     #[error("Crate probe-rs and its required dependencies not found in provided project")]
     WrongProject,
     #[error("Cargofile in root is not a workspace")]
@@ -51,10 +53,26 @@ pub(super) fn prepare_workspace(probe_rs_project: &Bytes) -> Result<()> {
 
     tarball.unpack(project_path)?;
 
+    check_and_remove_workspace_cargofile(&project_path)?;
+
+    copy_hive_test_dir(&project_path, &workspace_path)?;
+
+    modify_probe_rs_cargofile(&project_path)?;
+
+    Ok(())
+}
+
+/// Checks the workspace Cargo.toml of the provided probe-rs project and deletes it to avoid nested workspaces which would fail the build process
+///
+/// This function checks whether the workspace contains a member named probe-rs. It fails if the workspace does not contain probe-rs
+///
+/// # Panics
+/// In case any file system operations fail which indicate insufficient permissions or a corrupted install
+fn check_and_remove_workspace_cargofile(project_path: &Path) -> Result<()> {
     let cargofile_path = project_path.join("Cargo.toml");
 
     if !cargofile_path.exists() {
-        return Err(WorkspaceError::NoCargoFile.into());
+        return Err(WorkspaceError::NoWorkspaceCargoFile.into());
     }
 
     let manifest = Manifest::from_path(&cargofile_path)?;
@@ -70,19 +88,55 @@ pub(super) fn prepare_workspace(probe_rs_project: &Bytes) -> Result<()> {
     // The workspace cargofile has to be deleted, otherwise the build fails due to cargo discovering an unknown nested workspace
     fs::remove_file(cargofile_path).expect("Failed to delete workspace cargofile of probe-rs testcandidate. This is likely caused by insufficient permissions");
 
-    let hive_rs_path = project_path.join("probe-rs/tests/hive");
+    Ok(())
+}
 
-    if !hive_rs_path.exists() {
+/// Copy the hive test directory of probe-rs tests into the runner source
+///
+/// # Panics
+/// In case any file system operations fail which indicate insufficient permissions or a corrupted install
+fn copy_hive_test_dir(project_path: &Path, workspace_path: &Path) -> Result<()> {
+    let hive_path = project_path.join("probe-rs/tests/hive/");
+
+    if !hive_path.exists() {
         return Err(WorkspaceError::NoHiveDir.into());
     }
 
-    // Copy the hive.rs file into the runner source
     let mut copy_options = CopyOptions::new();
     copy_options.overwrite = true;
     copy_options.copy_inside = true;
 
-    let runner_hive_rs_path = workspace_path.join("runner/src/");
-    fs_extra::copy_items(&[hive_rs_path], runner_hive_rs_path, &copy_options).expect("Failed to copy hive directory from probe-rs testcandidate to runner source files. This is likely due to a corrupted installation or missing permissions.");
+    let runner_hive_path = workspace_path.join("runner/src/");
+    fs_extra::copy_items(&[hive_path], runner_hive_path, &copy_options).expect("Failed to copy hive directory from probe-rs testcandidate to runner source files. This is likely due to a corrupted installation or missing permissions.");
+
+    Ok(())
+}
+
+/// Modifies the probe_rs test crates cargofile hive-test dependency to depend on the local hive-test source on the testserver instead of any other source defined by the user.
+///
+/// This is required to avoid any circular dependencies or using outdated/incompatible versions on the testserver as well as allowing the build process to pass in case of custom path dependencies.
+///
+/// # Panics
+/// In case any file system operations fail which indicate insufficient permissions or a corrupted install
+fn modify_probe_rs_cargofile(project_path: &Path) -> Result<()> {
+    let cargofile_path = project_path.join("probe-rs/Cargo.toml");
+
+    if !cargofile_path.exists() {
+        return Err(WorkspaceError::NoProbeRsCargoFile.into());
+    }
+
+    let mut manifest = Manifest::from_path(&cargofile_path)?;
+
+    if let Some(hive_test) = manifest.dev_dependencies.get_mut("hive-test") {
+        let mut hive_test_dependency = DependencyDetail::default();
+
+        hive_test_dependency.package = Some("hive-test".to_owned());
+        hive_test_dependency.path = Some("../../hive-test/".to_owned());
+
+        *hive_test = Dependency::Detailed(hive_test_dependency);
+
+        fs::write(cargofile_path, toml::to_string_pretty(&manifest).unwrap()).expect("Failed to write modified probe-rs Cargo.toml file. This is likely due to a corrupted installation or missing permissions.");
+    }
 
     Ok(())
 }
