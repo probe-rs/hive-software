@@ -8,7 +8,7 @@ use anyhow::{anyhow, bail, Result};
 use cargo_toml::Manifest;
 use colored::Colorize;
 use comm_types::test::{TaskRunnerMessage, TestResult, TestResults, TestRunStatus, TestStatus};
-use ignore::Walk;
+use ignore::WalkBuilder;
 use prettytable::{cell, format, row, Table};
 use reqwest::blocking::multipart::{Form, Part};
 use tar::Builder;
@@ -50,7 +50,7 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
         let tar_buffer = vec![];
         let mut tar = Builder::new(tar_buffer);
 
-        for result in Walk::new(&project_path) {
+        for result in WalkBuilder::new(&project_path).require_git(false).build() {
             match result {
                 Ok(entry) => {
                     let relative_path = pathdiff::diff_paths(entry.path(), &project_path).unwrap();
@@ -87,7 +87,8 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
             .send()
             .map_err(|err| {
                 anyhow!(
-                    "Failed to send test request to testserver.\nCaused by: {}",
+                    "Failed to send test request to testserver. Status: {:?}\nCaused by: {}",
+                    err.status(),
                     err
                 )
             })?;
