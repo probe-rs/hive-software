@@ -1,5 +1,6 @@
 //! The http client used to make request to the testserver
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
+use std::time::Duration;
 
 use anyhow::{bail, Result};
 use native_tls::TlsConnector;
@@ -9,6 +10,9 @@ use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Connector, WebSocket};
 
 use crate::models::Host;
+
+/// Timeout for http requests, reads, writes
+const HTTP_CLIENT_REQUEST_TIMEOUT: u64 = 600; // 10 min
 
 /// Get the http client to issue requests.
 ///
@@ -33,6 +37,7 @@ pub(crate) fn get_http_client(accept_invalid_certs: bool) -> Client {
 
     Client::builder()
         .use_preconfigured_tls(tls)
+        .timeout(Duration::from_secs(HTTP_CLIENT_REQUEST_TIMEOUT))
         .build()
         .unwrap_or_else(|err| panic!("Failed to build http client: {}", err))
 }

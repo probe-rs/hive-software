@@ -1,4 +1,6 @@
 //! The task runner, which receives tasks from the [`TaskManager`] and executes them to completion
+use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 use std::sync::Arc;
 
@@ -18,7 +20,9 @@ use crate::{
 use super::{TaskManager, TaskType, TestTask};
 
 mod ipc;
-mod workspace;
+
+/// Path to where the received runner binary is stored
+const RUNNER_BINARY_PATH: &str = "./data/runner/runner";
 
 #[derive(Debug, Error)]
 pub(super) enum TaskRunnerError {
@@ -49,9 +53,6 @@ impl TaskRunner {
     ///
     /// This starts all necessary async tasks and runs forever until [`SHUTDOWN_SIGNAL`] is received
     pub fn run(mut self, runtime: Arc<Runtime>, task_manager: &TaskManager) {
-        // Restore workspace to its defaults (as it is located on a ramdisk)
-        workspace::restore_workspace();
-
         // Start IPC server used for communication with the runner
         let (test_result_sender, test_result_receiver) = mpsc::channel(1);
         self.test_result_receiver = Some(test_result_receiver);
@@ -181,14 +182,13 @@ impl TaskRunner {
     fn run_test(&mut self, hardware: &mut HiveHardware, task: &TestTask) -> Result<TestResults> {
         let status_sender = task.status_and_result_sender.as_ref().unwrap();
 
-        status_sender.blocking_send(TaskRunnerMessage::Status("Preparing workspace".to_owned()))?;
-        log::info!("Preparing workspace");
-        workspace::prepare_workspace(&task.probe_rs_project)?;
+        status_sender.blocking_send(TaskRunnerMessage::Status(
+            "Preparing runner binary".to_owned(),
+        ))?;
+        fs::write(RUNNER_BINARY_PATH, &task.runner_binary)?;
 
-        status_sender
-            .blocking_send(TaskRunnerMessage::Status("Building test runner".to_owned()))?;
-        log::info!("Building test runner");
-        workspace::build_runner()?;
+        // Set as executable
+        fs::set_permissions(RUNNER_BINARY_PATH, fs::Permissions::from_mode(0o777))?;
 
         // Check if a reinitialization is required due to changes to the hardware data in the DB or changes to the testprogram
         let mut hardware_data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
@@ -228,11 +228,9 @@ impl TaskRunner {
             "Starting runner and executing tests".to_owned(),
         ))?;
         log::info!("Starting runner and executing tests");
-        let runner_output = Command::new(format!("{}/runner", workspace::RUNNER_BINARY_PATH))
-            .output()
-            .expect(
-                "Failed to run the runner. This is an implementation error or a configuration issue.",
-            );
+        let runner_output = Command::new(RUNNER_BINARY_PATH).output().expect(
+            "Failed to run the runner. This is an implementation error or a configuration issue.",
+        );
 
         // Try to receive a value as the runner command blocks until the runner is finished. If no message is received by then something went wrong
         status_sender.blocking_send(TaskRunnerMessage::Status("Collecting results".to_owned()))?;

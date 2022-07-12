@@ -11,6 +11,7 @@ mod config;
 mod models;
 mod subcommands;
 mod validate;
+mod workspace;
 
 use validate::ValidHost;
 
@@ -72,6 +73,8 @@ fn main() {
 
         process::exit(1);
     }
+
+    process::exit(0);
 }
 
 fn app(cli_args: CliArgs) -> Result<()> {

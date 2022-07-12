@@ -1170,18 +1170,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "filetime"
-version = "0.2.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e94a7bbaa59354bc20dd75b67f23e2797b4490e9d6928203fb105c79e448c86c"
-dependencies = [
- "cfg-if",
- "libc",
- "redox_syscall 0.2.13",
- "windows-sys",
-]
-
-[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1541,6 +1529,7 @@ dependencies = [
  "comm-types",
  "dialoguer",
  "directories",
+ "fs_extra",
  "ignore",
  "indicatif",
  "log",
@@ -1551,7 +1540,8 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "tar",
+ "thiserror",
+ "toml",
  "tungstenite",
  "validators",
 ]
@@ -2114,7 +2104,6 @@ dependencies = [
  "axum-server",
  "base64",
  "cached",
- "cargo_toml",
  "ciborium",
  "clap 3.2.8",
  "clap-verbosity-flag",
@@ -2123,7 +2112,6 @@ dependencies = [
  "cookie",
  "crossbeam-utils",
  "dialoguer",
- "fs_extra",
  "futures",
  "hive-db",
  "http-body",
@@ -2142,10 +2130,8 @@ dependencies = [
  "serial_test",
  "shared-bus",
  "sled",
- "tar",
  "thiserror",
  "tokio",
- "toml",
  "tower",
  "tower-cookies",
  "tower-http",
@@ -3573,17 +3559,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
-name = "tar"
-version = "0.4.38"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b55807c0344e1e6c04d7c965f5289c39a8d94ae23ed5c0b57aabac549f871c6"
-dependencies = [
- "filetime",
- "libc",
- "xattr",
-]
-
-[[package]]
 name = "tempfile"
 version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4384,15 +4359,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "129e027ad65ce1453680623c3fb5163cbf7107bfe1aa32257e7d0e63f9ced188"
 dependencies = [
  "tap",
-]
-
-[[package]]
-name = "xattr"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d1526bbe5aaeb5eb06885f4d987bcdfa5e23187055de9b83fe00156a821fabc"
-dependencies = [
- "libc",
 ]
 
 [[package]]

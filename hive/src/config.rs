@@ -15,8 +15,7 @@ pub(super) struct HiveConfig {
 impl HiveConfig {
     /// Load the configuration file of the cli app
     pub(super) fn load_config() -> Result<HiveConfig> {
-        let project_path = ProjectDirs::from("rs", "probe-rs", "hive")
-            .expect("Failed to determine a directory to store the application configuration");
+        let project_path = get_project_dirs();
 
         fs::create_dir_all(project_path.config_dir())?;
 
@@ -56,4 +55,13 @@ impl HiveConfig {
 
         Ok(())
     }
+}
+
+/// Return the project dirs of this application which are used to determine where the cache and config data resides on the system
+///
+/// # Panics
+/// In case the function is not able to determine the appropriate directories on the system
+pub fn get_project_dirs() -> ProjectDirs {
+    ProjectDirs::from("rs", "probe-rs", "hive")
+        .expect("Failed to determine a directory to store the application configuration and cache")
 }

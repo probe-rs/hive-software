@@ -2,20 +2,18 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
 
 use anyhow::{anyhow, bail, Result};
 use cargo_toml::Manifest;
 use colored::Colorize;
 use comm_types::test::{TaskRunnerMessage, TestResult, TestResults, TestRunStatus, TestStatus};
-use ignore::WalkBuilder;
 use prettytable::{cell, format, row, Table};
 use reqwest::blocking::multipart::{Form, Part};
-use tar::Builder;
 use tungstenite::Message;
 
 use crate::client::{get_http_client, get_ws_client};
 use crate::config::HiveConfig;
+use crate::workspace;
 use crate::{CliArgs, Commands};
 
 pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
@@ -46,37 +44,28 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
     }
 
     let test_results = super::show_progress(&cli_args, |progress| {
-        progress.set_message("collecting files...");
-        let tar_buffer = vec![];
-        let mut tar = Builder::new(tar_buffer);
+        progress.set_message("setting up workspace...");
 
-        for result in WalkBuilder::new(&project_path).require_git(false).build() {
-            match result {
-                Ok(entry) => {
-                    let relative_path = pathdiff::diff_paths(entry.path(), &project_path).unwrap();
+        workspace::prepare_workspace(&project_path).map_err(|err| {
+            workspace::clean_workspace();
+            err
+        })?;
 
-                    if relative_path == Path::new("") {
-                        // Ignore basepath as it does not add anything to the archive
-                        continue;
-                    }
+        progress.set_message("building runner binary...");
+        let runner_bin = workspace::build_runner().map_err(|err| {
+            workspace::clean_workspace();
+            err
+        })?;
 
-                    tar.append_path_with_name(entry.path(), relative_path)?;
-                }
-                Err(err) => bail!("Failed to read project files: {}", err),
-            }
-        }
-
-        let tarfile = tar.into_inner()?;
-
-        progress.set_message("Uploading files...");
+        progress.set_message("Uploading runner binary...");
         let client = get_http_client(cli_args.accept_invalid_certs);
 
-        let fileupload = Part::bytes(tarfile)
-            .file_name("project.tar")
+        let fileupload = Part::bytes(runner_bin)
+            .file_name("runner")
             .mime_str("application/octet-stream")
             .unwrap();
 
-        let form = Form::new().part("project", fileupload);
+        let form = Form::new().part("runner", fileupload);
 
         let response = client
             .post(format!(
@@ -135,6 +124,8 @@ pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
     })?;
 
     print_test_results(test_results);
+
+    workspace::clean_workspace();
 
     Ok(())
 }

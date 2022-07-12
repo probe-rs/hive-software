@@ -83,12 +83,12 @@ pub(super) async fn capabilities(Extension(db): Extension<Arc<MonitorDb>>) -> Js
 /// Endpoint to initiate a test request
 pub(super) async fn test(
     Extension(task_manager): Extension<Arc<TaskManager>>,
-    content: ContentLengthLimit<Multipart, 50_000_000>,
+    content: ContentLengthLimit<Multipart, 400_000_000>,
 ) -> Result<Json<WsTicket>, TestRequestError> {
     let mut multipart = content.0;
 
     let mut options: Option<TestOptions> = None;
-    let mut project = None;
+    let mut runner = None;
 
     while let Some(field) = multipart.next_field().await? {
         let field_name = field.name();
@@ -106,32 +106,32 @@ pub(super) async fn test(
             "options" => {
                 options = Some(serde_json::from_slice(&field.bytes().await?)?);
             }
-            "project" => {
+            "runner" => {
                 let field_data_type = field.content_type();
-                let field_file_name = field.file_name();
 
-                if field_data_type != Some("application/octet-stream")
-                    || field_file_name.unwrap_or_default().split('.').last() != Some("tar")
-                {
+                if field_data_type != Some("application/octet-stream") {
                     return Err(anyhow!(
-                        "Invalid file format provided for field 'project'. Expecting tar archive."
+                        "Invalid file format provided for field 'runner'. Expecting binary executable."
                     )
                     .into());
                 }
 
-                project = Some(field.bytes().await?)
+                runner = Some(field.bytes().await?)
             }
             name => return Err(anyhow!("Found unexpected field name: '{}'", name).into()),
         }
     }
 
-    if project.is_none() {
-        return Err(anyhow!("No project tar archive provided to perform the tests on. The field 'project' is missing.").into());
+    if runner.is_none() {
+        return Err(anyhow!(
+            "No runner binary provided to perform the tests on. The field 'runner' is missing."
+        )
+        .into());
     }
 
-    let project = project.unwrap();
+    let runner = runner.unwrap();
 
-    let test_task = TestTask::new(project, options.unwrap_or_default());
+    let test_task = TestTask::new(runner, options.unwrap_or_default());
 
     let ws_ticket = task_manager.register_test_task(test_task).await?;
 

@@ -31,16 +31,16 @@ pub(super) enum TaskType {
 pub(crate) struct TestTask {
     status_and_result_sender: Option<MpscSender<TaskRunnerMessage>>,
     ws_ticket: Option<WsTicket>,
-    pub probe_rs_project: Bytes,
+    pub runner_binary: Bytes,
     pub options: TestOptions,
 }
 
 impl TestTask {
-    pub fn new(probe_rs_project: Bytes, options: TestOptions) -> Self {
+    pub fn new(runner_binary: Bytes, options: TestOptions) -> Self {
         Self {
             status_and_result_sender: None,
             ws_ticket: None,
-            probe_rs_project,
+            runner_binary,
             options,
         }
     }

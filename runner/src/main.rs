@@ -1,6 +1,6 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::thread;
+use std::{panic, thread};
 
 use anyhow::Result;
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
@@ -150,7 +150,7 @@ fn run(
 
     // Disable panic printing, once all testchannels are ready to run the testfunctions
     panic_hook_sync.wait();
-    //let standard_hook = test::disable_panic_print();
+    let standard_hook = test::disable_panic_print();
     panic_hook_sync.wait();
 
     // drop mpsc sender instance owned by main thread to quit the communications loop once all testfunctions have finished
@@ -162,7 +162,7 @@ fn run(
     }
 
     // Reenable panic printing
-    //panic::set_hook(standard_hook);
+    panic::set_hook(standard_hook);
 
     notify_results_ready.notify_one();
 

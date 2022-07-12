@@ -10,7 +10,6 @@ CONFIG=/boot/config.txt
 FSTAB=/etc/fstab
 JOURNAL=/etc/systemd/journald.conf
 HIVE_LOGS=./data/logs
-HIVE_WORKSPACE=./data/workspace
 HIVE_RUNNER_BINARY=./data/runner
 ASSEMBLER_WORKSPACE=./data/assembler_workspace
 
@@ -73,16 +72,10 @@ configure_storage() {
     sed -i -e "\$atmpfs $abs_path tmpfs nodev,nouser,gid=$hive_gid,mode=775,noexec,noatime,rw,size=100M 0 0" $FSTAB
     printf "\tCreated $abs_path tempfs to store Hive logs\n"
 
-    # Create tempfs for building the runner
-    mkdir -p $HIVE_WORKSPACE
-    abs_path=$(readlink -f $HIVE_WORKSPACE)
-    sed -i -e "\$atmpfs $abs_path tmpfs nodev,nouser,gid=$hive_gid,mode=774,noexec,noatime,rw,size=1500M 0 0" $FSTAB
-    printf "\tCreated $abs_path tempfs to use as workspace for building the runner\n"
-
     # Create tempfs for storing the runner binary
     mkdir -p $HIVE_RUNNER_BINARY
     abs_path=$(readlink -f $HIVE_RUNNER_BINARY)
-    sed -i -e "\$atmpfs $HIVE_RUNNER_BINARY tmpfs nodev,nouser,gid=$hive_gid,mode=774,exec,noatime,rw,size=150M 0 0" $FSTAB
+    sed -i -e "\$atmpfs $HIVE_RUNNER_BINARY tmpfs nodev,nouser,gid=$hive_gid,mode=774,exec,noatime,rw,size=400M 0 0" $FSTAB
     printf "\tCreated $abs_path tempfs to use as tmp folder to store the runner binary\n"
 
     # Create tempfs for assembler

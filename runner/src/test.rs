@@ -190,7 +190,18 @@ pub(crate) fn run_tests(
 /// Disables the printing of panics in this program, returns the previously used panic hook
 pub(crate) fn disable_panic_print() -> Box<dyn for<'r, 's> Fn(&'r PanicInfo<'s>) + Send + Sync> {
     let standard_hook = panic::take_hook();
-    panic::set_hook(Box::new(|_| {}));
+    panic::set_hook(Box::new(|info| {
+        let backtrace = Backtrace::new();
+
+        log::error!(
+            "Panic info:\n{:?},\n{:?},\n{:?}",
+            info.payload(),
+            info.to_string(),
+            info.location()
+        );
+
+        log::error!("Backtrace:\n{:?}", backtrace);
+    }));
 
     standard_hook
 }

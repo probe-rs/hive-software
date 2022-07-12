@@ -45,10 +45,6 @@ rand_chacha = "0.3"
 base64 = "0.13"
 ring = "0.16"
 crossbeam-utils = "0.8"
-tar = "0.4"
-cargo_toml = "0.11"
-toml = "0.5"
-fs_extra = "1.2"
 cached = "0.34"
 
 

@@ -38,6 +38,7 @@
 ## Runner
 - [X] Add a proper shutdown procedure 
 - [ ] ~~Runner assumes data desync if not all connected probes have been assigned to a testchannel. This should be considered fine and not cause a data desync~~ -> Related to JLINK not showing S/N if listed during use
+- [ ] Modify backtrace to actually show correct backtrace of the test function
 
 ## Hive Backend UI
 - [X] Current appollo retrylink is useless as it does not call fetch function to change headers. Write own retry function which tries to append csrf header on each retry
@@ -53,6 +54,7 @@
 
 ## Hive CLI 
 - [X] Implement pretty print for test results
+- [ ] Implement proper checks if a git repo already exists in the cached workspace and if it is up to date with the requested version
 
 ## Hive Macro
 - [X] Make it possible to use submodules inside top-level tests module on hive macro. The HiveTestFunction struct should be passed automatically from the top-level module to the sub level modules. Ensure that the used dependencies are in the allowed list in each module
