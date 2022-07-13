@@ -91,7 +91,7 @@ fn prepare_runner_source(workspace_path: &Path) -> Result<(), WorkspaceError> {
 
             RepoBuilder::new()
                 .with_checkout(checkout_builder)
-                .branch(REPO_REFERENCE)
+                .branch(REPO_REFERENCE.split('/').last().unwrap())
                 .clone(RUNNER_SOURCE_REPO, workspace_path)?;
         }
     }
@@ -212,6 +212,11 @@ pub fn clean_workspace() {
 
     let project_path = workspace_path.join("probe-rs-testcandidate");
 
+    if !project_path.exists() {
+        // Nothing needs cleaning
+        return;
+    }
+
     let testcandidate_contents = fs::read_dir(project_path).expect(
         "Failed to read probe-rs-testcandidate directory. This might be caused by missing permissions.",
     );
@@ -246,7 +251,7 @@ pub fn build_runner() -> Result<Vec<u8>> {
         ])
         .current_dir(workspace_path)
         .output()
-        .expect("Failed to run cargo build. Is Cargo installed and accessible to the application?");
+        .expect("Failed to run cross build. Is Cross installed and accessible to the application?");
 
     if !build_output.status.success() {
         return Err(WorkspaceError::BuildError(
