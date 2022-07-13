@@ -25,12 +25,12 @@
 - [ ] The debugprobe info on the JLINK probe is incomplete (missing S/N and wrong identifier) when `probe::list()` is called while the probe is in use by the program. This leads to the software suggesting a third available probe to the user which does not actually exist. Might be a problem in probe-rs, needs further investigation
 - [ ] Add possibility to filter targets and probes on a test request which would allow for only testing the requested targets
 - [ ] Implementation of testprogram status is not sound, there should be a better solution for checking user input before handling it as actual testprogram
-- [ ] Determine wheter it is necessary to sandbox the build process of the runner, as build scripts of dependencies might contain malicious code
+- [ ] ~~Determine wheter it is necessary to sandbox the build process of the runner, as build scripts of dependencies might contain malicious code~~
 - [ ] Execute runner in a VM, determine best ways to make VM access hardware securely
 - [X] Something is not quite correct in the way WS tickets for test tasks are handled, as some test task WS connection requests yield 401 HTTP status codes with tickets which should be correct
 - [ ] Add tests for new testprogram mutations
 - [X] Move IPC socket file into data folder of the program
-- [ ] Determine how to handle cargo workspace target folder size to not reach memory limit of the tempfs but also to avoid excessive wait times if building off clean workspace on every test request
+- [ ] ~~Determine how to handle cargo workspace target folder size to not reach memory limit of the tempfs but also to avoid excessive wait times if building off clean workspace on every test request~~
 - [X] Replace task manager busy loop with more efficient implementation
 - [X] Fix test endpoint tests
 - [X] Shutdown might hang if hive cli is stopped while the websocket connection is established. Probably something wrong with detecting a broken/closed websocket which should lead to abortion of a test task.
@@ -54,7 +54,7 @@
 
 ## Hive CLI 
 - [X] Implement pretty print for test results
-- [ ] Implement proper checks if a git repo already exists in the cached workspace and if it is up to date with the requested version
+- [X] Implement proper checks if a git repo already exists in the cached workspace and if it is up to date with the requested version
 
 ## Hive Macro
 - [X] Make it possible to use submodules inside top-level tests module on hive macro. The HiveTestFunction struct should be passed automatically from the top-level module to the sub level modules. Ensure that the used dependencies are in the allowed list in each module

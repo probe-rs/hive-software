@@ -6,13 +6,18 @@ use std::process::Command;
 use anyhow::{bail, Result};
 use cargo_toml::{Dependency, DependencyDetail, Manifest};
 use fs_extra::dir::CopyOptions;
+use git2::build::{CheckoutBuilder, RepoBuilder};
+use git2::Error as GitError;
+use git2::Repository;
 use ignore::WalkBuilder;
 use thiserror::Error;
 
 use super::config;
 
 /// Link to the runner source repository
-const RUNNER_SOURCE_REPO: &str = "https://github.com/probe-rs/hive-software.git";
+const RUNNER_SOURCE_REPO: &str = "https://github.com/TeyKey1/pca9535.git";
+/// The git reference which should be used as runner source version. Can be a tag or branch for example
+const REPO_REFERENCE: &str = "refs/remotes/origin/master";
 
 /// Errors which happen if the provided probe-rs project is not correct
 #[derive(Debug, Error)]
@@ -21,8 +26,8 @@ pub(super) enum WorkspaceError {
     NoProbeRsCargoFile,
     #[error("No hive directory with testfunctions found in provided probe-rs tests folder")]
     NoHiveDir,
-    #[error("Failed to clone the runner source code into the workspace.\n\nGit output:\n{0}")]
-    CloneError(String),
+    #[error("An error related to git occurred.")]
+    GitError(#[from] GitError),
     #[error("Failed to build the test runner.\n\nCargo build output:\n{0}")]
     BuildError(String),
 }
@@ -42,7 +47,7 @@ pub(super) fn prepare_workspace(probe_rs_project: &Path) -> Result<()> {
         fs::create_dir_all(workspace_path).expect("Failed to create cache directory for Hive CLI");
     }
 
-    clone_runner_source(workspace_path)?;
+    prepare_runner_source(workspace_path)?;
 
     copy_testcandidate_source_to_workspace(probe_rs_project, &project_path)?;
 
@@ -55,31 +60,40 @@ pub(super) fn prepare_workspace(probe_rs_project: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Clone the source code of the runner into the workspace if the workspace does not exist yet
+/// Clone the source code of the runner into the workspace if the workspace does not exist yet.
+/// If a repository is already detected it checks if it matches the required verioning tag and updates if required.
 ///
 /// # Panics
-/// If invoking the git command fails which means that git is not accessible to the application (possibly not installed)
-fn clone_runner_source(workspace_path: &Path) -> Result<()> {
-    if workspace_path.exists() {
-        //TODO: This is a very stupid workaround and does not fix the problem of detecting an existing git repo
-        return Ok(());
-    }
+/// If the requested [`REPO_REFERENCE`] does not exist in the repository
+fn prepare_runner_source(workspace_path: &Path) -> Result<(), WorkspaceError> {
+    match Repository::open(workspace_path) {
+        Ok(repo) => {
+            let mut remote = repo.find_remote("origin").expect("Failed to find remote 'origin' in local workspace repository. This might be a corrupted installation.");
 
-    let clone_output = Command::new("git")
-        .args([
-            "clone",
-            RUNNER_SOURCE_REPO,
-            workspace_path.to_str().unwrap(),
-        ])
-        .output()
-        .expect("Failed to run git cone. Is git installed and accessible to the application?");
+            remote.fetch(&["master"], None, None)?;
 
-    if !clone_output.status.success() {
-        return Err(WorkspaceError::CloneError(
-            String::from_utf8(clone_output.stderr)
-                .unwrap_or_else(|_| "Could not parse git clone output to utf8".to_owned()),
-        )
-        .into());
+            let reference = repo
+                .revparse_single(REPO_REFERENCE)
+                .expect("Failed to find repository reference specified in binary. This should not happen, please file an issue.");
+            let mut checkout_builder = CheckoutBuilder::new();
+            checkout_builder.force().target_dir(workspace_path);
+
+            repo.checkout_tree(&reference, Some(&mut checkout_builder))?;
+            repo.set_head(REPO_REFERENCE)?;
+        }
+        Err(_) => {
+            log::info!(
+                "Runner source repository was not found in workspace, cloning specified version..."
+            );
+
+            let mut checkout_builder = CheckoutBuilder::new();
+            checkout_builder.force().target_dir(workspace_path);
+
+            RepoBuilder::new()
+                .with_checkout(checkout_builder)
+                .branch(REPO_REFERENCE)
+                .clone(RUNNER_SOURCE_REPO, workspace_path)?;
+        }
     }
 
     Ok(())
