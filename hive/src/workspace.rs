@@ -15,7 +15,7 @@ use thiserror::Error;
 use super::config;
 
 /// Link to the runner source repository
-const RUNNER_SOURCE_REPO: &str = "https://github.com/TeyKey1/pca9535.git";
+const RUNNER_SOURCE_REPO: &str = "https://github.com/probe-rs/hive-software.git";
 /// The git reference which should be used as runner source version. Can be a tag or branch for example
 const REPO_REFERENCE: &str = "refs/remotes/origin/master";
 
