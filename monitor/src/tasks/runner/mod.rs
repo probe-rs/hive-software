@@ -30,8 +30,6 @@ pub(super) enum TaskRunnerError {
     Shutdown,
     #[error("Failed to receive the test results from the runner\n\n Runner output: \n{0}")]
     RunnerError(String),
-    #[error("Failed to build the provided project\n\n Cargo output: \n{0}")]
-    BuildError(String),
 }
 
 /// The testmanager of the monitor accepts external test tasks and returns the test results to the requesting party

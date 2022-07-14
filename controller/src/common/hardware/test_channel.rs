@@ -1,19 +1,16 @@
-use std::{
-    error::Error,
-    sync::Mutex,  
-};
 use std::mem;
+use std::{error::Error, sync::Mutex};
 
-use comm_types::hardware::{TargetState, TargetInfo};
+use antidote::Mutex as PoisonFreeMutex;
+use comm_types::hardware::{TargetInfo, TargetState};
 use ll_api::{RpiTestChannel, Target, TestChannel};
 use retry::{delay::Fixed, retry};
-use antidote::Mutex as PoisonFreeMutex;
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
 #[cfg(not(feature = "runner"))]
-use probe_rs::{Probe, DebugProbeInfo, DebugProbeError};
+use probe_rs::{DebugProbeError, DebugProbeInfo, Probe};
 #[cfg(feature = "runner")]
-use probe_rs_test::{Probe, DebugProbeInfo, DebugProbeError};
+use probe_rs_test::{DebugProbeError, DebugProbeInfo, Probe};
 
 use super::{TargetStackShield, MAX_DAUGHTERBOARD_TARGETS};
 
@@ -26,7 +23,7 @@ pub struct CombinedTestChannel {
     channel: TestChannel,
     rpi: PoisonFreeMutex<RpiTestChannel>,
     probe: PoisonFreeMutex<Option<Probe>>,
-    probe_info: PoisonFreeMutex<Option<DebugProbeInfo>>
+    probe_info: PoisonFreeMutex<Option<DebugProbeInfo>>,
 }
 
 impl CombinedTestChannel {
@@ -78,12 +75,12 @@ impl CombinedTestChannel {
     }
 
     /// Reinitializes the probe based on the stored probe_info, and adds the newly initialized probe to the struct.
-    /// 
+    ///
     /// If probe_info is none, the function does nothing
-    pub fn reinitialize_probe(&self) -> Result<(), DebugProbeError>{
+    pub fn reinitialize_probe(&self) -> Result<(), DebugProbeError> {
         let probe_info = self.probe_info.lock();
 
-        if let Some(probe_info) = probe_info.as_ref(){
+        if let Some(probe_info) = probe_info.as_ref() {
             *self.probe.lock() = Some(probe_info.open()?);
         }
 
@@ -107,10 +104,10 @@ impl CombinedTestChannel {
     }
 
     /// Returns a owned instance of the [`Probe`] which is currently held by this struct. The probe field of this struct is replaced with [`Option::None`], until [`Probe`] ownership is returned to this struct by calling [`Self::return_probe()`].
-    /// 
+    ///
     /// # Panics
     /// If the current probe field of the struct is [Option::None]
-    pub fn take_probe_owned(&self) -> Probe{
+    pub fn take_probe_owned(&self) -> Probe {
         let mut probe = self.probe.lock();
         mem::take(&mut *probe).expect("Tried to take owned instance of Probe struct but found None, make sure to call bind_probe before taking the Probe out of the struct.")
     }
@@ -127,7 +124,7 @@ impl CombinedTestChannel {
     /// Reset the test channel to its defaults for use in the next test
     pub fn reset(&self) -> Result<(), Box<dyn Error>> {
         let mut rpi = self.rpi.lock();
-        
+
         rpi.test_gpio_reset()?;
         rpi.test_bus_reset()?;
 
@@ -135,8 +132,15 @@ impl CombinedTestChannel {
     }
 
     /// Loops through all available TSS and connects the testchannel to each available target, while executing the provided function on each connection.
-    pub fn connect_all_available_and_execute<F>(&mut self, tss: &[Option<Mutex<TargetStackShield>>], mut function: F) where F: FnMut(&mut Self, &TargetInfo, u8) {
-        let mut unprocessed_tss_queue: Vec<&Mutex<TargetStackShield>> = tss.iter().filter_map(|tss| tss.as_ref()).collect();
+    pub fn connect_all_available_and_execute<F>(
+        &mut self,
+        tss: &[Option<Mutex<TargetStackShield>>],
+        mut function: F,
+    ) where
+        F: FnMut(&mut Self, &TargetInfo, u8),
+    {
+        let mut unprocessed_tss_queue: Vec<&Mutex<TargetStackShield>> =
+            tss.iter().filter_map(|tss| tss.as_ref()).collect();
 
         while !unprocessed_tss_queue.is_empty() {
             match unprocessed_tss_queue[0].try_lock() {
@@ -155,23 +159,31 @@ impl CombinedTestChannel {
                                             Target::try_from(pos as u8).unwrap(),
                                         )
                                     },
-                                ){
-                                    Ok(_) => function(self, target_info, tss.get_position()),
+                                ) {
+                                    Ok(_) => {
+                                        // Small delay before calling the function. This avoids that probes fail certain actions for some reason.
+                                        // TODO: Find out why this is required. Might be related to i2c commands not reaching the switches in time or blocking functions already returning when the data has been written into buffer but not physically.
+                                        std::thread::sleep(std::time::Duration::from_millis(20));
+                                        function(self, target_info, tss.get_position())
+                                    }
                                     Err(err) => match err {
-                                        retry::Error::Operation { error, ..} => {
+                                        retry::Error::Operation { error, .. } => {
                                             log::error!(
                                                 "Failed to connect testchannel {:?} to target {:?}: {}\nCaused by: {:?}",
                                                 self.channel,
                                                 Target::try_from(pos as u8).unwrap(),
                                                 error,
                                                 error.source()
-    
+
                                             );
                                             // At this point it is uncertain in which state the busswitches are. Therefore we try to disconnect all affected switches, so any remaining operations are not influenced by this error.
                                             // If disconnecting fails the testrack hardware is in an undefined and unrecoverable state, therefore the application panics as such errors need manual power reset and are likely caused by faulty hardware
                                             tss.inner.borrow_mut().disconnect_all().expect("Failed to disconnect tss successfully, this error cannot be recovered, as further operation in such a state may influence other testchannels.\n This is likely caused by a hardware issue in the I2C communication, please verify that your hardware is working correctly.");
-                                        },
-                                        retry::Error::Internal(string) => panic!("Internal library error in retry crate: {}", string),
+                                        }
+                                        retry::Error::Internal(string) => panic!(
+                                            "Internal library error in retry crate: {}",
+                                            string
+                                        ),
                                     },
                                 }
                             }

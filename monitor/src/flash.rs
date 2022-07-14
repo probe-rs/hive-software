@@ -1,16 +1,13 @@
 //! Handles the flashing of the testbinaries onto the available targets
-use std::error::Error;
 use std::sync::mpsc;
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 use std::sync::RwLock;
 
 use comm_types::hardware::{Architecture, TargetInfo, TargetState};
-use controller::common::hardware::HiveHardware;
-use controller::common::hardware::{CombinedTestChannel, HardwareStatus};
+use controller::common::hardware::{try_attach, CombinedTestChannel, HardwareStatus, HiveHardware};
 use hive_db::CborTransactional;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions, Format};
-use probe_rs::{DebugProbeInfo, Session};
 use crossbeam_utils::thread;
 use sled::transaction::UnabortableTransactionError;
 
@@ -207,7 +204,7 @@ fn flash_target(
         probe_info.identifier
     );
 
-    let flash_result = retry_flash(testchannel, target_info, &probe_info, |mut session| {
+    let flash_result = try_attach(testchannel, target_info, &probe_info, |mut session| {
         let mut download_options = DownloadOptions::default();
         download_options.do_chip_erase = true;
 
@@ -238,6 +235,14 @@ fn flash_target(
                 Some(source) => source.to_string(),
                 None => "No source".to_owned(),
             };
+
+            log::warn!(
+                "Failed to flash target {} with probe {}: {}, {}",
+                target_info.name,
+                probe_info.identifier,
+                err,
+                source
+            ); 
             
             result_sender.send(FlashStatus {
                 probe_identifier: probe_info.identifier,
@@ -255,49 +260,5 @@ fn flash_target(
             testchannel.get_channel(),
             err
         )
-    })
-}
-
-/// Retries the provided flash function with option attach-under-reset if it fails without
-fn retry_flash<F>(
-    testchannel: &CombinedTestChannel,
-    target_info: &TargetInfo,
-    probe_info: &DebugProbeInfo,
-    flash: F,
-) -> Result<(), Box<dyn Error>>
-where
-    F: Fn(Session) -> Result<(), Box<dyn Error>>,
-{
-    let mut probe = testchannel.take_probe_owned();
-    let _ = probe.set_speed(8000);
-    let session = probe.attach(&target_info.name);
-
-    if let Ok(session) = session {
-        let flash_result = flash(session);
-        match flash_result {
-            Ok(_) => return Ok(()),
-            Err(err) => log::warn!(
-                "Failed to flash target {} with probe {}: {}\nRetrying with attach-under-reset",
-                target_info.name,
-                probe_info.identifier,
-                err
-            ),
-        }
-    } else {
-
-        let err = session.unwrap_err();
-        log::warn!(
-            "Failed to flash target {} with probe {}: {}, {:?}\nRetrying with attach-under-reset",
-            target_info.name,
-            probe_info.identifier,
-            err,
-            err.source()
-        ) 
-    }
-
-    let mut probe = probe_info.open()?;
-    let _ = probe.set_speed(8000);
-    let session = probe.attach_under_reset(&target_info.name)?;
-
-    flash(session)
+    });
 }

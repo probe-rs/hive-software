@@ -18,10 +18,12 @@ use probe_rs::Probe;
 use probe_rs_test::Probe;
 
 mod expanders;
+mod probe;
 mod target_stack_shield;
 mod test_channel;
 
 pub use expanders::create_expanders;
+pub use probe::try_attach;
 pub use target_stack_shield::TargetStackShield;
 pub use test_channel::CombinedTestChannel;
 
