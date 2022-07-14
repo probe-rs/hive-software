@@ -2,6 +2,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use rppal::uart::Parity;
+use rppal::uart::Queue;
 use rppal::uart::Uart;
 
 use crate::RpiTestChannelError;
@@ -58,6 +59,15 @@ impl TestUart {
     pub fn write(&mut self, data: &[u8]) -> Result<(), RpiTestChannelError> {
         self.uart
             .write(data)
+            .map_err(|err| RpiTestChannelError::UartError { source: err })?;
+
+        Ok(())
+    }
+
+    /// Flush the uart input and output buffers
+    pub fn flush(&self) -> Result<(), RpiTestChannelError> {
+        self.uart
+            .flush(Queue::Both)
             .map_err(|err| RpiTestChannelError::UartError { source: err })?;
 
         Ok(())

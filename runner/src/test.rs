@@ -81,7 +81,6 @@ pub(crate) fn run_tests(
             let session = PoisonFreeMutex::new(session);
 
             for test in TEST_FUNCTIONS.iter() {
-                let backtrace = Backtrace::new();
                 match panic::catch_unwind(|| {
                     (test.test_fn)(
                         &mut *testchannel.get_rpi().lock() as &mut dyn TestChannelHandle,
@@ -111,6 +110,8 @@ pub(crate) fn run_tests(
                             .unwrap()
                     }
                     Err(err) => {
+                        let backtrace = Backtrace::new();
+
                         let cause = match err.downcast::<String>() {
                             Ok(err) => *err,
                             Err(_) => "Unknown".to_owned(),
@@ -137,6 +138,11 @@ pub(crate) fn run_tests(
                             .unwrap();
                     }
                 };
+
+                if let Err(err) = testchannel.reset() {
+                    log::warn!("Failed to properly reset testchannel after executing function:\nCaused by: {}", err);
+                    // TODO: Determine what's best in this situation, whether to skip all following tests or still try
+                }
             }
         }
         Err(err) => {

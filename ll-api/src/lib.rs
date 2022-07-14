@@ -281,6 +281,11 @@ impl RpiTestChannel {
         })
     }
 
+    /// Resets the test bus to its default state
+    pub fn test_bus_reset(&mut self) -> Result<(), RpiTestChannelError> {
+        self.get_gpio_and_try(|gpio| gpio.uart.flush())
+    }
+
     /// Reads [`UART_BYTES_READ`] Bytes from test bus. This function blocks until it can read the specified amount of data or until a preset timeout runs out.
     pub fn test_bus_read(&mut self) -> Result<[u8; UART_BYTES_READ as usize], RpiTestChannelError> {
         self.get_gpio_and_try(|gpio| gpio.uart.read())

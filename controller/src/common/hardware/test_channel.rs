@@ -124,16 +124,15 @@ impl CombinedTestChannel {
         &self.rpi
     }
 
-    /*/// Reset the test channel to defaults for use in next test
+    /// Reset the test channel to its defaults for use in the next test
     pub fn reset(&self) -> Result<(), Box<dyn Error>> {
-        self.rpi.lock().test_gpio_reset()?;
-
-        if let Some(ref mut probe) = *self.probe.lock() {
-            probe.detach()?;
-        }
+        let mut rpi = self.rpi.lock();
+        
+        rpi.test_gpio_reset()?;
+        rpi.test_bus_reset()?;
 
         Ok(())
-    }*/
+    }
 
     /// Loops through all available TSS and connects the testchannel to each available target, while executing the provided function on each connection.
     pub fn connect_all_available_and_execute<F>(&mut self, tss: &[Option<Mutex<TargetStackShield>>], mut function: F) where F: FnMut(&mut Self, &TargetInfo, u8) {
