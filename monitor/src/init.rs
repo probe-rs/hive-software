@@ -5,7 +5,7 @@ use std::process;
 use std::sync::Arc;
 
 use comm_types::hardware::{Architecture, TargetState};
-use controller::common::hardware::{HardwareStatus, HiveHardware, TargetStackShield};
+use controller::hardware::{HardwareStatus, HiveHardware, TargetStackShield};
 use hive_db::{CborDb, CborTransactional};
 use probe_rs::config;
 use sled::transaction::UnabortableTransactionError;

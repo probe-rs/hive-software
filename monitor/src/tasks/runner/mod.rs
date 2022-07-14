@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use comm_types::test::{TaskRunnerMessage, TestResults, TestRunError, TestRunStatus};
-use controller::common::hardware::HiveHardware;
+use controller::hardware::HiveHardware;
 use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver};

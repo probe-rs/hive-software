@@ -7,7 +7,7 @@ use log4rs::encode::Encode;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
-pub(in crate::common::logger) struct CborEncoder;
+pub(in crate::logger) struct CborEncoder;
 
 impl CborEncoder {
     pub fn new() -> Self {

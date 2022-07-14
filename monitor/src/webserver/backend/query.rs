@@ -7,7 +7,7 @@ use anyhow::anyhow;
 use async_graphql::{Context, Object, Result as GrapqlResult};
 use ciborium::de::from_reader;
 use comm_types::auth::Role;
-use controller::common::logger::LogEntry;
+use controller::logger::LogEntry;
 use hive_db::CborDb;
 use log::Level;
 use probe_rs::config::search_chips;

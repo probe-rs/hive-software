@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use async_graphql::{Enum, SimpleObject};
 use comm_types::hardware::Memory;
-use controller::common::hardware::HiveHardware;
+use controller::hardware::HiveHardware;
 use hive_db::CborTransactional;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};

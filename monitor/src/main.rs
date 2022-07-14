@@ -2,8 +2,8 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use clap::{ArgEnum, Parser};
-use controller::common::hardware::{self, HiveHardware, HiveIoExpander, MAX_TSS};
-use controller::common::logger;
+use controller::hardware::{self, HiveHardware, HiveIoExpander, MAX_TSS};
+use controller::logger;
 use lazy_static::lazy_static;
 use log::Level;
 use rppal::i2c::I2c;

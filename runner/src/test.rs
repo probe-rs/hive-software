@@ -5,7 +5,7 @@ use antidote::Mutex as PoisonFreeMutex;
 use backtrace::Backtrace;
 use comm_types::hardware::TargetInfo;
 use comm_types::test::{TestResult, TestStatus};
-use controller::common::hardware::{try_attach, CombinedTestChannel};
+use controller::hardware::{try_attach, CombinedTestChannel};
 use hive_test::TestChannelHandle;
 use lazy_static::lazy_static;
 use tokio::sync::mpsc::Sender;

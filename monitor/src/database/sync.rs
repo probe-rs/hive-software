@@ -5,7 +5,7 @@ use comm_types::{
     hardware::{ProbeInfo, ProbeState},
     ipc::HiveTargetData,
 };
-use controller::common::hardware::HiveHardware;
+use controller::hardware::HiveHardware;
 use hive_db::{CborDb, CborTransactional};
 use sled::transaction::UnabortableTransactionError;
 

@@ -1,6 +1,6 @@
 //! Runner initialization functions
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
-use controller::common::hardware::InitError;
+use controller::hardware::InitError;
 
 use crate::{EXPANDERS, HARDWARE, SHARED_I2C, TEST_FUNCTIONS};
 

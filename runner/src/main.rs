@@ -4,8 +4,8 @@ use std::{panic, thread};
 
 use anyhow::Result;
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
-use controller::common::hardware::{self, HiveHardware, HiveIoExpander, MAX_TSS};
-use controller::common::logger;
+use controller::hardware::{self, HiveHardware, HiveIoExpander, MAX_TSS};
+use controller::logger;
 use hurdles::Barrier;
 use lazy_static::lazy_static;
 use log::Level;

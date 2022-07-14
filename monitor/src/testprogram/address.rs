@@ -2,7 +2,7 @@
 use std::ops::Range;
 
 use comm_types::hardware::{Memory, TargetState};
-use controller::common::hardware::HiveHardware;
+use controller::hardware::HiveHardware;
 use probe_rs::{
     config::{self, MemoryRegion},
     Architecture, Target,

@@ -6,7 +6,7 @@ use colored::Colorize;
 use log4rs::encode::Encode;
 
 #[derive(Debug)]
-pub(in crate::common::logger) struct ConsoleEncoder;
+pub(in crate::logger) struct ConsoleEncoder;
 
 impl ConsoleEncoder {
     pub fn new() -> Self {

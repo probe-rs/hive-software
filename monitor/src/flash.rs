@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 use comm_types::hardware::{Architecture, TargetInfo, TargetState};
-use controller::common::hardware::{try_attach, CombinedTestChannel, HardwareStatus, HiveHardware};
+use controller::hardware::{try_attach, CombinedTestChannel, HardwareStatus, HiveHardware};
 use hive_db::CborTransactional;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions, Format};
 use crossbeam_utils::thread;
