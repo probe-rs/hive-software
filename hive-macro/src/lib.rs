@@ -7,7 +7,12 @@ mod hive;
 mod hive_test;
 
 /// The macro to annotate a Hive testfunction
-///use darling::FromMeta;
+///
+/// Each function annotated with this macro is collected by the test runner and ran on the Hive testrack.
+///
+/// # Attributes
+/// The macro accepts optional attributes to give control over how the tests are run. The following attributes are available:
+/// - order: usize (Default: 0)
 /// - should_panic: bool (Default: false)
 ///
 /// The order attribute controls the order in which all collected testfunctions are run. Where the smallest order number gets run first. It is also allowed to have multiple functions with the same order. In that case all functions with the same order will get run in a random order. This system allows for complex ordering, while still maintianing the options to run tests in a random order where possible.
