@@ -781,11 +781,13 @@ dependencies = [
  "ll-api",
  "log",
  "log4rs",
+ "nix",
  "pca9535",
  "probe-rs 0.12.0",
  "probe-rs 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "retry",
  "rppal",
+ "rusb",
  "serde",
  "shared-bus",
  "thiserror",
@@ -2256,6 +2258,18 @@ name = "nb"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "546c37ac5d9e56f55e73b677106873d9d9f5190605e41a856503623648488cae"
+
+[[package]]
+name = "nix"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f17df307904acd05aa8e32e97bb20f2a0df1728bbc2d771ae8f9a90463441e9"
+dependencies = [
+ "bitflags",
+ "cfg-if",
+ "libc",
+ "memoffset",
+]
 
 [[package]]
 name = "nom"

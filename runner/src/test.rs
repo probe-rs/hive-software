@@ -5,7 +5,7 @@ use antidote::Mutex as PoisonFreeMutex;
 use backtrace::Backtrace;
 use comm_types::hardware::TargetInfo;
 use comm_types::test::{TestResult, TestStatus};
-use controller::hardware::{try_attach, CombinedTestChannel};
+use controller::hardware::{reset_probe_usb, try_attach, CombinedTestChannel};
 use hive_test::TestChannelHandle;
 use lazy_static::lazy_static;
 use tokio::sync::mpsc::Sender;
@@ -162,6 +162,11 @@ pub(crate) fn run_tests(
             &format!("Failed to attach probe: {}", err),
         );
     }
+
+    // Reset the probe
+    reset_probe_usb(&probe_info).unwrap_or_else(|err| {
+        log::warn!("Failed to reset the debug probe usb: {}", err);
+    });
 
     // reinitialize probe, and transfer ownership back to test_channel
     testchannel.reinitialize_probe().unwrap_or_else(|err|{

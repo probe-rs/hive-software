@@ -35,5 +35,7 @@ colored = "2.0"
 ciborium = "0.2"
 anyhow = "1.0"
 serde = "1.0"
+rusb = "0.8"
+nix = "0.24"
 
 probe-rs-test = { package = "probe-rs", path = "../probe-rs-testcandidate/probe-rs/" }

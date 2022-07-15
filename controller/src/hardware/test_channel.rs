@@ -163,7 +163,7 @@ impl CombinedTestChannel {
                                     Ok(_) => {
                                         // Small delay before calling the function. This avoids that probes fail certain actions for some reason.
                                         // TODO: Find out why this is required. Might be related to i2c commands not reaching the switches in time or blocking functions already returning when the data has been written into buffer but not physically.
-                                        std::thread::sleep(std::time::Duration::from_millis(20));
+                                        std::thread::sleep(std::time::Duration::from_millis(100));
                                         function(self, target_info, tss.get_position())
                                     }
                                     Err(err) => match err {

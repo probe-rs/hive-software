@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 use comm_types::hardware::{Architecture, TargetInfo, TargetState};
-use controller::hardware::{try_attach, CombinedTestChannel, HardwareStatus, HiveHardware};
+use controller::hardware::{try_attach, reset_probe_usb, CombinedTestChannel, HardwareStatus, HiveHardware};
 use hive_db::CborTransactional;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions, Format};
 use crossbeam_utils::thread;
@@ -224,8 +224,8 @@ fn flash_target(
 
     match flash_result {
         Ok(_) => result_sender.send(FlashStatus {
-                probe_identifier: probe_info.identifier,
-                probe_serial_number: probe_info.serial_number,
+                probe_identifier: probe_info.identifier.clone(),
+                probe_serial_number: probe_info.serial_number.clone(),
                 tss_pos,
                 target_name: target_info.name.clone(),
                 result: Ok(()),
@@ -245,13 +245,18 @@ fn flash_target(
             ); 
             
             result_sender.send(FlashStatus {
-                probe_identifier: probe_info.identifier,
-                probe_serial_number: probe_info.serial_number,
+                probe_identifier: probe_info.identifier.clone(),
+                probe_serial_number: probe_info.serial_number.clone(),
                 tss_pos,
                 target_name: target_info.name.clone(),
                 result: Err(format!("{}: {}", err, source)),
         }).expect("Failed to send results to main thread, the receiver might have been dropped unexpectedly.")},
     }
+
+    // reset probe usb
+    reset_probe_usb(&probe_info).unwrap_or_else(|err| {
+        log::warn!("Failed to reset the debug probe usb: {}", err);
+    });
 
     // reinitialize probe, and transfer ownership back to test_channel
     testchannel.reinitialize_probe().unwrap_or_else(|err|{
