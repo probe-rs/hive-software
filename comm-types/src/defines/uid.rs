@@ -5,7 +5,7 @@ use uid::IdU32;
 use super::HiveDefine;
 
 /// Defines a `HIVE_UID` symbol which holds a 32 bit UID which is unique on each test-run
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HiveUid {
     uid: u32,
 }
@@ -15,6 +15,10 @@ impl HiveUid {
         HiveUid {
             uid: IdU32::<Self>::new().get(),
         }
+    }
+
+    pub fn get_id(&self) -> u32 {
+        self.uid
     }
 }
 
