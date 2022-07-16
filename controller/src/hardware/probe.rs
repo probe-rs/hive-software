@@ -9,9 +9,9 @@ use thiserror::Error;
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
 #[cfg(not(feature = "runner"))]
-use probe_rs::{DebugProbeInfo, Session};
+use probe_rs::{DebugProbeInfo, Permissions, Session};
 #[cfg(feature = "runner")]
-use probe_rs_test::{DebugProbeInfo, Session};
+use probe_rs_test::{DebugProbeInfo, Permissions, Session};
 
 use super::CombinedTestChannel;
 
@@ -40,7 +40,7 @@ where
 {
     let mut probe = testchannel.take_probe_owned();
     let _ = probe.set_speed(DEBUG_PROBE_SPEED_HZ);
-    match probe.attach(&target_info.name) {
+    match probe.attach(&target_info.name, Permissions::new()) {
         Ok(session) => return function(session),
         Err(err) => {
             log::warn!(
@@ -56,7 +56,7 @@ where
     let mut probe = probe_info.open()?;
     let _ = probe.set_speed(DEBUG_PROBE_SPEED_HZ);
 
-    match probe.attach_under_reset(&target_info.name) {
+    match probe.attach_under_reset(&target_info.name, Permissions::new()) {
         Ok(session) => function(session),
         Err(err) => {
             log::warn!(

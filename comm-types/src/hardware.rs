@@ -101,8 +101,8 @@ pub enum Architecture {
 /// The used memory address range of a target
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Memory {
-    pub ram: Range<u32>,
-    pub nvm: Range<u32>,
+    pub ram: Range<u64>,
+    pub nvm: Range<u64>,
 }
 
 /// Represents the status of a single target stack shield

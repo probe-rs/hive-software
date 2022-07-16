@@ -20,7 +20,7 @@ rppal = { version = "0.13", features = ["hal"] }
 shared-bus = { git = "https://github.com/TeyKey1/shared-bus.git", features = [
     "std",
 ], rev = "046dc03" }
-probe-rs = "0.12"
+probe-rs = "0.13"
 log = "0.4"
 retry = "1.3"
 antidote = "1.0"
@@ -35,7 +35,7 @@ colored = "2.0"
 ciborium = "0.2"
 anyhow = "1.0"
 serde = "1.0"
-rusb = "0.8"
+rusb = "0.9"
 nix = "0.24"
 
 probe-rs-test = { package = "probe-rs", path = "../probe-rs-testcandidate/probe-rs/" }

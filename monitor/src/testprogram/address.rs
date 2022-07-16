@@ -98,7 +98,7 @@ pub(crate) fn get_and_init_target_address_ranges(hardware: &HiveHardware) -> Bas
 /// Tries to get the NVM address space into which the program can be loaded.
 /// As targets might have multiple NVM memory instances, this function returns the address space of the bootable NVM.
 /// In multicore targets the address space of the first core is returned.
-fn get_nvm_address(target: Target) -> Result<Range<u32>, ()> {
+fn get_nvm_address(target: Target) -> Result<Range<u64>, ()> {
     let cores = target.cores;
 
     // Get the boot memory
@@ -129,7 +129,9 @@ fn get_nvm_address(target: Target) -> Result<Range<u32>, ()> {
         for (idx, nvm) in bootable_nvm.iter().enumerate() {
             if let MemoryRegion::Nvm(region) = nvm {
                 if let MemoryRegion::Nvm(biggest_region) = bootable_nvm[biggest_idx] {
-                    if biggest_region.range.len() < region.range.len() {
+                    if biggest_region.range.end - biggest_region.range.start
+                        < region.range.end - region.range.start
+                    {
                         biggest_idx = idx;
                     }
                 } else {
@@ -150,7 +152,7 @@ fn get_nvm_address(target: Target) -> Result<Range<u32>, ()> {
 /// Tries to get the RAM address space into which the program can be loaded.
 /// As targets might have multiple RAM memory instances, this function returns the address space of the largest RAM.
 /// In multicore targets the address space of the first core is returned.
-fn get_ram_address(target: Target) -> Result<Range<u32>, ()> {
+fn get_ram_address(target: Target) -> Result<Range<u64>, ()> {
     let cores = target.cores;
 
     // Get the boot memory
@@ -181,7 +183,9 @@ fn get_ram_address(target: Target) -> Result<Range<u32>, ()> {
         for (idx, ram) in available_ram.iter().enumerate() {
             if let MemoryRegion::Ram(region) = ram {
                 if let MemoryRegion::Ram(biggest_region) = available_ram[biggest_idx] {
-                    if biggest_region.range.len() < region.range.len() {
+                    if biggest_region.range.end - biggest_region.range.start
+                        < region.range.end - region.range.start
+                    {
                         biggest_idx = idx;
                     }
                 } else {
