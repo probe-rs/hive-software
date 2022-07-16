@@ -20,13 +20,20 @@ struct TestOptions {
 const ATTRIBUTE_EXAMPLE: &str = "#[hive_test(order = 1, should_panic = true)]";
 const ATTRIBUTE_KEYS: &str = "'order = usize', 'should_panic = bool'";
 const FUNCTION_EXAMPLE: &str =
-    "fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo);";
+    "fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo, defines: &DefineRegistry);";
 
-const TESTFUNCTION_ARGUMENT_LENGTH: usize = 3;
-const TESTFUNCTION_ARGUMENT_IDENT: [&str; 3] = ["test_channel", "session", "target_info"];
-const TESTFUNCTION_ARGUMENT_TYPE: [&str; 3] = ["TestChannelHandle", "Session", "HiveTargetInfo"];
+const TESTFUNCTION_ARGUMENT_LENGTH: usize = 4;
+const TESTFUNCTION_ARGUMENT_IDENT: [&str; TESTFUNCTION_ARGUMENT_LENGTH] =
+    ["test_channel", "session", "target_info", "defines"];
+const TESTFUNCTION_ARGUMENT_TYPE: [&str; TESTFUNCTION_ARGUMENT_LENGTH] = [
+    "TestChannelHandle",
+    "Session",
+    "HiveTargetInfo",
+    "DefineRegistry",
+];
 /// Whether the argument at the respective position should be mutable or not
-const TESTFUNCTION_ARGUMENT_REFERENCE_MUTABILITY: [bool; 3] = [true, true, false];
+const TESTFUNCTION_ARGUMENT_REFERENCE_MUTABILITY: [bool; TESTFUNCTION_ARGUMENT_LENGTH] =
+    [true, true, false, false];
 
 pub fn run(attr: TokenStream, item: TokenStream) -> TokenStream {
     // parse macro attributes

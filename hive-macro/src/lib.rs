@@ -23,7 +23,7 @@ mod hive_test;
 /// Basic usage:
 /// ```rust
 /// #[hive_test]
-///fn my_fancy_test(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session, _target_info: &HiveTargetInfo) {
+///fn my_fancy_test(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session, _target_info: &HiveTargetInfo, _defines: &DefineRegistry) {
 ///    // Doing important test
 ///    let mut i = 0;
 ///    i += 1;
@@ -34,7 +34,7 @@ mod hive_test;
 /// Advanced usage with attributes:
 ///```rust
 /// #[hive_test(order = 100, should_panic = true)]
-///fn my_fancy_test(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session, _target_info: &HiveTargetInfo) {
+///fn my_fancy_test(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session, _target_info: &HiveTargetInfo, _defines: &DefineRegistry) {
 ///    // Intentional panic
 ///    panic!();
 ///}

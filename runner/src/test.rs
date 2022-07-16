@@ -1,8 +1,10 @@
 //! Handles the running and reporting of the tests
-use std::panic::{self, PanicInfo};
+use std::panic::{self, AssertUnwindSafe, PanicInfo};
+use std::sync::Arc;
 
 use antidote::Mutex as PoisonFreeMutex;
 use backtrace::Backtrace;
+use comm_types::defines::DefineRegistry;
 use comm_types::hardware::TargetInfo;
 use comm_types::test::{TestResult, TestStatus};
 use controller::hardware::{reset_probe_usb, try_attach, CombinedTestChannel};
@@ -34,6 +36,7 @@ pub(crate) fn run_tests(
     target_info: &TargetInfo,
     tss_pos: u8,
     comm_sender: &Sender<Message>,
+    define_registry: Arc<DefineRegistry>,
 ) {
     log::trace!(
         "Testing target {}, on tss {} with {}",
@@ -73,6 +76,8 @@ pub(crate) fn run_tests(
         return;
     }
 
+    let define_registry = AssertUnwindSafe(define_registry); // The DefineRegistry in the runner is used read only
+
     if let Err(err) = try_attach(testchannel, target_info, &probe_info, |session| {
         let session = PoisonFreeMutex::new(session);
 
@@ -82,6 +87,7 @@ pub(crate) fn run_tests(
                     &mut *testchannel.get_rpi().lock() as &mut dyn TestChannelHandle,
                     &mut *session.lock(),
                     &target_info.clone().into(),
+                    &define_registry,
                 );
             }) {
                 Ok(_) => {

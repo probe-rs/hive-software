@@ -85,6 +85,7 @@ pub fn run(attr: TokenStream, item: TokenStream) -> TokenStream {
                         test_channel: &mut dyn TestChannelHandle,
                         session: &mut Session,
                         target_info: &HiveTargetInfo,
+                        defines: &DefineRegistry,
                     ),
                 }
         }

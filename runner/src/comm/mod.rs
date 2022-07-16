@@ -6,6 +6,7 @@ use std::task::{Context, Poll};
 use std::{io, pin::Pin};
 
 use axum::http::Uri;
+use comm_types::defines::DefineRegistry;
 use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
 use comm_types::test::{TestResult, TestResults, TestRunStatus};
 use hyper::client::connect::{Connected, Connection};
@@ -79,7 +80,7 @@ impl Connection for IpcConnection {
 /// This function is the async entrypoint of tokio. All ipc from and to the monitor application are done here
 pub(crate) async fn ipc(
     mut receiver: Receiver<Message>,
-    init_data_sender: Sender<(HiveProbeData, HiveTargetData)>,
+    init_data_sender: Sender<(HiveProbeData, HiveTargetData, DefineRegistry)>,
     notify_results_ready: Arc<Notify>,
 ) {
     let socket_path = Path::new(SOCKET_PATH);
@@ -131,6 +132,10 @@ pub(crate) async fn ipc(
                 .await
                 .unwrap();
 
+            let defines = retry::try_request(client_copy.clone(), requests::get_defines())
+                .await
+                .unwrap();
+
             let probe_data;
             if let IpcMessage::ProbeInitData(data) = probes {
                 probe_data = data;
@@ -145,8 +150,15 @@ pub(crate) async fn ipc(
                 panic!("Received wrong IpcMessage enum variant from the monitor!")
             }
 
+            let define_data;
+            if let IpcMessage::HiveDefineData(data) = defines {
+                define_data = data;
+            } else {
+                panic!("Received wrong IpcMessage enum variant from the monitor!")
+            }
+
             // Notify main thread with init data, so it can start with testing
-            init_data_sender.send((*probe_data, *target_data)).expect("Failed to send init data to main thread. Is the receiver still in scope and the thread still running?");
+            init_data_sender.send((*probe_data, *target_data, *define_data)).expect("Failed to send init data to main thread. Is the receiver still in scope and the thread still running?");
         });
 
         let client_copy = client.clone();

@@ -3,6 +3,7 @@
 //! This entire module is replaced by the corresponding hive module in the probe-rs test folder of the specific probe-rs testcandidate.
 
 pub mod tests {
+    use comm_types::defines::DefineRegistry;
     use hive_test::{HiveTargetInfo, TestChannelHandle};
     use probe_rs_test::Session;
 
@@ -17,6 +18,7 @@ pub mod tests {
             test_channel: &mut dyn TestChannelHandle,
             session: &mut Session,
             target_info: &HiveTargetInfo,
+            defines: &DefineRegistry,
         ),
     }
 

@@ -3,12 +3,13 @@
 //! It also contains functionality that has to be isolated from other crates which depend on probe-rs as those would otherwise cause circular dependencies
 use ll_api::{RpiTestChannel, RpiTestChannelError, TestInputPin, UART_BYTES_READ};
 
+pub use comm_types::defines;
 pub use comm_types::hardware::{Architecture, HiveTargetInfo, Memory};
 pub use hive_macro::hive;
 pub use hive_macro::hive_test;
 pub use inventory;
 
-/// Provides all user facing functions inside the testfunctions
+/// Provides all user facing TestChannel functions inside the testfunctions
 pub trait TestChannelHandle {
     /// Checks if provided [`TestInputPin`] is high.
     fn input_is_high(&mut self, pin: TestInputPin) -> Result<bool, RpiTestChannelError>;

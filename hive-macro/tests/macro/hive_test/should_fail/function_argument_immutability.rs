@@ -9,6 +9,7 @@ fn test_function(
     test_channel: &mut dyn TestChannelHandle,
     session: &mut Session,
     target_info: &mut String,
+    define: String,
 ) {
 }
 

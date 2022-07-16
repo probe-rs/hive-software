@@ -85,6 +85,7 @@ fn app(db: Arc<MonitorDb>, test_result_sender: Sender<TestResults>) -> Router {
     Router::new()
         .route("/data/probe", get(handlers::probe_handler))
         .route("/data/target", get(handlers::target_handler))
+        .route("/data/defines", get(handlers::define_handler))
         .route(
             "/runner/results",
             post(handlers::test_result_handler).layer(Extension(test_result_sender)),

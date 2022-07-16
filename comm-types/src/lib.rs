@@ -18,3 +18,6 @@ pub mod test;
 
 #[cfg(feature = "auth")]
 pub mod auth;
+
+#[cfg(feature = "defines")]
+pub mod defines;

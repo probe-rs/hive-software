@@ -9,6 +9,6 @@ readme = "README.md"
 
 [dependencies]
 hive-macro = {path = "../hive-macro/"}
-comm-types = {path = "../comm-types/", features = ["hardware"]}
+comm-types = {path = "../comm-types/", features = ["hardware", "defines"]}
 ll-api = { path = "../ll-api/" }
 inventory = "0.2"

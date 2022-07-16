@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::{panic, thread};
 
 use anyhow::Result;
+use comm_types::defines::DefineRegistry;
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
 use controller::hardware::{self, HiveHardware, HiveIoExpander, MAX_TSS};
 use controller::logger;
@@ -87,16 +88,18 @@ fn main() {
 /// Run the main thread
 fn run(
     comm_sender: MpscSender<Message>,
-    init_data_receiver: OneshotReceiver<(HiveProbeData, HiveTargetData)>,
+    init_data_receiver: OneshotReceiver<(HiveProbeData, HiveTargetData, DefineRegistry)>,
     notify_results_ready: Arc<Notify>,
 ) -> Result<()> {
     // Wait until the init data was received from monitor
-    let (probe_data, target_data) = init_data_receiver.blocking_recv().map_err(|err| {
+    let (probe_data, target_data, define_data) = init_data_receiver.blocking_recv().map_err(|err| {
         log::error!(
             "The oneshot sender in the async comm-thread has been dropped, shutting down. This is either caused by a panic in the comm-thread or an error in the code.",
         );
         err
     })?;
+
+    let define_registry = Arc::new(define_data);
 
     match init::init_hardware_from_monitor_data(target_data, probe_data) {
         Ok(_) => log::debug!("Successfully initialized hardware from monitor data."),
@@ -122,6 +125,7 @@ fn run(
         if channel.is_ready() {
             drop(channel);
             let comm_sender = comm_sender.clone();
+            let define_registry = define_registry.clone();
 
             testing_threads.push(
                 thread::Builder::new()
@@ -139,7 +143,13 @@ fn run(
                         channel.connect_all_available_and_execute(
                             &HARDWARE.tss,
                             |test_channel, target_info, tss_pos| {
-                                test::run_tests(test_channel, target_info, tss_pos, &sender);
+                                test::run_tests(
+                                    test_channel,
+                                    target_info,
+                                    tss_pos,
+                                    &sender,
+                                    define_registry.clone(),
+                                );
                             },
                         );
                     })

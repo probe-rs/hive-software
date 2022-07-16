@@ -20,7 +20,7 @@ use self::build::BuildError;
 
 mod address;
 mod build;
-mod defines;
+pub mod defines;
 
 pub(crate) const TESTPROGRAM_PATH: &str = "data/testprograms/";
 pub(crate) const DEFAULT_TESTPROGRAM_NAME: &str = "default";
