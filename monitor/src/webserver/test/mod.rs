@@ -255,7 +255,7 @@ mod tests {
                     .method(Method::POST)
                     .uri("/run")
                     .header(header::CONTENT_TYPE, "multipart/form-data")
-                    .header(header::CONTENT_LENGTH, "100000000")
+                    .header(header::CONTENT_LENGTH, "4000000000")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -305,7 +305,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_endpoint_missing_project_field() {
+    async fn test_endpoint_missing_runner_field() {
         let task_manager = Arc::new(TaskManager::new());
         let test_routes = test_routes(DB.clone(), task_manager);
 
@@ -335,7 +335,7 @@ mod tests {
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
         assert_eq!(
-            "No project tar archive provided to perform the tests on. The field 'project' is missing.",
+            "No runner binary provided to perform the tests on. The field 'runner' is missing.",
             String::from_utf8_lossy(
                 hyper::body::to_bytes(res.into_body())
                     .await
@@ -346,7 +346,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_endpoint_wrong_project_field_data_type() {
+    async fn test_endpoint_wrong_runner_field_data_type() {
         let task_manager = Arc::new(TaskManager::new());
         let test_routes = test_routes(DB.clone(), task_manager);
 
@@ -354,12 +354,7 @@ mod tests {
 
         let data = Cursor::new("Some data");
 
-        form.add_reader_file_with_mime(
-            "project",
-            data,
-            "some_tar_file.tar",
-            mime::APPLICATION_JSON,
-        );
+        form.add_reader_file_with_mime("runner", data, "some_runner_file", mime::APPLICATION_JSON);
 
         // TODO This whole thing looks like a really whack way of transforming the MultipartBody into a Hyper Body.
         // It appears the From impl fails to transform it when directly inserting the initial req object into the oneshot
@@ -382,54 +377,7 @@ mod tests {
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
         assert_eq!(
-            "Invalid file format provided for field 'project'. Expecting tar archive.",
-            String::from_utf8_lossy(
-                hyper::body::to_bytes(res.into_body())
-                    .await
-                    .unwrap()
-                    .as_ref()
-            )
-        );
-    }
-
-    #[tokio::test]
-    async fn test_endpoint_wrong_project_field_file_type() {
-        let task_manager = Arc::new(TaskManager::new());
-        let test_routes = test_routes(DB.clone(), task_manager);
-
-        let mut form = Form::default();
-
-        let data = Cursor::new("Some data");
-
-        form.add_reader_file_with_mime(
-            "project",
-            data,
-            "some_wrong_file.wrong",
-            mime::APPLICATION_OCTET_STREAM,
-        );
-
-        // TODO This whole thing looks like a really whack way of transforming the MultipartBody into a Hyper Body.
-        // It appears the From impl fails to transform it when directly inserting the initial req object into the oneshot
-
-        let req = form
-            .set_body::<MultipartBody>(
-                HyperRequest::builder()
-                    .method(Method::POST)
-                    .uri("/run")
-                    .header(header::CONTENT_LENGTH, "0"),
-            )
-            .unwrap();
-
-        let (parts, body) = req.into_parts();
-
-        let req = HyperRequest::from_parts(parts, body.into());
-
-        let res = test_routes.oneshot(req).await.unwrap();
-
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-
-        assert_eq!(
-            "Invalid file format provided for field 'project'. Expecting tar archive.",
+            "Invalid file format provided for field 'runner'. Expecting binary executable.",
             String::from_utf8_lossy(
                 hyper::body::to_bytes(res.into_body())
                     .await
@@ -449,9 +397,9 @@ mod tests {
         let data = Cursor::new("Some data");
 
         form.add_reader_file_with_mime(
-            "project",
+            "runner",
             data,
-            "some_tar_file.tar",
+            "some_runner_file",
             mime::APPLICATION_OCTET_STREAM,
         );
 
@@ -499,9 +447,9 @@ mod tests {
         let data = Cursor::new("Some data");
 
         form.add_reader_file_with_mime(
-            "project",
+            "runner",
             data,
-            "some_tar_file.tar",
+            "some_runner_file",
             mime::APPLICATION_OCTET_STREAM,
         );
 

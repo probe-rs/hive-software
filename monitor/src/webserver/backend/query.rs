@@ -93,7 +93,8 @@ impl BackendQuery {
     async fn assigned_probes<'ctx>(&self, ctx: &Context<'ctx>) -> [FlatProbeState; 4] {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
-        db.config_tree
+        let res = db
+            .config_tree
             .c_get(&keys::config::ASSIGNED_PROBES)
             .unwrap()
             .expect("DB not initialized")
@@ -101,7 +102,11 @@ impl BackendQuery {
             .map(FlatProbeState::from)
             .collect::<Vec<FlatProbeState>>()
             .try_into()
-            .unwrap()
+            .unwrap();
+
+        println!("Sending: {:?}", res);
+
+        res
     }
 
     /// Search the supported targets by Hive
