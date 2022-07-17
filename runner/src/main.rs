@@ -20,6 +20,7 @@
 //!
 //! With the initialization data received it tries to initialize the testrack hardware using the received data.
 //! If the received data does not match with the detected testrack hardware it is considered a data desync which leads to a runner shutdown with a non-zero exit code.
+//! Such data desyncs are only expected to happen in case a daughterboard is removed in between the monitor hardware reinitialization and runner execution or in case of a hardware failure.
 //!
 //! ## Testing
 //! After startup the main thread spawns n new threads where n equals to the currently active testchannels which do have a debug probe connected.
@@ -227,6 +228,7 @@ fn get_available_channel_count() -> usize {
     available_channels
 }
 
+/// Triggers the shutdown signal and causes the application to terminate early
 fn shutdown_err() {
     SHUTDOWN_SIGNAL
         .send(())
