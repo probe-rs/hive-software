@@ -1,7 +1,9 @@
-# hive-backend
+# Hive Backend UI
+The backend UI is a user interface and dashboard for the monitor. It allows the testserver Administrator and maintainer to easily perform configuration tasks.
 
-This template should help get you started developing with Vue 3 in Vite.
+The UI is built using Vue 3 and Vuetify and is supposed to be served by the monitor webserver.
 
+# Development
 ## Recommended IDE Setup
 
 [VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=johnsoncodehk.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=johnsoncodehk.vscode-typescript-vue-plugin).
