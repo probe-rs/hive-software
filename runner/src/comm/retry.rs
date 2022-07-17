@@ -6,10 +6,14 @@ use hyper::{Client, Error as HyperError};
 use tokio_retry::strategy::{jitter, FibonacciBackoff};
 use tokio_retry::RetryIf;
 
+/// How many times a request using [`try_request()`] can be retried until failure.
+///
+/// Please note that this is not the only limitation on whether a test is retried or not.
+/// The function [`is_retryable_error()`] can abort retries before reaching this limit
 const REQ_RETRY_LIMIT: usize = 3;
 
 #[derive(Debug)]
-pub(crate) enum RequestError {
+pub enum RequestError {
     BadStatus(StatusCode),
     Parse(ClientParseError),
     Network(HyperError),
@@ -55,7 +59,7 @@ fn is_retryable_error(err: &RequestError) -> bool {
 ///
 /// # Unwrapping
 /// As this function already internally retries failed requests the ultimative result should be unwrapped, as the underlying error is likely not recoverable by the application at runtime.
-pub(crate) async fn try_request<T: 'static>(
+pub async fn try_request<T: 'static>(
     client: Client<T, Body>,
     request: (Request<Body>, Option<Vec<u8>>),
 ) -> Result<IpcMessage, RequestError>

@@ -15,7 +15,8 @@ use tokio::sync::mpsc::Sender;
 use probe_rs_test::Session;
 
 lazy_static! {
-    pub(crate) static ref TEST_FUNCTIONS: Vec<&'static HiveTestFunction<Session>> = {
+    /// All registered Hive testfunctions in the current runner build sorted by the order attribute.
+    pub static ref TEST_FUNCTIONS: Vec<&'static HiveTestFunction<Session>> = {
         let mut tests: Vec<&HiveTestFunction<Session>> = vec![];
         // We order the tests according to the order field
         for test in inventory::iter::<HiveTestFunction<Session>> {
@@ -31,7 +32,8 @@ lazy_static! {
 use crate::comm::Message;
 use crate::hive::tests::HiveTestFunction;
 
-pub(crate) fn run_tests(
+/// Runs all Hive tests on the provided testchannel and target
+pub fn run_tests(
     testchannel: &mut CombinedTestChannel,
     target_info: &TargetInfo,
     tss_pos: u8,
@@ -185,7 +187,7 @@ pub(crate) fn run_tests(
 }
 
 /// Disables the printing of panics in this program, returns the previously used panic hook
-pub(crate) fn disable_panic_print() -> Box<dyn for<'r, 's> Fn(&'r PanicInfo<'s>) + Send + Sync> {
+pub fn disable_panic_print() -> Box<dyn for<'r, 's> Fn(&'r PanicInfo<'s>) + Send + Sync> {
     let standard_hook = panic::take_hook();
     panic::set_hook(Box::new(|info| {
         let backtrace = Backtrace::new();

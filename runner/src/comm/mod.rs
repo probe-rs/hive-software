@@ -1,4 +1,6 @@
 //! Handles all ipc communications
+//!
+//! IPC is done using HTTP with CBOR payloads
 use std::mem;
 use std::path::Path;
 use std::sync::Arc;
@@ -26,12 +28,13 @@ mod retry;
 const SOCKET_PATH: &str = "./data/runner/ipc_sock";
 
 lazy_static! {
+    /// Test result buffer used to buffer all test results until every test has been completed
     static ref TEST_RESULTS: Mutex<Vec<TestResult>> = Mutex::new(vec![]);
 }
 
-/// Messages which are passed between the [`std::thread`] used for testing, and the tokio runtime
+/// Messages which are passed between the [`std::thread`] and the tokio runtime
 #[derive(Debug)]
-pub(crate) enum Message {
+pub enum Message {
     TestResult(TestResult),
 }
 
@@ -78,7 +81,7 @@ impl Connection for IpcConnection {
 }
 
 /// This function is the async entrypoint of tokio. All ipc from and to the monitor application are done here
-pub(crate) async fn ipc(
+pub async fn ipc(
     mut receiver: Receiver<Message>,
     init_data_sender: Sender<(HiveProbeData, HiveTargetData, DefineRegistry)>,
     notify_results_ready: Arc<Notify>,

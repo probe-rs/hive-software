@@ -1,3 +1,32 @@
+//! The Hive runner is a binary crate which is used to run the Hive tests which are defined in the probe-rs crate.
+//!
+//! The runner is not meant as a standalone binary and can only be used meaningfully in combination with the [monitor](https://github.com/probe-rs/hive-software/tree/master/monitor)
+//! binary which is executing the runner binary to perform tests.
+//!
+//! In order to test the provided probe-rs crate using the Hive testfunctions defined in the probe-rs crate it uses the probe-rs testcandidate directly as dependency.
+//! This means that the runner binary has to be built on each test request separately with the new probe-rs code and tests. The building process is usually handled by the [Hive CLI](https://github.com/probe-rs/hive-software/tree/master/hive)
+//! which takes care of the runner building process.
+//!
+//! # Overview
+//! The general logic of the runner is quite simple as it is only meant to execute the tests it was built with on the hardware and reporting the results to the monitor via IPC.
+//!
+//! ## Startup
+//! On startup the runner binary starts an async thread which is used for IPC communication with the monitor. Once the IPC thread is ready it will issue data requests via IPC to the monitor. Specifically the following data is requested:
+//! - Hive Target data (Which shows where specific targets are connected on the testrack)
+//! - Hive Probe data (Which shows where specific probes are connected on the testrack)
+//! - Hive Define data (Contains the state of the Hive Define variables which are used on the currently flashed testprogram)
+//!
+//! In case this initial data transfer fails the runner shuts down with a non-zero exit code, as it cannot perform tests without knowing the current testrack state.
+//!
+//! With the initialization data received it tries to initialize the testrack hardware using the received data.
+//! If the received data does not match with the detected testrack hardware it is considered a data desync which leads to a runner shutdown with a non-zero exit code.
+//!
+//! ## Testing
+//! After startup the main thread spawns n new threads where n equals to the currently active testchannels which do have a debug probe connected.
+//! Each of those threads now connects to every available target using the debug probe assigned to its testchannel. On each probe to target connection every Hive-test which was built into this runner binary is executed on the target.
+//!
+//! The result of each test is cached into a buffer and ultimately, once all tests on all threads have been executed, sent via IPC to the monitor.
+//! Once the results have been sent the runner terminates.
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::{panic, thread};
@@ -26,7 +55,9 @@ mod hive;
 mod init;
 mod test;
 
+/// Path to where the runner log file is stored
 const LOGFILE_PATH: &str = "./data/logs/runner.log";
+/// Max size of the runner logfile until it gets deleted and replaced by a new one
 const MAX_LOGFILE_SIZE: u64 = 50_000_000; // 50MB
 
 lazy_static! {
@@ -37,6 +68,7 @@ lazy_static! {
     };
     static ref EXPANDERS: [HiveIoExpander; MAX_TSS] = hardware::create_expanders(&SHARED_I2C);
     static ref HARDWARE: HiveHardware = HiveHardware::new(&SHARED_I2C, &EXPANDERS);
+    /// Crate global shutdown signal to signal async threads to shutdown
     static ref SHUTDOWN_SIGNAL: BroadcastSender<()> = {
         let (sender, _) = broadcast::channel::<()>(1);
         sender
