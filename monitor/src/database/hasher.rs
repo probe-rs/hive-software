@@ -1,4 +1,9 @@
 //! Password hashing functions used to check and create new hashes
+//!
+//! This module uses the Argon2id hashing function to hash credentials which need to be stored in the DB.
+//!
+//! The cost parameters are defined in the [`ARGON_HASHER_MEM_COST`], [`ARGON_HASHER_TIME_COST`] and [`ARGON_HASHER_PARALLELISM_COST`] constants.
+//! The currently chosen constants are tested on the Raspberry Pi 4B hardware to reach a reasonable tradeoff between user comfort (login time) and security.
 use std::sync::Arc;
 
 use argon2::{
@@ -12,19 +17,24 @@ use rand_chacha::rand_core::OsRng;
 
 use super::{keys, MonitorDb};
 
+const ARGON_HASHER_MEM_COST: u32 = 8192;
+const ARGON_HASHER_TIME_COST: u32 = 3;
+const ARGON_HASHER_PARALLELISM_COST: u32 = 1;
+
 lazy_static! {
-    static ref HASHER_SETTINGS: Params =
-        Params::new(8192, 3, 1, Some(Params::DEFAULT_OUTPUT_LEN)).unwrap();
+    static ref HASHER_SETTINGS: Params = Params::new(
+        ARGON_HASHER_MEM_COST,
+        ARGON_HASHER_TIME_COST,
+        ARGON_HASHER_PARALLELISM_COST,
+        Some(Params::DEFAULT_OUTPUT_LEN)
+    )
+    .unwrap();
 }
 
 /// Re-hashes the provided password and checks it against the userdata in the DB, if the user exists.
 ///
 /// This function only returns an [`Result::Ok`] value with the authenticated user if the provided user exists and the provided password is correct.
-pub(crate) fn check_password(
-    db: Arc<MonitorDb>,
-    username: &str,
-    password: &str,
-) -> Result<DbUser, ()> {
+pub fn check_password(db: Arc<MonitorDb>, username: &str, password: &str) -> Result<DbUser, ()> {
     let users: Vec<DbUser> = db
         .credentials_tree
         .c_get(&keys::credentials::USERS)
@@ -67,7 +77,7 @@ pub(crate) fn check_password(
 }
 
 /// Hashes the provided password and returns the PHC-String containing the hashed password
-pub(crate) fn hash_password(password: &str) -> String {
+pub fn hash_password(password: &str) -> String {
     let hasher = Argon2::new(
         Algorithm::default(),
         Version::default(),

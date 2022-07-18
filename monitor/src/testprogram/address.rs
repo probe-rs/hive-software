@@ -1,4 +1,7 @@
-//! Handlers to find all ram/flash address ranges which need to be provided for the building of the testprogram binaries
+//! Handlers to find all ram/flash address ranges which need to be provided for the building of the testprogram binaries.
+//!
+//! As various targets have specific ram and flash addresses the assembled object files of a testprogram need to be linked to support all those address ranges.
+//! The functions inside this module determine all address ranges that need to be supported based on the currently connected targets.
 use std::ops::Range;
 
 use comm_types::hardware::{Memory, TargetState};
@@ -8,13 +11,13 @@ use probe_rs::{
     Architecture, Target,
 };
 
-pub(crate) struct BaseAddressRanges {
+pub struct BaseAddressRanges {
     pub arm: Vec<Memory>,
     pub riscv: Vec<Memory>,
 }
 
 /// Returns all required address ranges for the currently connected targets and updates the TargetInfo of each individual target to the correct range
-pub(crate) fn get_and_init_target_address_ranges(hardware: &HiveHardware) -> BaseAddressRanges {
+pub fn get_and_init_target_address_ranges(hardware: &HiveHardware) -> BaseAddressRanges {
     let mut addresses = BaseAddressRanges {
         arm: vec![],
         riscv: vec![],

@@ -1,4 +1,6 @@
-//! Backend graphql schemas
+//! Backend graphql endpoint
+//!
+//! The backend graphql endpoint is used by the Hive backend UI webapp to read and write testrack configuration.
 use async_graphql::{EmptySubscription, Schema};
 
 pub(super) mod auth;

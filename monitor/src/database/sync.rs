@@ -1,4 +1,14 @@
 //! Provides functions to synchronize the db data with the runtime data
+//!
+//! Generally configuration changes to the monitor are first stored in the DB and not applied to the runtime data instantly.
+//! Instead, on DB modification of hardware relevant data, a flag is set which is then taken into account by the Task manager which automatically issues a hardware reinitialization to resynchronize with the DB data.
+//!
+//! Thus those functions are not required during normal operation, there's an important exception to this though which is hardware re-/initialization.
+//! The hardware reinitialization in this crate is configured as such that it automatically fixes data desyncs between DB data and the actual detected hardware.
+//!
+//! For example we can have a case where a user has removed a daughterboard on the testrack (either during operation or after shutdown).
+//! On the next hardware re-/initialization the initialization function will detect a data desync between the DB data and the actual detected hardware and automatically adjusts the runtime data to match the new situation.
+//! In this case we now need to update the DB data based on runtime data. To do this the functions in this module are used.
 use std::sync::Arc;
 
 use comm_types::{
@@ -31,7 +41,7 @@ pub(crate) fn sync_tss_target_data(db: Arc<MonitorDb>, hardware: &HiveHardware) 
 }
 
 /// Synchronize the DB probe data with the provided [`HiveHardware`] data.
-pub(crate) fn sync_testchannel_probe_data(db: Arc<MonitorDb>, hardware: &HiveHardware) {
+pub(crate) fn sync_tss_probe_data(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     db.config_tree
         .transaction::<_, _, UnabortableTransactionError>(|tree| {
             let mut probe_data = tree

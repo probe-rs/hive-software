@@ -1,6 +1,6 @@
 //! Handles CSRF tokens
 //!
-//! The pattern used to provide csrf protection is stateless and uses a cookie/header approach as used in AngularJs (https://docs.angularjs.org/api/ng/service/$http#cross-site-request-forgery-xsrf-protection)
+//! The pattern used to provide csrf protection on the webserver is stateless and uses a cookie/header approach as used in [AngularJs](https://docs.angularjs.org/api/ng/service/$http#cross-site-request-forgery-xsrf-protection)
 //!
 //! In this approach a csrf token is sent by the server as a cookie. The csrf token in the cookie is then being read by the client-side javascript and appended to each request made to the server as a http header.
 //! The Keys where the cookie and the http header csrf token are stored are [`COOKIE_CSRF_TOKEN_KEY`] and [`HEADER_CSRF_TOKEN_KEY`] respectively.

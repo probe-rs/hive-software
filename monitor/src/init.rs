@@ -1,4 +1,4 @@
-//! Handles all initialization required to start testing
+//! Handles all initialization required by the monitor
 use std::fs;
 use std::path::Path;
 use std::process;
@@ -15,7 +15,10 @@ use crate::testprogram::{Testprogram, DEFAULT_TESTPROGRAM_NAME, TESTPROGRAM_PATH
 use crate::{database, testprogram};
 use crate::{EXPANDERS, HARDWARE, SHARED_I2C};
 
-pub(crate) fn initialize_statics() {
+#[cfg(doc)]
+use comm_types::hardware::TargetInfo;
+
+pub fn initialize_statics() {
     lazy_static::initialize(&SHARED_I2C);
     lazy_static::initialize(&EXPANDERS);
     lazy_static::initialize(&HARDWARE);
@@ -27,7 +30,7 @@ pub(crate) fn initialize_statics() {
 ///
 /// # Termination
 /// This function terminates the program by using [`process::exit`]. No values are dropped during exit. Therefore this function should be called as early as possible in the program flow before manipulating DB data.
-pub(crate) fn check_uninit(db: Arc<MonitorDb>) {
+pub fn check_uninit(db: Arc<MonitorDb>) {
     let users = db
         .credentials_tree
         .c_get(&keys::credentials::USERS)
@@ -42,14 +45,14 @@ pub(crate) fn check_uninit(db: Arc<MonitorDb>) {
 }
 
 /// Initializes the entire testrack hardware with the data contained in the DB
-pub(crate) fn init_hardware(db: Arc<MonitorDb>, hardware: &mut HiveHardware) {
+pub fn init_hardware(db: Arc<MonitorDb>, hardware: &mut HiveHardware) {
     init_tss(db.clone());
     init_hardware_from_db_data(db.clone(), hardware);
     init_target_info_from_registry(hardware);
 
     // Synchronize the target and probe data in the DB with the runtime data in case any data desyncs were encountered
     database::sync::sync_tss_target_data(db.clone(), hardware);
-    database::sync::sync_testchannel_probe_data(db, hardware);
+    database::sync::sync_tss_probe_data(db, hardware);
 
     hardware.hardware_status = HardwareStatus::Ready;
 }
@@ -58,7 +61,7 @@ pub(crate) fn init_hardware(db: Arc<MonitorDb>, hardware: &mut HiveHardware) {
 ///
 /// # Panics
 /// In case the default test program is not (or only partially) found on the disk. This might indicate a corrupted monitor install.
-pub(crate) fn init_testprograms(db: Arc<MonitorDb>, hardware: &HiveHardware) {
+pub fn init_testprograms(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     log::debug!("Initializing testprograms");
 
     db.config_tree.transaction::<_, _, UnabortableTransactionError>(|tree|{

@@ -25,8 +25,8 @@ struct FlashStatus {
 
 /// Tries to flash the testbinaries onto all available targets.
 /// 
-/// This function does nothing in case the [`HARDWARE`] static is not [`HardwareStatus::Ready`]
-pub(crate) fn flash_testbinaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
+/// This function does nothing in case the [`static@crate::HARDWARE`] static is not [`HardwareStatus::Ready`]
+pub fn flash_testbinaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     if hardware.hardware_status != HardwareStatus::Ready {
         return;
     }

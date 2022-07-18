@@ -11,7 +11,8 @@ use tokio::sync::mpsc::Sender;
 use crate::database::{keys, MonitorDb};
 use crate::testprogram::defines::DEFINE_REGISTRY;
 
-pub(crate) async fn probe_handler(Extension(db): Extension<Arc<MonitorDb>>) -> Cbor<IpcMessage> {
+/// Supply probe hardware data to the runner
+pub async fn probe_handler(Extension(db): Extension<Arc<MonitorDb>>) -> Cbor<IpcMessage> {
     log::debug!("Received an IPC request on probe handler");
 
     let data: HiveProbeData = db
@@ -23,7 +24,8 @@ pub(crate) async fn probe_handler(Extension(db): Extension<Arc<MonitorDb>>) -> C
     Cbor(IpcMessage::ProbeInitData(Box::new(data)))
 }
 
-pub(crate) async fn target_handler(Extension(db): Extension<Arc<MonitorDb>>) -> Cbor<IpcMessage> {
+/// Supply target hardware data to the runner
+pub async fn target_handler(Extension(db): Extension<Arc<MonitorDb>>) -> Cbor<IpcMessage> {
     log::debug!("Received an IPC request on target handler");
 
     let data: HiveTargetData = db
@@ -35,7 +37,8 @@ pub(crate) async fn target_handler(Extension(db): Extension<Arc<MonitorDb>>) -> 
     Cbor(IpcMessage::TargetInitData(Box::new(data)))
 }
 
-pub(crate) async fn define_handler() -> Cbor<IpcMessage> {
+/// Supply current Hive Define data to the runner
+pub async fn define_handler() -> Cbor<IpcMessage> {
     log::debug!("Received an IPC request on define handler");
 
     let registry = DEFINE_REGISTRY.lock().await;
@@ -43,7 +46,8 @@ pub(crate) async fn define_handler() -> Cbor<IpcMessage> {
     Cbor(IpcMessage::HiveDefineData(Box::new(registry.clone())))
 }
 
-pub(crate) async fn test_result_handler(
+/// Receive test results from the runner
+pub async fn test_result_handler(
     Cbor(message): Cbor<IpcMessage>,
     Extension(test_result_sender): Extension<Sender<TestResults>>,
 ) -> Result<Cbor<IpcMessage>, ServerParseError> {

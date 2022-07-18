@@ -1,4 +1,6 @@
 //! The websocket server manager which handles all ws connections during testing
+#[cfg(doc)]
+use super::runner::TaskRunner;
 use axum::extract::ws::{Message, WebSocket};
 use axum::Error as AxumError;
 use rand_chacha::{
@@ -6,15 +8,19 @@ use rand_chacha::{
     ChaChaRng,
 };
 use serde::Serialize;
+#[cfg(doc)]
+use tokio::sync::mpsc;
 use tokio::sync::mpsc::Receiver as MpscReceiver;
 
 use super::TaskRunnerMessage;
+#[cfg(doc)]
+use super::TestTask;
 
 use crate::SHUTDOWN_SIGNAL;
 
 /// A ticket which is used by the client to open a websocket connection for the corresponding [`TestTask`]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
-pub(crate) struct WsTicket(String);
+pub struct WsTicket(String);
 
 impl WsTicket {
     pub fn new() -> Self {
@@ -37,10 +43,12 @@ impl From<String> for WsTicket {
     }
 }
 
-pub(crate) async fn socket_handler(
-    mut socket: WebSocket,
-    mut receiver: MpscReceiver<TaskRunnerMessage>,
-) {
+/// Handles a single websocket connection.
+///
+/// It only forwards the received [`TaskRunnerMessage`]'s to the websocket.
+/// In case the websocket closes but no test results have been received this function closes the [`mpsc`] channel to the [`TaskRunner`] which indicates
+/// the task runner to fail the current task as the test results can never be received by the requesting user.
+pub async fn socket_handler(mut socket: WebSocket, mut receiver: MpscReceiver<TaskRunnerMessage>) {
     tokio::spawn(async move {
         let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
 
@@ -84,6 +92,7 @@ pub(crate) async fn socket_handler(
     });
 }
 
+/// Send data as JSON over the websocket
 async fn send_json(socket: &mut WebSocket, message: TaskRunnerMessage) -> Result<(), AxumError> {
     let bytes = serde_json::to_vec(&message).expect("Failed to serialize provided type to JSON");
     socket.send(Message::Binary(bytes)).await

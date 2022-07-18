@@ -1,4 +1,12 @@
 //! Handles user authentication
+//!
+//! The authentication flow of Hive is quite simple and standard using JWT (JSON web token). The user provides password and username in the request.
+//! If the provided CSRF token is correct the provided password is hashed and compared to the user entry in the DB.
+//! If the hashes match the server creates a JWT and appends it to the response as a http-only cookie. This is important as this apporach prevents any malicious scripts on the user webpage side to steal the JWT.
+//! A small downside of this approach is that the user cannot delete the JWT client side but needs to call an API endpoint on the server so the server can delete it.
+//!
+//! The provided JWT contains authorization in form of the Role which the user belongs to. This way any subsequent requests with the JWT token can also be authorized based on the  user role stored in the JWT.
+//! The JWT is set to expire after [`TOKEN_EXPIRE_TIME_SEC`]
 use std::sync::Arc;
 
 use axum::extract::RequestParts;
@@ -19,10 +27,13 @@ use crate::database::{hasher, MonitorDb};
 
 use super::csrf;
 
+#[cfg(doc)]
+use comm_types::auth::Role;
+
 const ISSUER: &str = "probe-rs hive";
 /// Expire time of the jwt
-const TOKEN_EXPIRE_TIME: u64 = 1800; // 30min
-pub(crate) const AUTH_COOKIE_KEY: &str = "AUTH";
+const TOKEN_EXPIRE_TIME_SEC: u64 = 1800; // 30min
+pub const AUTH_COOKIE_KEY: &str = "AUTH";
 
 lazy_static! {
     static ref JWT_SECRET: [u8; 64] = {
@@ -53,7 +64,7 @@ impl IntoResponse for AuthError {
 /// Retuns an [`Err`] if authentication fails because of wrong credentials
 ///
 /// # JWT
-/// The expire time of the jwt is set to [`TOKEN_EXPIRE_TIME`]
+/// The expire time of the jwt is set to [`TOKEN_EXPIRE_TIME_SEC`]
 ///
 /// # CSRF
 /// The expire time of the csrf cookie is set to [`csrf::COOKIE_TTL`]
@@ -72,7 +83,7 @@ pub(super) async fn authenticate_user(
 
     csrf::add_new_csrf_cookie(cookies).await;
 
-    set_auth_cookie(cookies, generate_jwt(&user, TOKEN_EXPIRE_TIME));
+    set_auth_cookie(cookies, generate_jwt(&user, TOKEN_EXPIRE_TIME_SEC));
 
     Ok(user)
 }
@@ -83,9 +94,9 @@ pub(super) async fn authenticate_user(
 /// This function does not check user credentials at all and simply generates a valid jwt for the provided user. It is intended to be used for authenticated users only, in case they change data which affects the [`JwtClaims`]. For example a username change.
 ///
 /// # JWT
-/// The expire time of the jwt is set to [`TOKEN_EXPIRE_TIME`]
+/// The expire time of the jwt is set to [`TOKEN_EXPIRE_TIME_SEC`]
 pub(super) fn refresh_auth_token(user: &DbUser, cookies: &Cookies) {
-    set_auth_cookie(cookies, generate_jwt(user, TOKEN_EXPIRE_TIME));
+    set_auth_cookie(cookies, generate_jwt(user, TOKEN_EXPIRE_TIME_SEC));
 }
 
 /// Sets the auth cookie with the provided jwt.
@@ -149,7 +160,7 @@ where
 }
 
 /// Generates a new JWT for the provided user which expires after the provided amount in seconds
-pub(crate) fn generate_jwt(user: &DbUser, expires_in_secs: u64) -> String {
+pub fn generate_jwt(user: &DbUser, expires_in_secs: u64) -> String {
     let claims = JwtClaims {
         iss: ISSUER.to_owned(),
         exp: (get_current_timestamp() + expires_in_secs) as usize,
@@ -220,7 +231,7 @@ mod tests {
     use super::AUTH_COOKIE_KEY;
     use super::ISSUER;
     use super::JWT_SECRET;
-    use super::TOKEN_EXPIRE_TIME;
+    use super::TOKEN_EXPIRE_TIME_SEC;
 
     lazy_static! {
         // We open a temporary test database and initialize it to the test values
@@ -254,7 +265,7 @@ mod tests {
     fn jwt_expired() {
         let claims = JwtClaims {
             iss: ISSUER.to_owned(),
-            exp: (get_current_timestamp() - TOKEN_EXPIRE_TIME) as usize,
+            exp: (get_current_timestamp() - TOKEN_EXPIRE_TIME_SEC) as usize,
             username: "SomeUser".to_owned(),
             role: Role::ADMIN,
         };
@@ -278,7 +289,7 @@ mod tests {
         }
 
         let claims = WrongClaims {
-            exp: (get_current_timestamp() + TOKEN_EXPIRE_TIME) as usize,
+            exp: (get_current_timestamp() + TOKEN_EXPIRE_TIME_SEC) as usize,
             role: Role::ADMIN,
         };
 
@@ -296,7 +307,7 @@ mod tests {
     fn jwt_correct() {
         let claims = JwtClaims {
             iss: ISSUER.to_owned(),
-            exp: (get_current_timestamp() + TOKEN_EXPIRE_TIME) as usize,
+            exp: (get_current_timestamp() + TOKEN_EXPIRE_TIME_SEC) as usize,
             username: "SomeUser".to_owned(),
             role: Role::ADMIN,
         };

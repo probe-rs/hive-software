@@ -2,16 +2,19 @@
 use hive_db::HiveDb;
 use sled::Tree;
 
-pub(crate) mod hasher;
-pub(crate) mod keys;
-pub(crate) mod sync;
+pub mod hasher;
+pub mod keys;
+pub mod sync;
 
+/// Interval in which changes of the DB data in RAM are flushed and stored to disk
 const FLUSH_INTERVAL_MS: u64 = 60_000;
+/// Maximum amount of RAM which can be used to cache the DB data
 const CACHE_CAPACITY: u64 = 52_428_800; // 50MB
+/// Path to the persistent db files
 const DB_PATH: &str = "data/db/";
 
 /// The database and its trees used for this application. Uses a [`HiveDb`] under the hood.
-pub(crate) struct MonitorDb {
+pub struct MonitorDb {
     _db: HiveDb,
     // DB Tree which stores the HW configurations and other Testrack-specifics.
     pub config_tree: Tree,

@@ -1,4 +1,16 @@
 //! Handles the management of existing and new testprograms
+//!
+//! Testprograms are programs which can be flashed onto the targets of the testrack prior to testing. The flashed testprograms are then used as a means to test the probe-rs testcandidate.
+//! The monitor can have multiple testprograms. However, only one can be active at a time and be used for testing. Currently only assembly is supported as language to write testprograms.
+//!
+//! ## Default Testprogram
+//! The default testprogram is a special kind of testprogram as it is included with every Hive installation and cannot be modified by the user. It acts as the default in case building of any other selected active testprogram fails.
+//!
+//! # Hive Defines
+//! Hive defines are variables which can be injected into a testprogram at build time. In general before a testprogram is built the hive_defines.S file is generated which contains the
+//! generated variables that can be imported and used by the testprogram.
+//!
+//! A popular example of what can be done using Hive Defines is a unique ID per testprogram build which then can be tested against in the testfunction.
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -22,8 +34,10 @@ mod address;
 mod build;
 pub mod defines;
 
-pub(crate) const TESTPROGRAM_PATH: &str = "data/testprograms/";
-pub(crate) const DEFAULT_TESTPROGRAM_NAME: &str = "default";
+/// Path to where the testprograms are stored
+pub const TESTPROGRAM_PATH: &str = "data/testprograms/";
+/// The name of the default testprogram
+pub const DEFAULT_TESTPROGRAM_NAME: &str = "default";
 /// A temporary workspace for the assembler output
 const ASSEMBLER_TEMP_WORKSPACE_PATH: &str = "data/assembler_workspace";
 
@@ -32,7 +46,7 @@ lazy_static! {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Enum)]
-pub(crate) enum TestprogramStatus {
+pub enum TestprogramStatus {
     NotInitialized,
     CompileFailure,
     Ok,
@@ -47,13 +61,13 @@ impl TestprogramStatus {
 
 /// The current supported architectures of a Testprogram
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Enum)]
-pub(crate) enum Architecture {
+pub enum Architecture {
     Arm,
     Riscv,
 }
 
 #[derive(Debug, Serialize, Deserialize, SimpleObject)]
-pub(crate) struct Testprogram {
+pub struct Testprogram {
     name: String,
     #[graphql(skip)]
     path: PathBuf,
@@ -66,7 +80,7 @@ impl Testprogram {
     ///
     /// # Panics
     /// If the new testprogram directory cannot be created which is either caused by missing permissions or a corrputed install
-    pub(crate) fn new(name: String) -> Self {
+    pub fn new(name: String) -> Self {
         let path = PathBuf::from_str(TESTPROGRAM_PATH).unwrap().join(&name);
 
         fs::create_dir_all(&path).expect("Failed to create directory for Testprogram");
@@ -80,7 +94,7 @@ impl Testprogram {
     }
 
     /// Create the default testprogram
-    pub(crate) fn create_default() -> Self {
+    pub fn create_default() -> Self {
         let path = PathBuf::from_str(TESTPROGRAM_PATH)
             .unwrap()
             .join(DEFAULT_TESTPROGRAM_NAME);
@@ -101,21 +115,21 @@ impl Testprogram {
         }
     }
 
-    pub(crate) fn get_name(&self) -> &str {
+    pub fn get_name(&self) -> &str {
         &self.name
     }
 
-    pub(crate) fn get_path(&self) -> &Path {
+    pub fn get_path(&self) -> &Path {
         &self.path
     }
 
     /// If the testprogram is ready to be assembled and linked
-    pub(crate) fn is_ready(&self) -> bool {
+    pub fn is_ready(&self) -> bool {
         self.testprogram_arm.status.is_ready() && self.testprogram_riscv.status.is_ready()
     }
 
     /// Builds binaries for each architecture after inserting the current hive defines. Automatically builds multiple binaries with different flash/ram start addresses according to the needs of the currently connected targets.
-    pub(crate) fn build_binaries(&mut self, hardware: &HiveHardware) -> Result<(), BuildError> {
+    pub fn build_binaries(&mut self, hardware: &HiveHardware) -> Result<(), BuildError> {
         let addresses = address::get_and_init_target_address_ranges(hardware);
 
         self.insert_hive_defines();
@@ -134,19 +148,19 @@ impl Testprogram {
         Ok(())
     }
 
-    pub(crate) fn get_arm(&self) -> &TestprogramArchitecture {
+    pub fn get_arm(&self) -> &TestprogramArchitecture {
         &self.testprogram_arm
     }
 
-    pub(crate) fn get_arm_mut(&mut self) -> &mut TestprogramArchitecture {
+    pub fn get_arm_mut(&mut self) -> &mut TestprogramArchitecture {
         &mut self.testprogram_arm
     }
 
-    pub(crate) fn get_riscv(&self) -> &TestprogramArchitecture {
+    pub fn get_riscv(&self) -> &TestprogramArchitecture {
         &self.testprogram_riscv
     }
 
-    pub(crate) fn get_riscv_mut(&mut self) -> &mut TestprogramArchitecture {
+    pub fn get_riscv_mut(&mut self) -> &mut TestprogramArchitecture {
         &mut self.testprogram_riscv
     }
 
@@ -181,7 +195,7 @@ impl Testprogram {
 
 /// The sub-instance of [`Testprogram`] which contains all architecture specific functionality
 #[derive(Debug, Serialize, Deserialize, SimpleObject)]
-pub(crate) struct TestprogramArchitecture {
+pub struct TestprogramArchitecture {
     #[graphql(skip)]
     path: PathBuf,
     architecture: Architecture,
@@ -334,7 +348,7 @@ impl TestprogramArchitecture {
 ///
 /// # Panics
 /// In case building or linking fails on the default testprogram.
-pub(crate) fn sync_binaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
+pub fn sync_binaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     let mut active_testprogram = db.config_tree.transaction::<_, _, UnabortableTransactionError>(|tree|{
         let active = tree.c_get(&keys::config::ACTIVE_TESTPROGRAM)?.expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known");
 

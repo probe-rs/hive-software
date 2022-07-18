@@ -1,4 +1,18 @@
 //! Hive webserver
+//!
+//! The webserver is the main interface used for communication with the outside world. It offers various endpoints and APIs:
+//! - static fileserver (Used to host the Hive backend UI)
+//! - /auth endpoint (Used to authenticate Hive users)
+//! - /graphql endpoint (Used to serve and receive data from the Hive backend UI)
+//! - /test endpoint (Used to receive and handle test requests)
+//!
+//! The server automatically hands out CSRF tokens in a cookie so the user can protect forms against CSRF attacks. CSRF Tokens are handed out at every endpoint though only enforced by endpoints which actually receive data from the user.
+//!
+//! # TLS
+//! The webserver is using rustls to encrypt every connection. The certificate needs to be stored at the following locations: [`PEM_CERT`] and [`PEM_KEY`]. For the webserver to work properly.
+//!
+//! # Rate limit
+//! The webserver has a built in rate limiting webserver with load shedding. The currently chosen values have not been tested extensively and are very conservative.
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -31,7 +45,7 @@ const GLOBAL_RATE_LIMIT_REQUEST_AMOUNT: u64 = 20;
 const GLOBAL_RATE_LIMIT_DURATION_SECS: u64 = 1;
 const GLOBAL_REQUEST_BUFFER_SIZE: usize = 40;
 
-pub(crate) async fn web_server(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) {
+pub async fn web_server(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) {
     let app = app(db, task_manager);
     let addr = SocketAddr::from(([0, 0, 0, 0], 4356));
     let tls_config = RustlsConfig::from_pem_file(PEM_CERT, PEM_KEY).await.unwrap_or_else(|_| panic!("Failed to find the PEM certificate file. It should be stored in the application data folder: Cert: {} Key: {}", PEM_CERT, PEM_KEY));

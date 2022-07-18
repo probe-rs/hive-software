@@ -1,4 +1,6 @@
 //! IPC between monitor and runner
+//!
+//! IPC is done using HTTP with CBOR payloads
 use std::path::Path;
 use std::sync::Arc;
 use std::task;
@@ -420,5 +422,10 @@ mod tests {
         } else {
             panic!("Expected IpcMessage::Empty, but found {:?}", data);
         }
+    }
+
+    #[tokio::test]
+    async fn define_endpoint() {
+        todo!()
     }
 }

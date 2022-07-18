@@ -1,4 +1,4 @@
-//! Handle standalone mode
+//! Run in standalone mode
 use std::sync::Arc;
 use std::thread;
 
@@ -9,7 +9,7 @@ use crate::tasks::runner::TaskRunner;
 use crate::tasks::TaskManager;
 use crate::{flash, init, webserver, HARDWARE};
 
-pub(crate) fn run_standalone_mode(
+pub fn run_standalone_mode(
     db: Arc<MonitorDb>,
     task_manager: Arc<TaskManager>,
     task_runner: TaskRunner,

@@ -1,4 +1,6 @@
 //! Data models used for graphql
+//!
+//! Contains mostly wrappers and flatened versions of comm_types which implement graphql specifics.
 use async_graphql::{Enum, InputObject, SimpleObject};
 use comm_types::{
     auth::{DbUser, Role},

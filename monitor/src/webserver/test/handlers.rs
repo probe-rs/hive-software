@@ -1,3 +1,4 @@
+//! Handler functions for each endpoint
 use std::sync::Arc;
 
 use anyhow::anyhow;

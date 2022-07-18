@@ -1,4 +1,44 @@
 //! Test endpoint
+//!
+//! The test endpoint is a normal JSON REST API but also allows for websocket connections where JSON is also used.
+//! The interface is meant to be pretty standard in order to make it easy for any client applications to create and handle test requests.
+//!
+//! The test endpoint does not only allow the client to send test requests but it can also call the /capabilities endpoint to find out which probes and targets are connected and ready for testing on the testrack.
+//!
+//! The general flow to complete a test request is as following:
+//! ```text
+//! Requesting user                                   Monitor                   
+//! +------------------+   POST multipart request     +-----------------------+  
+//! |Test Task:        | ---------------------------> |Receive Test task      |  
+//! | - Runner binary  |                              | - Generate Ws ticket  |  
+//! | - Other options  |   Response with WS ticket    | - Store in test cache |  
+//! |                  | <--------------------------- |                       |  
+//! +------------------+                              +-----------------------+  
+//!                                                                              
+//! +------------------+                              +-----------------------+  
+//! |Prepare WS        |  GET Ws upgrade + WS ticket  |Receive WS upgrade req |  
+//! | - Append received| ---------------------------> | - Check if ticket is  |  
+//! |   WS ticket to   |                              |   valid and not timed |  
+//! |   Request        |    open websocket if valid   |   out                 |  
+//! |                  | <--------------------------- | - Move task into valid|  
+//! |                  |                              |   queue if ticket is  |  
+//! |                  |                              |   valid               |  
+//! +------------------+                              +-----------------------+  
+//!                                                                              
+//! +------------------+                              +-----------------------+  
+//! |WS communication  |         bidirectional        |WS communication       |  
+//! | - Receive status | <--------------------------> | - Send status and test|  
+//! |   and test       |                              |   results             |  
+//! |   results        |                              | - Close WS            |  
+//! +------------------+                              +-----------------------+
+//! ```
+//!
+//! The reason on why a websocket is used for sending status and test results is that it is a lot easier to send real-time status messages to the client without having to poll client side or setting up webhooks.
+//! Another factor is test execution time which can take quite some time and exceed the normally used http timeouts.
+//!
+//! To secure the websocket and prevent any unauthorized clients to open websocket connections the monitor issues a WS ticket
+//! to the requesting client which grants the client the right to open a websocket connection on the monitor within a certian timeframe.
+//! More info on this process can be found in the [`crate::tasks`] module documentation.
 use std::sync::Arc;
 
 use axum::routing::{get, post};

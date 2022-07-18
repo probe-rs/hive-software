@@ -1,4 +1,6 @@
-//! The task runner, which receives tasks from the [`TaskManager`] and executes them to completion
+//! The task runner receives tasks from the [`TaskManager`] and executes them to completion.
+//!
+//! This is where any task related initialization and handling happens.
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
@@ -32,14 +34,13 @@ pub(super) enum TaskRunnerError {
     RunnerError(String),
 }
 
-/// The testmanager of the monitor accepts external test tasks and returns the test results to the requesting party
-pub(crate) struct TaskRunner {
+/// The task runner of the monitor accepts external test tasks and returns the test results to the requesting party
+pub struct TaskRunner {
     test_result_receiver: Option<MpscReceiver<TestResults>>,
     db: Arc<MonitorDb>,
 }
 
 impl TaskRunner {
-    /// Create a new [`TestManager`]
     pub fn new(db: Arc<MonitorDb>) -> Self {
         Self {
             test_result_receiver: None,
@@ -49,7 +50,7 @@ impl TaskRunner {
 
     /// Runs the testmanager
     ///
-    /// This starts all necessary async tasks and runs forever until [`SHUTDOWN_SIGNAL`] is received
+    /// This starts all necessary async tasks and runs forever until [`static@SHUTDOWN_SIGNAL`] is received
     pub fn run(mut self, runtime: Arc<Runtime>, task_manager: &TaskManager) {
         // Start IPC server used for communication with the runner
         let (test_result_sender, test_result_receiver) = mpsc::channel(1);
@@ -153,6 +154,7 @@ impl TaskRunner {
         }
     }
 
+    /// Reinitialize the entire hardware before or after a test task run
     fn reinitialize_hardware(&self, hardware: &mut HiveHardware) {
         // Reinitialize hardware
         init::init_hardware(self.db.clone(), hardware);

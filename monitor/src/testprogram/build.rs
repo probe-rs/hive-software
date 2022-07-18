@@ -1,11 +1,11 @@
-//! Handles the build process of a testinary (Assembly, Linking)
+//! Handles the build process of a testprogram (Assembly, Linking)
 use std::{path::Path, process::Command};
 
 use comm_types::hardware::Memory;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Error)]
-pub(crate) enum BuildError {
+pub enum BuildError {
     #[error("Failed to assemble the testprogram: {0}")]
     AssemblyError(String),
     #[error("Failed to link the testprogram: {0}")]

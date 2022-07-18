@@ -10,7 +10,7 @@ use hive_db::CborDb;
 
 use crate::database::{hasher, keys, MonitorDb};
 
-pub(crate) fn run_init_mode(db: Arc<MonitorDb>) {
+pub fn run_init_mode(db: Arc<MonitorDb>) {
     let users = db
         .credentials_tree
         .c_get::<Vec<DbUser>>(&keys::credentials::USERS)
