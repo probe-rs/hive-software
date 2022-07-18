@@ -1,4 +1,3 @@
-//! # Hive-Macro
 //! This crate provides all the macros used for Hive.
 use proc_macro::TokenStream;
 use proc_macro_error::proc_macro_error;

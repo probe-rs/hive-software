@@ -16,7 +16,7 @@ use crate::config::HiveConfig;
 use crate::workspace;
 use crate::{CliArgs, Commands};
 
-pub(crate) fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
+pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
     let subcommand_args = if let Commands::Test(args) = &cli_args.command {
         args
     } else {

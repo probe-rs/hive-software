@@ -1,6 +1,5 @@
-//! The http client used to make request to the testserver
+//! The http and ws clients used to send requests to the testserver
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
-use std::time::Duration;
 
 use anyhow::{bail, Result};
 use native_tls::TlsConnector;
@@ -11,14 +10,11 @@ use tungstenite::{Connector, WebSocket};
 
 use crate::models::Host;
 
-/// Timeout for http requests, reads, writes
-const HTTP_CLIENT_REQUEST_TIMEOUT: u64 = 600; // 10 min
-
 /// Get the http client to issue requests.
 ///
 /// # Panics
 /// If the client fails to build due to being unable to init the TLS backend or the system configuration cannot be loaded.
-pub(crate) fn get_http_client(accept_invalid_certs: bool) -> Client {
+pub fn get_http_client(accept_invalid_certs: bool) -> Client {
     if accept_invalid_certs {
         log::warn!(
             "Option 'accept_invalid_certs' is set to true. This might be dangerous, use with care."
@@ -37,12 +33,12 @@ pub(crate) fn get_http_client(accept_invalid_certs: bool) -> Client {
 
     Client::builder()
         .use_preconfigured_tls(tls)
-        .timeout(Duration::from_secs(HTTP_CLIENT_REQUEST_TIMEOUT))
         .build()
         .unwrap_or_else(|err| panic!("Failed to build http client: {}", err))
 }
 
-pub(crate) fn get_ws_client(
+/// Open a websocket on the provided url
+pub fn get_ws_client(
     accept_invalid_certs: bool,
     host: &Host,
     url: String,

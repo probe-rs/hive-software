@@ -1,4 +1,15 @@
 //! Functions used to manage the build workspace and build the runner with the provided probe-rs code
+//!
+//! In order to build the runner binary the application needs a workspace directory. The workspace directory is chosen dynamically according to the OS the binary is executed on.
+//! Generally the directory is created in some application cache related folder.
+//!
+//! To build the runner the runner source as well as the probe-rs testcandidate is required. The probe-rs testcandidate is copied into the workspace from the local FS path which is provided by the user.
+//! The runner source code is cloned/pulled from the [`RUNNER_SOURCE_REPO`] repository using libgit2. The workspace ensures that the correct source code version
+//! is pulled from the repository which is indicated by the [`REPO_REFERENCE`].
+//!
+//! The cli performs some manipulation on the source code in the workspace in order to prepare it for building, such as removing the probe-rs testcandidate workspace to avoid having unknown nested workspaces.
+//!
+//! After building the workspace is cleaned by removing the probe-rs testcandidate source but keeping the runner source and cargo/cross build cache in place to allow for a faster build process on the next test request
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -21,7 +32,7 @@ const REPO_REFERENCE: &str = "refs/remotes/origin/master";
 
 /// Errors which happen if the provided probe-rs project is not correct
 #[derive(Debug, Error)]
-pub(super) enum WorkspaceError {
+pub enum WorkspaceError {
     #[error("No cargofile found in probe-rs folder")]
     NoProbeRsCargoFile,
     #[error("No hive directory with testfunctions found in provided probe-rs tests folder")]
@@ -36,8 +47,8 @@ pub(super) enum WorkspaceError {
 /// If the checks succeed, the hive.rs file in the tests folder of the probe-rs project is copied into the runner for compilation.
 ///
 /// # Panics
-/// If the [`WORKSPACE_PATH`] does not exist. This means that the environment in which the monitor runs in has not been configured properly or if removing the cargofile of the provided tarball fails which is likely a permission issue.
-pub(super) fn prepare_workspace(probe_rs_project: &Path) -> Result<()> {
+/// If any FS related call fails.
+pub fn prepare_workspace(probe_rs_project: &Path) -> Result<()> {
     let project_dirs = config::get_project_dirs();
     let workspace_path = project_dirs.cache_dir();
 

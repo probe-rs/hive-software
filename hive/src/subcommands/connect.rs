@@ -6,7 +6,7 @@ use crate::models::Host;
 use crate::{CliArgs, Commands};
 
 /// Connect subcommand handler
-pub(crate) fn connect(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
+pub fn connect(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
     let subcommand_args = if let Commands::Connect(args) = cli_args.command {
         args
     } else {

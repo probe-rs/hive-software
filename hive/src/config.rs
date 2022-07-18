@@ -1,3 +1,4 @@
+//! Handles the application config file
 use std::fs::{self, File};
 
 use anyhow::Result;
@@ -7,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::Host;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
-pub(super) struct HiveConfig {
+pub struct HiveConfig {
     /// The currently stored testserver address
     pub testserver: Option<Host>,
 }

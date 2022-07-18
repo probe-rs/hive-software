@@ -1,4 +1,4 @@
-//! Data models required for config which need to implement serde traits
+//! Data models required by the app config which need to implement serde traits
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use serde::{Deserialize, Serialize};
@@ -7,7 +7,7 @@ use validators::models::Host as ValidatorHost;
 use crate::validate::ValidHost;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(super) struct Host {
+pub struct Host {
     address: Address,
     port: Option<u16>,
 }
@@ -63,7 +63,7 @@ impl From<ValidHost> for Host {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(super) enum Address {
+pub enum Address {
     IPv4(Ipv4Addr),
     IPv6(Ipv6Addr),
     Domain(String),

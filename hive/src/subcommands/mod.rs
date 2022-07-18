@@ -1,3 +1,4 @@
+//! Subcommand logic
 use anyhow::{anyhow, bail, Result};
 use comm_types::hardware::Capabilities;
 use dialoguer::theme::ColorfulTheme;
@@ -8,9 +9,9 @@ use crate::config::HiveConfig;
 use crate::models::Host;
 use crate::{client, validate, CliArgs};
 
-pub(crate) mod connect;
-pub(crate) mod list;
-pub(crate) mod test;
+pub mod connect;
+pub mod list;
+pub mod test;
 
 /// Try to get the [`Capabilities`] of the provided testserver.
 ///
