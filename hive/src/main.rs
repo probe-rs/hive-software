@@ -57,7 +57,7 @@ enum Commands {
 struct Connect {
     /// The testserver address (either IP or domain)
     #[clap(parse(try_from_str=validate::ip_or_url))]
-    address: ValidHost,
+    address: Option<ValidHost>,
 }
 
 #[derive(Debug, Args)]

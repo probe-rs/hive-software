@@ -34,11 +34,16 @@
 - [X] Replace task manager busy loop with more efficient implementation
 - [X] Fix test endpoint tests
 - [X] Shutdown might hang if hive cli is stopped while the websocket connection is established. Probably something wrong with detecting a broken/closed websocket which should lead to abortion of a test task.
+- [ ] Link binaries of the active Testprogram into a ramdisk to avoid killing the SD-Card
+- [ ] Currently the Address range determining functions compare based on the address range but should compare only the start of the range
+- [ ] `TaskRunner` contains duplicate logic for hardware reinitialization + hardware reinit function resyncs testprogram binaries for no reason
 
 ## Runner
 - [X] Add a proper shutdown procedure 
 - [ ] ~~Runner assumes data desync if not all connected probes have been assigned to a testchannel. This should be considered fine and not cause a data desync~~ -> Related to JLINK not showing S/N if listed during use
 - [ ] Modify backtrace to actually show correct backtrace of the test function
+- [ ] Current Implementation of caching Test results does not make much sense. The global results vector can be removed and a vector can be directly created from the mpsc receiver once all test threads have completed. 
+- [ ] Add Test-timeout to avoid having testfunctions running forever
 
 ## Hive Backend UI
 - [X] Current appollo retrylink is useless as it does not call fetch function to change headers. Write own retry function which tries to append csrf header on each retry
