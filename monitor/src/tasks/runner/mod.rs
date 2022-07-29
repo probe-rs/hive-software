@@ -102,22 +102,7 @@ impl TaskRunner {
                     TaskType::ReinitTask(reinit_task) => {
                         let mut hardware = HARDWARE.lock().unwrap();
 
-                        // Check if a reinitialization is required due to changes to the hardware data in the DB or changes to testprogram data, otherwise skip
-                        let mut hardware_data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
-                        let mut testprogram_data_changed =
-                            ACTIVE_TESTPROGRAM_CHANGED.blocking_lock();
-
-                        if !*hardware_data_changed && *testprogram_data_changed {
-                            testprogram::sync_binaries(self.db.clone(), &hardware);
-                            *testprogram_data_changed = false;
-                        } else if *hardware_data_changed {
-                            self.reinitialize_hardware(&mut hardware);
-                            *hardware_data_changed = false;
-                            *testprogram_data_changed = false;
-                        }
-
-                        drop(hardware_data_changed);
-                        drop(testprogram_data_changed);
+                        self.reinitialize_hardware(&mut hardware);
 
                         reinit_task.task_complete_sender.send(Ok(())).expect("Failed to send reinit task complete to task creator. Please ensure that the oneshot channel is not dropped on the task creator for the duration of the reinitialization.")
                     }
@@ -154,28 +139,38 @@ impl TaskRunner {
         }
     }
 
-    /// Reinitialize the entire hardware before or after a test task run
+    /// Reinitialize the entire hardware before or after a test task run, if it was changed.
+    ///
+    /// Also reinitializes the active testprogram if testprograms have been changed or the hardware has been changed.
     fn reinitialize_hardware(&self, hardware: &mut HiveHardware) {
-        // Reinitialize hardware
-        init::init_hardware(self.db.clone(), hardware);
+        // Check if a reinitialization is required due to changes to the hardware data or changes to testprogram data, otherwise skip
+        let mut hardware_data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
+        let mut testprogram_data_changed = ACTIVE_TESTPROGRAM_CHANGED.blocking_lock();
 
-        // Reinitialize probes
-        for testchannel in hardware.testchannels.iter() {
-            let testchannel = testchannel.lock().unwrap();
-            testchannel.reinitialize_probe().unwrap_or_else(|err|{
+        if *hardware_data_changed {
+            // Reinitialize hardware
+            init::init_hardware(self.db.clone(), hardware);
+
+            // Reinitialize probes
+            for testchannel in hardware.testchannels.iter() {
+                let testchannel = testchannel.lock().unwrap();
+                testchannel.reinitialize_probe().unwrap_or_else(|err|{
                 log::warn!(
                     "Failed to reinitialize the debug probe connected to {}: {}. Skipping the remaining tests on this Testchannel.",
                     testchannel.get_channel(),
                     err
                 )
             })
+            }
         }
 
-        // Rebuild and link testbinaries
-        testprogram::sync_binaries(self.db.clone(), hardware);
+        if *testprogram_data_changed || *hardware_data_changed {
+            // Rebuild and link testbinaries
+            testprogram::sync_binaries(self.db.clone(), hardware);
 
-        // Reflash testprograms
-        flash::flash_testbinaries(self.db.clone(), hardware);
+            // Reflash testprograms
+            flash::flash_testbinaries(self.db.clone(), hardware);
+        }
     }
 
     /// Prepare the test environment, run the tests and return the received result
@@ -191,28 +186,10 @@ impl TaskRunner {
         fs::set_permissions(RUNNER_BINARY_PATH, fs::Permissions::from_mode(0o777))?;
 
         // Check if a reinitialization is required due to changes to the hardware data in the DB or changes to the testprogram
-        let mut hardware_data_changed = HARDWARE_DB_DATA_CHANGED.blocking_lock();
-        let mut testprogram_data_changed = ACTIVE_TESTPROGRAM_CHANGED.blocking_lock();
-
-        if !*hardware_data_changed && *testprogram_data_changed {
-            status_sender.blocking_send(TaskRunnerMessage::Status(
-                "Building testbinaries".to_owned(),
-            ))?;
-            log::info!("Building testbinaries");
-            testprogram::sync_binaries(self.db.clone(), hardware);
-            *testprogram_data_changed = false;
-        } else if *hardware_data_changed {
-            status_sender.blocking_send(TaskRunnerMessage::Status(
-                "Reinitializing hardware".to_owned(),
-            ))?;
-            log::info!("Reinitializing hardware");
-            self.reinitialize_hardware(hardware);
-            *hardware_data_changed = false;
-            *testprogram_data_changed = false;
-        }
-
-        drop(hardware_data_changed);
-        drop(testprogram_data_changed);
+        status_sender.blocking_send(TaskRunnerMessage::Status(
+            "Reinitializing hardware".to_owned(),
+        ))?;
+        self.reinitialize_hardware(hardware);
 
         // Unlock probes
         for testchannel in hardware.testchannels.iter() {
@@ -231,6 +208,9 @@ impl TaskRunner {
         let runner_output = Command::new(RUNNER_BINARY_PATH).output().expect(
             "Failed to run the runner. This is an implementation error or a configuration issue.",
         );
+
+        // Set hardware changed flag, as runner may leave hardware in unknown state
+        *HARDWARE_DB_DATA_CHANGED.blocking_lock() = true;
 
         // Try to receive a value as the runner command blocks until the runner is finished. If no message is received by then something went wrong
         status_sender.blocking_send(TaskRunnerMessage::Status("Collecting results".to_owned()))?;

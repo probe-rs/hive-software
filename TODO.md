@@ -36,7 +36,7 @@
 - [X] Shutdown might hang if hive cli is stopped while the websocket connection is established. Probably something wrong with detecting a broken/closed websocket which should lead to abortion of a test task.
 - [ ] Link binaries of the active Testprogram into a ramdisk to avoid killing the SD-Card
 - [ ] Currently the Address range determining functions compare based on the address range but should compare only the start of the range
-- [ ] `TaskRunner` contains duplicate logic for hardware reinitialization + hardware reinit function resyncs testprogram binaries for no reason
+- [X] `TaskRunner` contains duplicate logic for hardware reinitialization + hardware reinit function resyncs testprogram binaries for no reason
 
 ## Runner
 - [X] Add a proper shutdown procedure 
