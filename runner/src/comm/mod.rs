@@ -1,11 +1,11 @@
 //! Handles all ipc communications
 //!
 //! IPC is done using HTTP with CBOR payloads
-use std::mem;
 use std::path::Path;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::{io, pin::Pin};
+use std::{io, vec};
 
 use axum::http::Uri;
 use comm_types::defines::DefineRegistry;
@@ -13,10 +13,9 @@ use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
 use comm_types::test::{TestResult, TestResults, TestRunStatus};
 use hyper::client::connect::{Connected, Connection};
 use hyper::{Body, Client};
-use lazy_static::lazy_static;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::oneshot::Sender;
-use tokio::sync::{Mutex, Notify};
+use tokio::sync::Notify;
 use tokio::{net::UnixStream, sync::mpsc::Receiver};
 
 use crate::SHUTDOWN_SIGNAL;
@@ -26,11 +25,6 @@ mod retry;
 
 /// The location of the socketfile used for communication between runner and monitor
 const SOCKET_PATH: &str = "./data/runner/ipc_sock";
-
-lazy_static! {
-    /// Test result buffer used to buffer all test results until every test has been completed
-    static ref TEST_RESULTS: Mutex<Vec<TestResult>> = Mutex::new(vec![]);
-}
 
 /// Messages which are passed between the [`std::thread`] and the tokio runtime
 #[derive(Debug)]
@@ -82,36 +76,11 @@ impl Connection for IpcConnection {
 
 /// This function is the async entrypoint of tokio. All ipc from and to the monitor application are done here
 pub async fn ipc(
-    mut receiver: Receiver<Message>,
+    mut test_result_receiver: Receiver<Message>,
     init_data_sender: Sender<(HiveProbeData, HiveTargetData, DefineRegistry)>,
     notify_results_ready: Arc<Notify>,
 ) {
     let socket_path = Path::new(SOCKET_PATH);
-
-    let mpsc_handler = tokio::spawn(async move {
-        let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
-
-        loop {
-            tokio::select! {
-                msg = receiver.recv() => {
-                    if let Some(msg) = msg {
-                        match msg {
-                            Message::TestResult(result) => {
-                                let mut results = TEST_RESULTS.lock().await;
-                                results.push(result);
-                            }
-                        }
-                    }else{
-                        break;
-                    }
-                }
-                result = shutdown_signal.recv() => {
-                    result.expect("Failed to receive global shutdown signal");
-                    break;
-                }
-            }
-        }
-    });
 
     let ipc_handler = tokio::spawn(async move {
         let connector = tower::service_fn(move |_: Uri| {
@@ -177,12 +146,22 @@ pub async fn ipc(
                 }
             }
 
-            let mut results = TEST_RESULTS.lock().await;
+            let mut results = vec![];
+
+            // collect Test Results from channel cache
+            while let Some(msg) = test_result_receiver.recv().await {
+                match msg {
+                    Message::TestResult(result) => {
+                        results.push(result);
+                    }
+                }
+            }
+
             retry::try_request(
                 client_copy,
                 requests::post_test_results(TestResults {
                     status: TestRunStatus::Ok,
-                    results: Some(mem::take(&mut *results)),
+                    results: Some(results),
                     error: None,
                 }),
             )
@@ -200,5 +179,4 @@ pub async fn ipc(
     });
 
     ipc_handler.await.unwrap();
-    mpsc_handler.await.unwrap();
 }
