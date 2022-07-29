@@ -1,8 +1,9 @@
 //! Handles the build process of a testprogram (Assembly, Linking)
 use std::{path::Path, process::Command};
 
-use comm_types::hardware::Memory;
 use thiserror::Error;
+
+use super::MemoryStart;
 
 #[derive(Debug, Clone, Error)]
 pub enum BuildError {
@@ -66,7 +67,10 @@ pub(super) fn assemble_binary_riscv(program_path: &Path) -> Result<(), BuildErro
 /// The final elf is stored in the following format, to distinguish it between other memory address mappings:
 ///
 /// main_`flash start address`_`ram start address`.elf
-pub(super) fn link_binary_arm(program_path: &Path, arm_address: &Memory) -> Result<(), BuildError> {
+pub(super) fn link_binary_arm(
+    program_path: &Path,
+    arm_start_address: &MemoryStart,
+) -> Result<(), BuildError> {
     // Check if object file exists
     if !program_path.join("main.o").exists() {
         return Err(BuildError::ObjectFileNotFound);
@@ -78,9 +82,9 @@ pub(super) fn link_binary_arm(program_path: &Path, arm_address: &Memory) -> Resu
             "elf32-littlearm",
             "main.o",
             "-o",
-            &format!("main_{:#x}_{:#x}.elf", arm_address.nvm.start, arm_address.ram.start),
-            &format!("{}{:#x}", "-Ttext=", arm_address.nvm.start),
-            &format!("{}{:#x}", "-Tdata=", arm_address.ram.start),
+            &format!("main_{:#x}_{:#x}.elf", arm_start_address.nvm, arm_start_address.ram),
+            &format!("{}{:#x}", "-Ttext=", arm_start_address.nvm),
+            &format!("{}{:#x}", "-Tdata=", arm_start_address.ram),
         ])
         .current_dir(program_path)
         .output()
@@ -108,7 +112,7 @@ pub(super) fn link_binary_arm(program_path: &Path, arm_address: &Memory) -> Resu
 /// main_`flash start address`_`ram start address`.elf
 pub(super) fn link_binary_riscv(
     program_path: &Path,
-    riscv_address: &Memory,
+    riscv_start_address: &MemoryStart,
 ) -> Result<(), BuildError> {
     // Check if object file exists
     if !program_path.join("main.o").exists() {
@@ -119,13 +123,13 @@ pub(super) fn link_binary_riscv(
         .args([
             "main.o",
             "-o",
-            &format!("main_{:#x}_{:#x}.elf", riscv_address.nvm.start, riscv_address.ram.start),
+            &format!("main_{:#x}_{:#x}.elf", riscv_start_address.nvm, riscv_start_address.ram),
             "-b",
             "elf32-littleriscv",
             "-Ttext",
-            &format!("{:#x}", riscv_address.nvm.start),
+            &format!("{:#x}", riscv_start_address.nvm),
             "-Tdata",
-            &format!("{:#x}", riscv_address.ram.start),
+            &format!("{:#x}", riscv_start_address.ram),
         ])
         .current_dir(program_path)
         .output()

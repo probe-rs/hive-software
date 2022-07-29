@@ -66,6 +66,21 @@ pub enum Architecture {
     Riscv,
 }
 
+/// Like [`Memory`] but only contains start addresses of the range
+struct MemoryStart {
+    pub nvm: u64,
+    pub ram: u64,
+}
+
+impl From<&Memory> for MemoryStart {
+    fn from(memory: &Memory) -> Self {
+        Self {
+            nvm: memory.nvm.start,
+            ram: memory.ram.start,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, SimpleObject)]
 pub struct Testprogram {
     name: String,
@@ -137,12 +152,32 @@ impl Testprogram {
         self.testprogram_arm.assemble_binary()?;
         self.testprogram_riscv.assemble_binary()?;
 
-        for address in addresses.arm.iter() {
-            self.testprogram_arm.link_binary(address)?;
+        let mut arm_start_addresses: Vec<MemoryStart> = vec![];
+
+        addresses.arm.iter().for_each(|address| {
+            if !arm_start_addresses.iter().any(|start_address| {
+                address.nvm.start == start_address.nvm && address.ram.start == start_address.ram
+            }) {
+                arm_start_addresses.push(address.into());
+            }
+        });
+
+        let mut riscv_start_addresses: Vec<MemoryStart> = vec![];
+
+        addresses.riscv.iter().for_each(|address| {
+            if !riscv_start_addresses.iter().any(|start_address| {
+                address.nvm.start == start_address.nvm && address.ram.start == start_address.ram
+            }) {
+                riscv_start_addresses.push(address.into());
+            }
+        });
+
+        for arm_start_address in arm_start_addresses.iter() {
+            self.testprogram_arm.link_binary(arm_start_address)?;
         }
 
-        for address in addresses.riscv.iter() {
-            self.testprogram_riscv.link_binary(address)?;
+        for riscv_start_address in riscv_start_addresses.iter() {
+            self.testprogram_riscv.link_binary(riscv_start_address)?;
         }
 
         Ok(())
@@ -326,7 +361,7 @@ impl TestprogramArchitecture {
     /// Links the binary according to the provided memory address range and saves the resulting elf file to disk
     ///
     /// If assembly fails the status of this testprogram is set to [`TestprogramStatus::CompileFailure`] and the error forwarded
-    pub fn link_binary(&mut self, address_range: &Memory) -> Result<(), BuildError> {
+    pub fn link_binary(&mut self, address_range: &MemoryStart) -> Result<(), BuildError> {
         let link_result = match self.architecture {
             Architecture::Arm => build::link_binary_arm(&self.path, address_range),
             Architecture::Riscv => build::link_binary_riscv(&self.path, address_range),
