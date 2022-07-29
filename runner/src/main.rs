@@ -191,9 +191,9 @@ fn run(
         }
     }
 
-    // Disable panic printing, once all testchannels are ready to run the testfunctions
+    // Set the custom test thread panic hook, once all testchannels are ready to run the testfunctions
     panic_hook_sync.wait();
-    let standard_hook = test::disable_panic_print();
+    let standard_hook = test::set_test_fn_panic_hook();
     panic_hook_sync.wait();
 
     // drop mpsc sender instance owned by main thread to quit the communications loop once all testfunctions have finished

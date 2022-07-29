@@ -1,4 +1,5 @@
 //! Handles the running and reporting of the tests
+use std::cell::Cell;
 use std::panic::{self, AssertUnwindSafe, PanicInfo};
 use std::sync::Arc;
 
@@ -27,6 +28,13 @@ lazy_static! {
 
         tests
     };
+}
+
+thread_local! {
+    /// Stores the last backtrace of an occurred Panic in the thread.
+    ///
+    /// This is used by the test threads to attach a proper backtrace to each panicked test result
+    static BACKTRACE: Cell<String> = Cell::new(String::new());
 }
 
 use crate::comm::Message;
@@ -91,8 +99,10 @@ pub fn run_tests(
                     &target_info.clone().into(),
                     &define_registry,
                 );
+
+                return Backtrace::new();
             }) {
-                Ok(_) => {
+                Ok(backtrace) => {
                     let status = match test.should_panic {
                         true => TestStatus::Failed("Test function did not panic.".to_owned()),
                         false => TestStatus::Passed,
@@ -100,7 +110,7 @@ pub fn run_tests(
 
                     let result = TestResult {
                         status,
-                        backtrace: None,
+                        backtrace: Some(format!("{:?}", backtrace)),
                         should_panic: test.should_panic,
                         test_name: test.name.to_owned(),
                         module_path: test.module_path.to_owned(),
@@ -114,7 +124,7 @@ pub fn run_tests(
                         .unwrap()
                 }
                 Err(err) => {
-                    let backtrace = Backtrace::new();
+                    let backtrace = BACKTRACE.with(|bt| bt.take());
 
                     let cause = match err.downcast::<String>() {
                         Ok(err) => *err,
@@ -186,20 +196,17 @@ pub fn run_tests(
     })
 }
 
-/// Disables the printing of panics in this program, returns the previously used panic hook
-pub fn disable_panic_print() -> Box<dyn for<'r, 's> Fn(&'r PanicInfo<'s>) + Send + Sync> {
+/// Sets a custom panic hook to enable backtrace functionality for testfunctions.
+///
+/// Returns the previously used panic hook.
+pub fn set_test_fn_panic_hook() -> Box<dyn for<'r, 's> Fn(&'r PanicInfo<'s>) + Send + Sync> {
     let standard_hook = panic::take_hook();
-    panic::set_hook(Box::new(|info| {
+    panic::set_hook(Box::new(|_| {
         let backtrace = Backtrace::new();
 
-        log::error!(
-            "Panic info:\n{:?},\n{:?},\n{:?}",
-            info.payload(),
-            info.to_string(),
-            info.location()
-        );
-
-        log::error!("Backtrace:\n{:?}", backtrace);
+        BACKTRACE.with(|bt| {
+            bt.set(format!("{:?}", backtrace));
+        });
     }));
 
     standard_hook
