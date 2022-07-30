@@ -210,6 +210,7 @@ fn print_test_results(results: TestResults) {
                                 table.add_row(row!["", test_fn_name, bFgr-> "passed"]);
                             }
                             TestStatus::Failed(reason) => {
+                                println!("{}", &result.backtrace.as_ref().unwrap());
                                 table.add_row(row!["", test_fn_name, bFrr-> "failed"]);
                                 table.add_row(row!["", iH2->pad_string(2, &reason)]);
                                 table.add_row(
