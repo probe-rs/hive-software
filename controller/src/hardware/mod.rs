@@ -123,8 +123,7 @@ impl HiveHardware {
             let mut found_probes_idx = 0;
             let mut found_probe = false;
             while found_probes_idx < found_probes.len() {
-                if found_probes[found_probes_idx].identifier == probe_info.identifier
-                    && found_probes[found_probes_idx].vendor_id == probe_info.vendor_id
+                if found_probes[found_probes_idx].vendor_id == probe_info.vendor_id
                     && found_probes[found_probes_idx].product_id == probe_info.product_id
                     && found_probes[found_probes_idx].serial_number == probe_info.serial_number
                     && found_probes[found_probes_idx].hid_interface == probe_info.hid_interface

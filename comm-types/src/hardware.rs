@@ -134,7 +134,7 @@ impl std::fmt::Debug for ProbeInfo {
             self.product_id,
             self.serial_number
                 .clone()
-                .map_or("".to_owned(), |v| format!("Serial: {}, ", v)),
+                .map_or("".to_owned(), |v| format!("Serial: {}", v)),
         )
     }
 }
