@@ -162,6 +162,8 @@ impl TaskRunner {
                 )
             })
             }
+
+            *hardware_data_changed = false;
         }
 
         if *testprogram_data_changed || *hardware_data_changed {
@@ -170,6 +172,8 @@ impl TaskRunner {
 
             // Reflash testprograms
             flash::flash_testbinaries(self.db.clone(), hardware);
+
+            *testprogram_data_changed = false;
         }
     }
 

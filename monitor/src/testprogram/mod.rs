@@ -67,7 +67,7 @@ pub enum Architecture {
 }
 
 /// Like [`Memory`] but only contains start addresses of the range
-struct MemoryStart {
+pub struct MemoryStart {
     pub nvm: u64,
     pub ram: u64,
 }

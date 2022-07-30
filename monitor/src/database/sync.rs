@@ -53,6 +53,7 @@ pub(crate) fn sync_tss_probe_data(db: Arc<MonitorDb>, hardware: &HiveHardware) {
 
                 let probe_info = testchannel.get_probe_info();
                 if probe_info.is_none() {
+                    probe_data[idx] = ProbeState::NotConnected;
                     continue;
                 }
 

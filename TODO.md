@@ -41,7 +41,7 @@
 ## Runner
 - [X] Add a proper shutdown procedure 
 - [ ] ~~Runner assumes data desync if not all connected probes have been assigned to a testchannel. This should be considered fine and not cause a data desync~~ -> Related to JLINK not showing S/N if listed during use
-- [ ] Modify backtrace to actually show correct backtrace of the test function
+- [X] Modify backtrace to actually show correct backtrace of the test function
 - [X] Current Implementation of caching Test results does not make much sense. The global results vector can be removed and a vector can be directly created from the mpsc receiver once all test threads have completed. 
 - [ ] Add Test-timeout to avoid having testfunctions running forever
 
