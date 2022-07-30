@@ -138,7 +138,7 @@ pub fn run_tests(
 
                     let result = TestResult {
                         status,
-                        backtrace: Some(format!("{:?}", backtrace)),
+                        backtrace: Some(backtrace),
                         should_panic: test.should_panic,
                         test_name: test.name.to_owned(),
                         module_path: test.module_path.to_owned(),
