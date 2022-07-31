@@ -26,7 +26,7 @@
 - [ ] Add possibility to filter targets and probes on a test request which would allow for only testing the requested targets
 - [ ] Implementation of testprogram status is not sound, there should be a better solution for checking user input before handling it as actual testprogram
 - [ ] ~~Determine wheter it is necessary to sandbox the build process of the runner, as build scripts of dependencies might contain malicious code~~
-- [ ] Execute runner in a VM, determine best ways to make VM access hardware securely
+- [X] Execute runner in a ~~VM~~ Sandbox, determine best ways to make ~~VM~~ Sandbox access hardware securely
 - [X] Something is not quite correct in the way WS tickets for test tasks are handled, as some test task WS connection requests yield 401 HTTP status codes with tickets which should be correct
 - [ ] Add tests for new testprogram mutations
 - [X] Move IPC socket file into data folder of the program
@@ -43,7 +43,7 @@
 - [ ] ~~Runner assumes data desync if not all connected probes have been assigned to a testchannel. This should be considered fine and not cause a data desync~~ -> Related to JLINK not showing S/N if listed during use
 - [X] Modify backtrace to actually show correct backtrace of the test function
 - [X] Current Implementation of caching Test results does not make much sense. The global results vector can be removed and a vector can be directly created from the mpsc receiver once all test threads have completed. 
-- [ ] Add Test-timeout to avoid having testfunctions running forever
+- [X] Add Test-timeout to avoid having testfunctions running forever
 
 ## Hive Backend UI
 - [X] Current appollo retrylink is useless as it does not call fetch function to change headers. Write own retry function which tries to append csrf header on each retry

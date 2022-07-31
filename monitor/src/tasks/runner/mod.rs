@@ -1,17 +1,26 @@
 //! The task runner receives tasks from the [`TaskManager`] and executes them to completion.
 //!
 //! This is where any task related initialization and handling happens.
-use std::fs;
+use std::error::Error;
+use std::fs::{self, OpenOptions};
+use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
-use std::process::Command;
+use std::os::unix::prelude::{AsRawFd, ExitStatusExt};
+use std::process::{Command, Stdio};
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Result;
 use comm_types::test::{TaskRunnerMessage, TestResults, TestRunError, TestRunStatus};
-use controller::hardware::HiveHardware;
+use command_fds::{CommandFdExt, FdMapping};
+use controller::hardware::{reset_probe_usb, HiveHardware};
+use lazy_static::lazy_static;
+use probe_rs::Probe;
 use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver};
+use users::{get_group_by_name, get_user_by_name};
+use wait_timeout::ChildExt;
 
 use crate::database::MonitorDb;
 use crate::{
@@ -25,13 +34,43 @@ mod ipc;
 
 /// Path to where the received runner binary is stored
 const RUNNER_BINARY_PATH: &str = "./data/runner/runner";
+/// Runner Binary max execution time before it is killed
+const RUNNER_BINARY_TIMEOUT_SEC: u64 = 300;
+/// Path to the runner seccomp BPF filter file
+const RUNNER_SECCOMP_FILTER_PATH: &str = "./data/seccomp/runner_seccomp.bpf";
+/// Name of the Hive group used to get access to hive specific functionalities
+const HIVE_GROUP_NAME: &str = "hive";
+/// Username of the user which executes the runner in the sandbox
+const RUNNER_USER_NAME: &str = "runner";
+
+lazy_static! {
+    static ref HIVE_GID: u32 = {
+        if let Some(group) = get_group_by_name(HIVE_GROUP_NAME) {
+            group.gid()
+        } else {
+            panic!("Failed to find a group named '{}' on this system. This user group is required by the monitor. Is the system setup properly?", HIVE_GROUP_NAME);
+        }
+    };
+    static ref RUNNER_UID: u32 = {
+        if let Some(user) = get_user_by_name(RUNNER_USER_NAME) {
+            user.uid()
+        } else {
+            panic!("Failed to find a user named '{}' on this system. This user is required by the monitor. Is the system setup properly?", RUNNER_USER_NAME);
+        }
+    };
+}
 
 #[derive(Debug, Error)]
 pub(super) enum TaskRunnerError {
     #[error("The testserver is shutting down and the test request was discarded")]
     Shutdown,
-    #[error("Failed to receive the test results from the runner\n\n Runner output: \n{0}")]
+    #[error("Failed to receive the test results from the runner\n\nRunner output: \n{0}")]
     RunnerError(String),
+    #[error(
+        "Runner binary took more than {} seconds to run. Is it deadlocked?",
+        RUNNER_BINARY_TIMEOUT_SEC
+    )]
+    RunnerTimeout,
 }
 
 /// The task runner of the monitor accepts external test tasks and returns the test results to the requesting party
@@ -58,7 +97,7 @@ impl TaskRunner {
         runtime.spawn(ipc::ipc_server(self.db.clone(), test_result_sender));
 
         // Start task receiver
-        self.run_tasks(runtime, task_manager);
+        self.run_tasks(runtime, task_manager)
     }
 
     /// Receives and runs tasks
@@ -154,11 +193,23 @@ impl TaskRunner {
             // Reinitialize probes
             for testchannel in hardware.testchannels.iter() {
                 let testchannel = testchannel.lock().unwrap();
+
+                // Reset debug probe, if available
+                if let Some(probe_info) = testchannel.get_probe_info() {
+                    if let Err(err) = reset_probe_usb(&probe_info) {
+                        log::warn!(
+                            "Failed to reset usb interface of debug probe {:?}: {}",
+                            probe_info,
+                            err
+                        );
+                    }
+                }
+
                 testchannel.reinitialize_probe().unwrap_or_else(|err|{
                 log::warn!(
-                    "Failed to reinitialize the debug probe connected to {}: {}. Skipping the remaining tests on this Testchannel.",
+                    "Failed to reinitialize the debug probe connected to {}: {}. Skipping it for any subsequent monitor operations until reinitialization.",
                     testchannel.get_channel(),
-                    err
+                    err,
                 )
             })
             }
@@ -202,19 +253,60 @@ impl TaskRunner {
             testchannel.unlock_probe();
         }
 
-        // TODO later this should start up the vm and run the runner there
+        // Get runner seccomp FD to use bubblewrap sandbox with seccomp
+        let runner_seccomp_bpf = OpenOptions::new().read(true).write(false).open(RUNNER_SECCOMP_FILTER_PATH).expect("Failed to open runner seccomp rule file. This is likely caused by a configuration issue or a corrupted installation.");
 
-        // Start runner and execute tests
+        // Start runner in sandbox and execute tests
         status_sender.blocking_send(TaskRunnerMessage::Status(
-            "Starting runner and executing tests".to_owned(),
+            "Starting runner and execute tests".to_owned(),
         ))?;
-        log::info!("Starting runner and executing tests");
-        let runner_output = Command::new(RUNNER_BINARY_PATH).output().expect(
-            "Failed to run the runner. This is an implementation error or a configuration issue.",
-        );
+        log::info!("Starting runner in sandbox and execute tests");
+        let mut child = Command::new("bwrap").args([
+            "--die-with-parent", "--new-session",
+            // Add runner seccomp filter
+            "--seccomp", "25",
+            // Unshare all namespaces and run under restricted user/group id
+            "--unshare-all", "--uid", &RUNNER_UID.to_string(), "--gid", &HIVE_GID.to_string(),
+            // Bind library folder for usage of shared objects used by runner binary
+            "--ro-bind", "/lib/", "/lib/",
+            "--ro-bind", "/usr/lib/debug/", "/usr/lib/debug/",
+            // Bind required ressources in /etc
+            "--ro-bind", "/etc/localtime", "/etc/localtime",
+            "--ro-bind", "/etc/ld.so.cache", "/etc/ld.so.cache",
+            "--ro-bind-try", "/etc/ld.so.preload", "/etc/ld.so.preload",
+            // Bind required ressources in /proc
+            "--proc", "/proc", 
+            "--ro-bind", "/proc/cpuinfo", "/proc/cpuinfo",
+            // Bind required devices
+            "--dev-bind", "/dev/i2c-1", "/dev/i2c-1",
+            "--dev-bind", "/dev/bus/usb/001/", "/dev/bus/usb/001/",
+            "--dev-bind", "/dev/bus/usb/002/", "/dev/bus/usb/002/",
+            "--ro-bind", "/sys/bus/usb/devices/", "/sys/bus/usb/devices/",
+            "--ro-bind", "/sys/devices/platform/scb/fd500000.pcie/pci0000:00/0000:00:00.0/0000:01:00.0/usb1/", "/sys/devices/platform/scb/fd500000.pcie/pci0000:00/0000:00:00.0/0000:01:00.0/usb1/",
+            "--ro-bind", "/sys/devices/platform/scb/fd500000.pcie/pci0000:00/0000:00:00.0/0000:01:00.0/usb2/", "/sys/devices/platform/scb/fd500000.pcie/pci0000:00/0000:00:00.0/0000:01:00.0/usb2/",
+            "--ro-bind", "/run/udev/control", "/run/udev/control",
+            "--ro-bind", "/run/udev/data/", "/run/udev/data/",
+            "--ro-bind", "/sys/class/hidraw", "/sys/class/hidraw",
+            // Bind log as rw so runner can save logs
+            "--bind", "./data/logs/", "./data/logs/",
+            // Bind runner dir to get access to ipc and runner executable
+            "--ro-bind", "./data/runner/", "./data/runner/",
+            RUNNER_BINARY_PATH
+            ]).fd_mappings(vec![
+                FdMapping { parent_fd: runner_seccomp_bpf.as_raw_fd(), child_fd: 25 },
+                ]).unwrap()
+            .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("Failed to run bubblewrap sandbox with runner. Is the bwrap command accessible to the application?");
 
         // Set hardware changed flag, as runner may leave hardware in unknown state
         *HARDWARE_DB_DATA_CHANGED.blocking_lock() = true;
+
+        if let None = child.wait_timeout(Duration::from_secs(RUNNER_BINARY_TIMEOUT_SEC))? {
+            // Kill runner process due to timeout
+            let _ = child.kill();
+            let _ = child.wait();
+
+            return Err(TaskRunnerError::RunnerTimeout.into());
+        }
 
         // Try to receive a value as the runner command blocks until the runner is finished. If no message is received by then something went wrong
         status_sender.blocking_send(TaskRunnerMessage::Status("Collecting results".to_owned()))?;
@@ -222,11 +314,31 @@ impl TaskRunner {
         match self.test_result_receiver.as_mut().unwrap().try_recv() {
             Ok(results) => Ok(results),
             Err(err) => match err {
-                mpsc::error::TryRecvError::Empty => Err(TaskRunnerError::RunnerError(
-                    String::from_utf8(runner_output.stdout)
-                        .unwrap_or_else(|_| "Could not parse runner output to utf8".to_owned()),
-                )
-                .into()),
+                mpsc::error::TryRecvError::Empty => {
+                    let mut runner_stdout = vec![];
+                    child
+                        .stdout
+                        .take()
+                        .unwrap()
+                        .read_to_end(&mut runner_stdout)?;
+
+                    let mut runner_stderr = vec![];
+                    child
+                        .stderr
+                        .take()
+                        .unwrap()
+                        .read_to_end(&mut runner_stderr)?;
+
+                    Err(TaskRunnerError::RunnerError(format!(
+                        "stdout: {}\n\nstderr: {}",
+                        String::from_utf8(runner_stdout).unwrap_or_else(|_| {
+                            "Could not parse runner output to utf8".to_owned()
+                        }),
+                        String::from_utf8(runner_stderr)
+                            .unwrap_or_else(|_| "Could not parse runner output to utf8".to_owned())
+                    ))
+                    .into())
+                }
                 mpsc::error::TryRecvError::Disconnected => {
                     // This might be a bug or simply a shutdown operation
                     log::warn!("Testresult sender part has been dropped, stopping test manager");

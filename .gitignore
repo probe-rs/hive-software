@@ -2,3 +2,4 @@
 /probe-rs-testcandidate
 /ws-manager
 deploy.sh
+bubblewrap.sh

@@ -45,7 +45,9 @@ base64 = "0.13"
 ring = "0.16"
 crossbeam-utils = "0.8"
 cached = "0.34"
-
+wait-timeout = "0.2"
+command-fds = "0.2"
+users = "0.11"
 
 [dev-dependencies]
 hive-db = { path = "../hive-db/", features = ["test"] }
