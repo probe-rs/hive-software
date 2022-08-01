@@ -88,6 +88,7 @@ fn app(db: Arc<MonitorDb>, test_result_sender: Sender<TestResults>) -> Router {
         .route("/data/probe", get(handlers::probe_handler))
         .route("/data/target", get(handlers::target_handler))
         .route("/data/defines", get(handlers::define_handler))
+        .route("/data/options", get(handlers::test_options_handler))
         .route(
             "/runner/results",
             post(handlers::test_result_handler).layer(Extension(test_result_sender)),
@@ -426,6 +427,11 @@ mod tests {
 
     #[tokio::test]
     async fn define_endpoint() {
+        todo!()
+    }
+
+    #[tokio::test]
+    async fn test_options_endpoint() {
         todo!()
     }
 }

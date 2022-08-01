@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::process;
 
 use anyhow::Result;
-use clap::{Args, Parser, Subcommand};
+use clap::{ArgGroup, Args, Parser, Subcommand};
 use log::Level;
 
 mod client;
@@ -45,14 +45,13 @@ pub struct CliArgs {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// Test your probe-rs code
     Test(Test),
-    /// Connect to a Hive-Testserver
     Connect(Connect),
     /// List available targets and probes on connected testserver
     List,
 }
 
+/// Connect to a Hive-Testserver
 #[derive(Debug, Args)]
 struct Connect {
     /// The testserver address (either IP or domain)
@@ -60,12 +59,40 @@ struct Connect {
     address: Option<ValidHost>,
 }
 
+/// Test your probe-rs code
+///
+/// Filtering targets and probes supports the following wildcard characters:
+///
+/// '*' match any characters indefinitely,
+/// '?' match any characters on a single spot
+///
+/// Additionally x in target names is automatically treated as wildcard.
 #[derive(Debug, Args)]
+#[clap(group(
+    ArgGroup::new("target-filter")
+        .required(false)
+        .args(&["include-targets", "exclude-targets"]),
+))]
+#[clap(group(
+    ArgGroup::new("probe-filter")
+        .required(false)
+        .args(&["include-probes", "exclude-probes"]),
+))]
 struct Test {
     /// Path to the probe-rs project root (equals to current directory if omitted)
     path: Option<PathBuf>,
-    #[clap(short, long)]
-    target: Option<Vec<String>>,
+    /// List of targets to include in this test
+    #[clap(long)]
+    include_targets: Option<Vec<String>>,
+    /// List of probes to include in this test (Accepts serial numbers as well as identifiers)
+    #[clap(long)]
+    include_probes: Option<Vec<String>>,
+    /// List of targets to exclude in this test
+    #[clap(long)]
+    exclude_targets: Option<Vec<String>>,
+    /// List of probes to exclude in this test (Accepts serial numbers as well as identifiers)
+    #[clap(long)]
+    exclude_probes: Option<Vec<String>>,
 }
 
 fn main() {

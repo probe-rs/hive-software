@@ -6,14 +6,17 @@ use std::fs;
 use anyhow::{anyhow, bail, Result};
 use cargo_toml::Manifest;
 use colored::Colorize;
-use comm_types::test::{TaskRunnerMessage, TestResult, TestResults, TestRunStatus, TestStatus};
+use comm_types::test::{
+    Filter, TaskRunnerMessage, TestFilter, TestOptions, TestResult, TestResults, TestRunStatus,
+    TestStatus,
+};
 use prettytable::{cell, format, row, Table};
 use reqwest::blocking::multipart::{Form, Part};
 use tungstenite::Message;
 
 use crate::client::{get_http_client, get_ws_client};
 use crate::config::HiveConfig;
-use crate::workspace;
+use crate::{workspace, Test};
 use crate::{CliArgs, Commands};
 
 pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
@@ -65,7 +68,20 @@ pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
             .mime_str("application/octet-stream")
             .unwrap();
 
-        let form = Form::new().part("runner", fileupload);
+        let filter = get_filter(subcommand_args);
+
+        let form = match filter.is_some() {
+            true => Form::new().part("runner", fileupload),
+            false => {
+                let test_options =
+                    Part::bytes(serde_json::to_vec(&TestOptions { filter }).unwrap())
+                        .mime_str("application/json")
+                        .unwrap();
+                Form::new()
+                    .part("runner", fileupload)
+                    .part("options", test_options)
+            }
+        };
 
         let response = client
             .post(format!(
@@ -128,6 +144,30 @@ pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
     workspace::clean_workspace();
 
     Ok(())
+}
+
+/// Create a [`TestFilter`] out of the subcommand arguments, if any filter flags have been provided
+fn get_filter(args: &Test) -> Option<TestFilter> {
+    let mut targets = None;
+    let mut probes = None;
+
+    if let Some(target_list) = args.include_targets.as_ref() {
+        targets = Some(Filter::Include(target_list.to_owned()));
+    } else if let Some(target_list) = args.exclude_targets.as_ref() {
+        targets = Some(Filter::Exclude(target_list.to_owned()))
+    }
+
+    if let Some(probe_list) = args.include_probes.as_ref() {
+        probes = Some(Filter::Include(probe_list.to_owned()));
+    } else if let Some(probe_list) = args.exclude_probes.as_ref() {
+        probes = Some(Filter::Exclude(probe_list.to_owned()));
+    }
+
+    if targets.is_none() && probes.is_none() {
+        None
+    } else {
+        Some(TestFilter { probes, targets })
+    }
 }
 
 /// Pretty print the provided [`TestResults`]

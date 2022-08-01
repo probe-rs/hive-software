@@ -349,7 +349,7 @@ mod tests {
         let task_manager = Arc::new(TaskManager::new());
         let test_routes = test_routes(DB.clone(), task_manager);
 
-        let options = TestOptions {};
+        let options = TestOptions { filter: None };
 
         let mut form = Form::default();
         form.add_text("options", serde_json::to_string(&options).unwrap());

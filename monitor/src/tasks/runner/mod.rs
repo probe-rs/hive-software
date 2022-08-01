@@ -1,24 +1,23 @@
 //! The task runner receives tasks from the [`TaskManager`] and executes them to completion.
 //!
 //! This is where any task related initialization and handling happens.
-use std::error::Error;
 use std::fs::{self, OpenOptions};
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
-use std::os::unix::prelude::{AsRawFd, ExitStatusExt};
+use std::os::unix::prelude::AsRawFd;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use comm_types::test::{TaskRunnerMessage, TestResults, TestRunError, TestRunStatus};
+use comm_types::test::{TaskRunnerMessage, TestOptions, TestResults, TestRunError, TestRunStatus};
 use command_fds::{CommandFdExt, FdMapping};
 use controller::hardware::{reset_probe_usb, HiveHardware};
 use lazy_static::lazy_static;
-use probe_rs::Probe;
 use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver};
+use tokio::sync::Mutex;
 use users::{get_group_by_name, get_user_by_name};
 use wait_timeout::ChildExt;
 
@@ -58,6 +57,9 @@ lazy_static! {
             panic!("Failed to find a user named '{}' on this system. This user is required by the monitor. Is the system setup properly?", RUNNER_USER_NAME);
         }
     };
+    /// [`TestOptions`] of the currently running test task
+    pub static ref CURRENT_TEST_TASK_OPTIONS: Mutex<TestOptions> =
+        Mutex::new(TestOptions::default());
 }
 
 #[derive(Debug, Error)]
@@ -150,6 +152,11 @@ impl TaskRunner {
             }
 
             let mut hardware = HARDWARE.lock().unwrap();
+
+            // Set current test options to supplied options by test task
+            let mut test_options = CURRENT_TEST_TASK_OPTIONS.blocking_lock();
+            *test_options = task.options.clone();
+            drop(test_options);
 
             let test_results =
                 self.run_test(&mut hardware, &task)

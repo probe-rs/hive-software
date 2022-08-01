@@ -7,13 +7,14 @@ use antidote::Mutex as PoisonFreeMutex;
 use backtrace::Backtrace;
 use comm_types::defines::DefineRegistry;
 use comm_types::hardware::TargetInfo;
-use comm_types::test::{TestResult, TestStatus};
+use comm_types::test::{Filter, TestOptions, TestResult, TestStatus};
 use controller::hardware::{reset_probe_usb, try_attach, CombinedTestChannel};
 use hive_test::TestChannelHandle;
 use lazy_static::lazy_static;
 use tokio::sync::mpsc::Sender;
 
 use probe_rs_test::Session;
+use wildmatch::WildMatch;
 
 lazy_static! {
     /// All registered Hive testfunctions in the current runner build sorted by the order attribute.
@@ -47,20 +48,26 @@ pub fn run_tests(
     tss_pos: u8,
     comm_sender: &Sender<Message>,
     define_registry: Arc<DefineRegistry>,
+    test_options: Arc<TestOptions>,
 ) {
-    log::trace!(
-        "Testing target {}, on tss {} with {}",
-        target_info.name,
-        tss_pos,
-        testchannel.get_channel()
-    );
-
     let probe_info = testchannel.get_probe_info().unwrap();
     let probe_name = probe_info.identifier.clone();
     let probe_sn = match probe_info.serial_number {
         Some(ref number) => number.to_owned(),
         None => "None".to_owned(),
     };
+
+    if target_is_filtered(target_info, test_options) {
+        // Current target has been filtered out by test options
+        return;
+    }
+
+    log::trace!(
+        "Testing target {}, on tss {} with {}",
+        target_info.name,
+        tss_pos,
+        testchannel.get_channel()
+    );
 
     // Check if Testchannel is ready, it might not be anymore in case probe reinitialization failed.
     if !testchannel.is_ready() {
@@ -236,4 +243,37 @@ fn skip_tests(
             .blocking_send(Message::TestResult(result))
             .unwrap()
     }
+}
+
+/// Check if the supplied target is filtered out by the provided test options
+fn target_is_filtered(target_info: &TargetInfo, test_options: Arc<TestOptions>) -> bool {
+    if let Some(options) = test_options.filter.as_ref() {
+        if let Some(target_filter) = options.targets.as_ref() {
+            let mut filter_is_include = true;
+
+            let targets = match target_filter {
+                Filter::Include(targets) => targets,
+                Filter::Exclude(targets) => {
+                    filter_is_include = false;
+                    targets
+                }
+            };
+
+            let target_identifier = target_info.name.to_lowercase();
+
+            for target in targets {
+                //replace x with ? to allow WildMatch to match any character at this spot (Mimic probe-rs functionality which also treats x as wildcard in target names)
+                let target_lowercase = target.replace('x', "?").to_lowercase();
+
+                if WildMatch::new(&target_lowercase).matches(&target_identifier) {
+                    return !filter_is_include;
+                }
+            }
+
+            // Nothing matched, so we either put as filtered in case of an include filter or put as not filtered in case of an exclude filter
+            return filter_is_include;
+        }
+    }
+
+    false
 }

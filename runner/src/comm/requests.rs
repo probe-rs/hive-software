@@ -43,6 +43,18 @@ pub fn get_defines() -> (Request<Body>, Option<Vec<u8>>) {
     )
 }
 
+pub fn get_options() -> (Request<Body>, Option<Vec<u8>>) {
+    (
+        Request::builder()
+            .method(Method::GET)
+            .header(header::CONTENT_TYPE, CBOR_MIME)
+            .uri("http://monitor.sock/data/options")
+            .body(Body::empty())
+            .unwrap(),
+        None,
+    )
+}
+
 pub fn post_test_results(results: TestResults) -> (Request<Body>, Option<Vec<u8>>) {
     let mut bytes: Vec<u8> = vec![];
     into_writer(&IpcMessage::TestResults(Box::new(results)), &mut bytes)

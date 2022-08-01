@@ -10,7 +10,7 @@ use std::{io, vec};
 use axum::http::Uri;
 use comm_types::defines::DefineRegistry;
 use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
-use comm_types::test::{TestResult, TestResults, TestRunStatus};
+use comm_types::test::{TestOptions, TestResult, TestResults, TestRunStatus};
 use hyper::client::connect::{Connected, Connection};
 use hyper::{Body, Client};
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -77,7 +77,7 @@ impl Connection for IpcConnection {
 /// This function is the async entrypoint of tokio. All ipc from and to the monitor application are done here
 pub async fn ipc(
     mut test_result_receiver: Receiver<Message>,
-    init_data_sender: Sender<(HiveProbeData, HiveTargetData, DefineRegistry)>,
+    init_data_sender: Sender<(HiveProbeData, HiveTargetData, DefineRegistry, TestOptions)>,
     notify_results_ready: Arc<Notify>,
 ) {
     let socket_path = Path::new(SOCKET_PATH);
@@ -108,6 +108,10 @@ pub async fn ipc(
                 .await
                 .unwrap();
 
+            let options = retry::try_request(client_copy.clone(), requests::get_options())
+                .await
+                .unwrap();
+
             let probe_data;
             if let IpcMessage::ProbeInitData(data) = probes {
                 probe_data = data;
@@ -129,8 +133,15 @@ pub async fn ipc(
                 panic!("Received wrong IpcMessage enum variant from the monitor!")
             }
 
+            let options_data;
+            if let IpcMessage::TestOptionData(data) = options {
+                options_data = data;
+            } else {
+                panic!("Received wrong IpcMessage enum variant from the monitor!")
+            }
+
             // Notify main thread with init data, so it can start with testing
-            init_data_sender.send((*probe_data, *target_data, *define_data)).expect("Failed to send init data to main thread. Is the receiver still in scope and the thread still running?");
+            init_data_sender.send((*probe_data, *target_data, *define_data, *options_data)).expect("Failed to send init data to main thread. Is the receiver still in scope and the thread still running?");
         });
 
         let client_copy = client.clone();

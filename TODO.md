@@ -23,7 +23,7 @@
 - [ ] ~~get_and_init_target_address_ranges() it might be better to do this based on the DB data as the testmanager will ultimately reinitialize the hardware based on DB data and not runtime data~~
 - [X] Deadlock when reloading the testrack hardware due to user request via graphql. Probably inside Testmanager
 - [ ] The debugprobe info on the JLINK probe is incomplete (missing S/N and wrong identifier) when `probe::list()` is called while the probe is in use by the program. This leads to the software suggesting a third available probe to the user which does not actually exist. Might be a problem in probe-rs, needs further investigation
-- [ ] Add possibility to filter targets and probes on a test request which would allow for only testing the requested targets
+- [X] Add possibility to filter targets and probes on a test request which would allow for only testing the requested targets
 - [ ] Implementation of testprogram status is not sound, there should be a better solution for checking user input before handling it as actual testprogram
 - [ ] ~~Determine wheter it is necessary to sandbox the build process of the runner, as build scripts of dependencies might contain malicious code~~
 - [X] Execute runner in a ~~VM~~ Sandbox, determine best ways to make ~~VM~~ Sandbox access hardware securely

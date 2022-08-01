@@ -35,7 +35,8 @@ use std::{panic, thread};
 use anyhow::Result;
 use comm_types::defines::DefineRegistry;
 use comm_types::ipc::{HiveProbeData, HiveTargetData};
-use controller::hardware::{self, HiveHardware, HiveIoExpander, MAX_TSS};
+use comm_types::test::{Filter, TestOptions};
+use controller::hardware::{self, CombinedTestChannel, HiveHardware, HiveIoExpander, MAX_TSS};
 use controller::logger;
 use hurdles::Barrier;
 use lazy_static::lazy_static;
@@ -48,6 +49,7 @@ use tokio::sync::broadcast::{self, Sender as BroadcastSender};
 use tokio::sync::mpsc::{Receiver as MpscReceiver, Sender as MpscSender};
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver};
 use tokio::sync::Notify;
+use wildmatch::WildMatch;
 
 use crate::comm::Message;
 
@@ -121,11 +123,16 @@ fn main() {
 /// Run the main thread
 fn run(
     comm_sender: MpscSender<Message>,
-    init_data_receiver: OneshotReceiver<(HiveProbeData, HiveTargetData, DefineRegistry)>,
+    init_data_receiver: OneshotReceiver<(
+        HiveProbeData,
+        HiveTargetData,
+        DefineRegistry,
+        TestOptions,
+    )>,
     notify_results_ready: Arc<Notify>,
 ) -> Result<()> {
     // Wait until the init data was received from monitor
-    let (probe_data, target_data, define_data) = init_data_receiver.blocking_recv().map_err(|err| {
+    let (probe_data, target_data, define_data, test_options) = init_data_receiver.blocking_recv().map_err(|err| {
         log::error!(
             "The oneshot sender in the async comm-thread has been dropped, shutting down. This is either caused by a panic in the comm-thread or an error in the code.",
         );
@@ -133,6 +140,7 @@ fn run(
     })?;
 
     let define_registry = Arc::new(define_data);
+    let test_options = Arc::new(test_options);
 
     match init::init_hardware_from_monitor_data(target_data, probe_data) {
         Ok(_) => log::debug!("Successfully initialized hardware from monitor data."),
@@ -155,10 +163,11 @@ fn run(
 
         let mut panic_hook_sync = panic_hook_sync.clone();
 
-        if channel.is_ready() {
+        if channel_is_ready_and_not_filtered(&channel, test_options.clone()) {
             drop(channel);
             let comm_sender = comm_sender.clone();
             let define_registry = define_registry.clone();
+            let test_options = test_options.clone();
 
             testing_threads.push(
                 thread::Builder::new()
@@ -182,6 +191,7 @@ fn run(
                                     tss_pos,
                                     &sender,
                                     define_registry.clone(),
+                                    test_options.clone(),
                                 );
                             },
                         );
@@ -226,6 +236,48 @@ fn get_available_channel_count() -> usize {
     }
 
     available_channels
+}
+
+/// Check if the provided testchannel is ready for testing and not filtered out by the provided test options
+fn channel_is_ready_and_not_filtered(
+    channel: &CombinedTestChannel,
+    test_options: Arc<TestOptions>,
+) -> bool {
+    if !channel.is_ready() {
+        return false;
+    }
+
+    if let Some(options) = test_options.filter.as_ref() {
+        if let Some(probe_filter) = options.probes.as_ref() {
+            let probe_info = channel.get_probe_info().unwrap();
+            let mut filter_is_include = true;
+
+            let probes = match probe_filter {
+                Filter::Include(probes) => probes,
+                Filter::Exclude(probes) => {
+                    filter_is_include = false;
+                    probes
+                }
+            };
+
+            let probe_identifier = probe_info.identifier.to_lowercase();
+            let probe_serial = probe_info.serial_number.unwrap_or_default().to_lowercase();
+
+            for probe in probes {
+                let probe_lowercase = probe.to_lowercase();
+                if WildMatch::new(&probe_lowercase).matches(&probe_identifier)
+                    || WildMatch::new(&probe_lowercase).matches(&probe_serial)
+                {
+                    return filter_is_include;
+                }
+            }
+
+            // Nothing matched, so we either put as filtered in case of an include filter or put as not filtered in case of an exclude filter
+            return !filter_is_include;
+        }
+    }
+
+    true
 }
 
 /// Triggers the shutdown signal and causes the application to terminate early

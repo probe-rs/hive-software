@@ -9,6 +9,7 @@ use hive_db::CborDb;
 use tokio::sync::mpsc::Sender;
 
 use crate::database::{keys, MonitorDb};
+use crate::tasks::runner::CURRENT_TEST_TASK_OPTIONS;
 use crate::testprogram::defines::DEFINE_REGISTRY;
 
 /// Supply probe hardware data to the runner
@@ -44,6 +45,12 @@ pub async fn define_handler() -> Cbor<IpcMessage> {
     let registry = DEFINE_REGISTRY.lock().await;
 
     Cbor(IpcMessage::HiveDefineData(Box::new(registry.clone())))
+}
+
+/// Supply the current test options to the runner
+pub async fn test_options_handler() -> Cbor<IpcMessage> {
+    let options = CURRENT_TEST_TASK_OPTIONS.lock().await;
+    Cbor(IpcMessage::TestOptionData(Box::new(options.clone())))
 }
 
 /// Receive test results from the runner
