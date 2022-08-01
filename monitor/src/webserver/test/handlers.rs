@@ -105,6 +105,15 @@ pub(super) async fn test(
 
         match field_name {
             "options" => {
+                let field_data_type = field.content_type();
+
+                if field_data_type != Some("application/json") {
+                    return Err(anyhow!(
+                        "Invalid file format provided for field 'options'. Expecting json data."
+                    )
+                    .into());
+                }
+
                 options = Some(serde_json::from_slice(&field.bytes().await?)?);
             }
             "runner" => {

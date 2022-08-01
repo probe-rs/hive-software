@@ -71,8 +71,7 @@ pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
         let filter = get_filter(subcommand_args);
 
         let form = match filter.is_some() {
-            true => Form::new().part("runner", fileupload),
-            false => {
+            true => {
                 let test_options =
                     Part::bytes(serde_json::to_vec(&TestOptions { filter }).unwrap())
                         .mime_str("application/json")
@@ -81,6 +80,7 @@ pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
                     .part("runner", fileupload)
                     .part("options", test_options)
             }
+            false => Form::new().part("runner", fileupload),
         };
 
         let response = client
