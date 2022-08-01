@@ -154,7 +154,7 @@ fn run(
         }
     }
 
-    let mut panic_hook_sync = Barrier::new(get_available_channel_count() + 1);
+    let mut panic_hook_sync = Barrier::new(get_available_channel_count(test_options.clone()) + 1);
 
     let mut testing_threads = vec![];
 
@@ -225,12 +225,12 @@ fn run(
 }
 
 /// Returns the amount of testchannels which are ready for testing (A testchannel is considered ready once a probe has been bound to it)
-fn get_available_channel_count() -> usize {
+fn get_available_channel_count(test_options: Arc<TestOptions>) -> usize {
     let mut available_channels = 0;
 
     for test_channel in HARDWARE.testchannels.iter() {
         let channel = test_channel.lock().unwrap();
-        if channel.is_ready() {
+        if channel_is_ready_and_not_filtered(&channel, test_options.clone()) {
             available_channels += 1;
         }
     }
