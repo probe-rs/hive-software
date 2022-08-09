@@ -139,11 +139,30 @@ pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
         Ok(test_results)
     })?;
 
+    let contains_failed_tests = match test_results.status {
+        TestRunStatus::Ok => {
+            test_results
+                .results
+                .as_ref()
+                .unwrap()
+                .iter()
+                .any(|result| match result.status {
+                    TestStatus::Passed => false,
+                    TestStatus::Failed(_) => true,
+                    TestStatus::Skipped(_) => false,
+                })
+        }
+        TestRunStatus::Error => true,
+    };
+
     print_test_results(test_results);
 
     workspace::clean_workspace();
 
-    Ok(())
+    match contains_failed_tests {
+        true => Err(anyhow!("Not all tests passed")),
+        false => Ok(()),
+    }
 }
 
 /// Create a [`TestFilter`] out of the subcommand arguments, if any filter flags have been provided
@@ -284,6 +303,7 @@ fn print_test_results(results: TestResults) {
 
     println!();
     table.printstd();
+    println!();
 }
 
 /// Add a whitespace padding on multiline strings
