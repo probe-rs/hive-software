@@ -52,7 +52,7 @@ pub fn hive_test(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// ```rust
 /// #[hive]
 /// mod tests {
-///     /// Add test functions and any child modules here...
+///     // Add test functions and any child modules here...
 /// }
 /// ```
 #[proc_macro_attribute]

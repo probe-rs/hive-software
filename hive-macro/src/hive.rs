@@ -12,7 +12,7 @@ const MODULE_EXAMPLE: &str = "\n\n#[hive]\npub mod tests {\n\t// Testfunctions e
 /// The mandatory name of the Hive test top level module which is annotated with the `#[hive]` macro
 const TOP_LEVEL_MODULE_NAME: &str = "tests";
 /// List of allowed crates as dependencies in Hive test modules
-const ALLOWED_DEPENDENCIES: [&str; 3] = ["std", "hive_test", "probe_rs_test"];
+const ALLOWED_DEPENDENCIES: [&str; 4] = ["std", "hive_test", "probe_rs_test", "super"];
 
 pub fn run(attr: TokenStream, item: TokenStream) -> TokenStream {
     // parse macro attributes
@@ -128,6 +128,10 @@ fn insert_module_path_and_check_dependencies(
             content.push(get_hive_test_fn_use().into());
         }
 
+        // Insert inventory dependency
+        content.push(get_inventory_use().into());
+
+        // Insert current module path
         content.push(get_module_path(depth, module.ident.to_string(), path_tree).into());
 
         for item in content.iter_mut() {
@@ -170,6 +174,16 @@ fn get_hive_test_fn_use() -> ItemUse {
     syn::parse_macro_input::parse::<ItemUse>(
         quote! {
             use crate::hive::tests::HiveTestFunction;
+        }
+        .into(),
+    )
+    .unwrap()
+}
+
+fn get_inventory_use() -> ItemUse {
+    syn::parse_macro_input::parse::<ItemUse>(
+        quote! {
+            use hive_test::inventory;
         }
         .into(),
     )

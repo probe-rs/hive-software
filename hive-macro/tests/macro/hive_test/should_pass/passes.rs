@@ -1,7 +1,7 @@
 mod hive {
     #[hive_macro::hive]
     pub mod tests {
-        use hive_test::{defines::DefineRegistry, inventory, HiveTargetInfo, TestChannelHandle};
+        use hive_test::{defines::DefineRegistry, HiveTargetInfo, TestChannelHandle};
         use probe_rs_test::Session;
 
         #[hive_macro::hive_test]
@@ -22,9 +22,7 @@ mod hive {
         }
 
         mod a {
-            use hive_test::{
-                defines::DefineRegistry, inventory, HiveTargetInfo, TestChannelHandle,
-            };
+            use hive_test::{defines::DefineRegistry, HiveTargetInfo, TestChannelHandle};
             use probe_rs_test::Session;
 
             #[hive_macro::hive_test]
@@ -37,9 +35,7 @@ mod hive {
             }
 
             mod aa {
-                use hive_test::{
-                    defines::DefineRegistry, inventory, HiveTargetInfo, TestChannelHandle,
-                };
+                use hive_test::{defines::DefineRegistry, HiveTargetInfo, TestChannelHandle};
                 use probe_rs_test::Session;
 
                 #[hive_macro::hive_test]
@@ -52,9 +48,7 @@ mod hive {
                 }
 
                 mod aaa {
-                    use hive_test::{
-                        defines::DefineRegistry, inventory, HiveTargetInfo, TestChannelHandle,
-                    };
+                    use hive_test::{defines::DefineRegistry, HiveTargetInfo, TestChannelHandle};
                     use probe_rs_test::Session;
 
                     #[hive_macro::hive_test]
@@ -68,9 +62,7 @@ mod hive {
                 }
 
                 mod aab {
-                    use hive_test::{
-                        defines::DefineRegistry, inventory, HiveTargetInfo, TestChannelHandle,
-                    };
+                    use hive_test::{defines::DefineRegistry, HiveTargetInfo, TestChannelHandle};
                     use probe_rs_test::Session;
 
                     #[hive_macro::hive_test]
@@ -85,9 +77,7 @@ mod hive {
             }
 
             mod ab {
-                use hive_test::{
-                    defines::DefineRegistry, inventory, HiveTargetInfo, TestChannelHandle,
-                };
+                use hive_test::{defines::DefineRegistry, HiveTargetInfo, TestChannelHandle};
                 use probe_rs_test::Session;
 
                 #[hive_macro::hive_test]
@@ -102,9 +92,7 @@ mod hive {
         }
 
         mod b {
-            use hive_test::{
-                defines::DefineRegistry, inventory, HiveTargetInfo, TestChannelHandle,
-            };
+            use hive_test::{defines::DefineRegistry, HiveTargetInfo, TestChannelHandle};
             use probe_rs_test::Session;
 
             #[hive_macro::hive_test]
