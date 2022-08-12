@@ -3,14 +3,14 @@ use std::sync::Arc;
 
 use axum::Extension;
 use comm_types::cbor::{Cbor, ServerParseError};
+use comm_types::defines::DefineRegistry;
 use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
-use comm_types::test::TestResults;
+use comm_types::test::{TestOptions, TestResults};
 use hive_db::CborDb;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::Mutex;
 
 use crate::database::{keys, MonitorDb};
-use crate::tasks::runner::CURRENT_TEST_TASK_OPTIONS;
-use crate::testprogram::defines::DEFINE_REGISTRY;
 
 /// Supply probe hardware data to the runner
 pub async fn probe_handler(Extension(db): Extension<Arc<MonitorDb>>) -> Cbor<IpcMessage> {
@@ -39,17 +39,24 @@ pub async fn target_handler(Extension(db): Extension<Arc<MonitorDb>>) -> Cbor<Ip
 }
 
 /// Supply current Hive Define data to the runner
-pub async fn define_handler() -> Cbor<IpcMessage> {
+pub async fn define_handler(
+    Extension(define_registry): Extension<&Mutex<DefineRegistry>>,
+) -> Cbor<IpcMessage> {
     log::debug!("Received an IPC request on define handler");
 
-    let registry = DEFINE_REGISTRY.lock().await;
+    let registry = define_registry.lock().await;
 
     Cbor(IpcMessage::HiveDefineData(Box::new(registry.clone())))
 }
 
 /// Supply the current test options to the runner
-pub async fn test_options_handler() -> Cbor<IpcMessage> {
-    let options = CURRENT_TEST_TASK_OPTIONS.lock().await;
+pub async fn test_options_handler(
+    Extension(options_mutex): Extension<&Mutex<TestOptions>>,
+) -> Cbor<IpcMessage> {
+    log::debug!("Received an IPC request on options handler");
+
+    let options = options_mutex.lock().await;
+
     Cbor(IpcMessage::TestOptionData(Box::new(options.clone())))
 }
 

@@ -9,15 +9,20 @@ use std::task::Poll;
 use axum::extract::connect_info;
 use axum::routing::{get, post};
 use axum::{BoxError, Extension, Router, Server};
-use comm_types::test::TestResults;
+use comm_types::defines::DefineRegistry;
+use comm_types::test::{TestOptions, TestResults};
 use futures::ready;
 use hyper::server::accept::Accept;
 use tokio::net::unix::UCred;
 use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
 use tokio::sync::mpsc::Sender;
+use tokio::sync::Mutex;
 
 use crate::database::MonitorDb;
+use crate::testprogram::defines::DEFINE_REGISTRY;
 use crate::SHUTDOWN_SIGNAL;
+
+use super::CURRENT_TEST_TASK_OPTIONS;
 
 mod handlers;
 
@@ -66,7 +71,12 @@ pub(super) async fn ipc_server(db: Arc<MonitorDb>, test_result_sender: Sender<Te
     let listener = UnixListener::bind(socket_path).expect("TODO");
 
     let server_handle = tokio::spawn(async move {
-        let route = app(db, test_result_sender);
+        let route = app(
+            db,
+            test_result_sender,
+            &CURRENT_TEST_TASK_OPTIONS,
+            &DEFINE_REGISTRY,
+        );
 
         let server = Server::builder(IpcStreamListener { listener })
             .serve(route.into_make_service_with_connect_info::<IpcConnectionInfo>());
@@ -83,12 +93,23 @@ pub(super) async fn ipc_server(db: Arc<MonitorDb>, test_result_sender: Sender<Te
 }
 
 /// Builds the IPC server with all endpoints
-fn app(db: Arc<MonitorDb>, test_result_sender: Sender<TestResults>) -> Router {
+fn app(
+    db: Arc<MonitorDb>,
+    test_result_sender: Sender<TestResults>,
+    current_test_task_options: &'static Mutex<TestOptions>,
+    define_registry: &'static Mutex<DefineRegistry>,
+) -> Router {
     Router::new()
         .route("/data/probe", get(handlers::probe_handler))
         .route("/data/target", get(handlers::target_handler))
-        .route("/data/defines", get(handlers::define_handler))
-        .route("/data/options", get(handlers::test_options_handler))
+        .route(
+            "/data/defines",
+            get(handlers::define_handler).layer(Extension(define_registry)),
+        )
+        .route(
+            "/data/options",
+            get(handlers::test_options_handler).layer(Extension(current_test_task_options)),
+        )
         .route(
             "/runner/results",
             post(handlers::test_result_handler).layer(Extension(test_result_sender)),
@@ -121,12 +142,14 @@ mod tests {
     use axum::http::{header, Method, Request, StatusCode};
     use ciborium::de::from_reader;
     use ciborium::ser::into_writer;
+    use comm_types::defines::DefineRegistry;
     use comm_types::hardware::{ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
-    use comm_types::test::{TestResults, TestRunStatus};
+    use comm_types::test::{Filter, TestFilter, TestOptions, TestResults, TestRunStatus};
     use hive_db::CborDb;
     use lazy_static::lazy_static;
     use tokio::sync::mpsc::{Receiver, Sender};
+    use tokio::sync::Mutex;
     use tower::ServiceExt;
 
     use crate::database::{keys, MonitorDb};
@@ -143,6 +166,15 @@ mod tests {
 
             Arc::new(db)
         };
+        static ref TEST_OPTIONS: Mutex<TestOptions> = Mutex::new(
+            TestOptions {
+                filter: Some(TestFilter {
+                    probes: None,
+                    targets: Some(Filter::Include(vec!["STM32*".to_owned(), "NRF*".to_owned()]))
+                })
+            }
+        );
+        static ref DEFINE_REGISTRY: Mutex<DefineRegistry> = Mutex::new(DefineRegistry::new());
         static ref PROBE_DATA: HiveProbeData = [
             ProbeState::Known(ProbeInfo {
                 identifier: "Curious Probe".to_owned(),
@@ -281,7 +313,12 @@ mod tests {
     #[tokio::test]
     async fn wrong_rest_method() {
         let mock_test_result_manager = MockTestResultManager::new();
-        let ipc_server = app(DB.clone(), mock_test_result_manager.get_sender());
+        let ipc_server = app(
+            DB.clone(),
+            mock_test_result_manager.get_sender(),
+            &TEST_OPTIONS,
+            &DEFINE_REGISTRY,
+        );
 
         let res = ipc_server
             .oneshot(
@@ -301,7 +338,12 @@ mod tests {
     #[tokio::test]
     async fn probe_endpoint() {
         let mock_test_result_manager = MockTestResultManager::new();
-        let ipc_server = app(DB.clone(), mock_test_result_manager.get_sender());
+        let ipc_server = app(
+            DB.clone(),
+            mock_test_result_manager.get_sender(),
+            &TEST_OPTIONS,
+            &DEFINE_REGISTRY,
+        );
 
         let res = ipc_server
             .oneshot(
@@ -342,7 +384,12 @@ mod tests {
     #[tokio::test]
     async fn target_endpoint() {
         let mock_test_result_manager = MockTestResultManager::new();
-        let ipc_server = app(DB.clone(), mock_test_result_manager.get_sender());
+        let ipc_server = app(
+            DB.clone(),
+            mock_test_result_manager.get_sender(),
+            &TEST_OPTIONS,
+            &DEFINE_REGISTRY,
+        );
 
         let res = ipc_server
             .oneshot(
@@ -382,7 +429,12 @@ mod tests {
     #[tokio::test]
     async fn result_endpoint() {
         let mut mock_test_result_manager = MockTestResultManager::new();
-        let ipc_server = app(DB.clone(), mock_test_result_manager.get_sender());
+        let ipc_server = app(
+            DB.clone(),
+            mock_test_result_manager.get_sender(),
+            &TEST_OPTIONS,
+            &DEFINE_REGISTRY,
+        );
 
         let dummy_test_results = TestResults {
             status: TestRunStatus::Error,
@@ -427,11 +479,76 @@ mod tests {
 
     #[tokio::test]
     async fn define_endpoint() {
-        todo!()
+        let mock_test_result_manager = MockTestResultManager::new();
+        let ipc_server = app(
+            DB.clone(),
+            mock_test_result_manager.get_sender(),
+            &TEST_OPTIONS,
+            &DEFINE_REGISTRY,
+        );
+
+        let res = ipc_server
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/data/defines")
+                    .header(header::CONTENT_TYPE, "application/cbor")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::OK);
+
+        let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let data: IpcMessage = from_reader(&bytes[..]).unwrap();
+
+        let define_registry_message =
+            IpcMessage::HiveDefineData(Box::new(DEFINE_REGISTRY.lock().await.clone()));
+        let mut define_registry_message_bytes = vec![];
+        into_writer(&define_registry_message, &mut define_registry_message_bytes).unwrap();
+
+        if let IpcMessage::HiveDefineData(data) = data {
+            assert_eq!(bytes, define_registry_message_bytes);
+        } else {
+            panic!("Expected IpcMessage::HiveDefineData, but found {:?}", data);
+        }
     }
 
     #[tokio::test]
     async fn test_options_endpoint() {
-        todo!()
+        let mock_test_result_manager = MockTestResultManager::new();
+        let ipc_server = app(
+            DB.clone(),
+            mock_test_result_manager.get_sender(),
+            &TEST_OPTIONS,
+            &DEFINE_REGISTRY,
+        );
+
+        let res = ipc_server
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/data/options")
+                    .header(header::CONTENT_TYPE, "application/cbor")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::OK);
+
+        let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let data: IpcMessage = from_reader(&bytes[..]).unwrap();
+
+        let test_options = TEST_OPTIONS.lock().await;
+
+        if let IpcMessage::TestOptionData(data) = data {
+            assert_eq!(*data, *test_options);
+        } else {
+            panic!("Expected IpcMessage::TestOptionData, but found {:?}", data);
+        }
     }
 }

@@ -10,20 +10,20 @@ pub enum TaskRunnerMessage {
 }
 
 /// Test options which are passed on a test request
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct TestOptions {
     pub filter: Option<TestFilter>,
 }
 
 /// Filter used in test requests to filter probes and targets on which the tests should be executed
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct TestFilter {
     pub probes: Option<Filter>,
     pub targets: Option<Filter>,
 }
 
 /// String values to include or exclude in a filter
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum Filter {
     Include(Vec<String>),
     Exclude(Vec<String>),
