@@ -313,21 +313,14 @@ mod tests {
         let mut form = Form::default();
         form.add_text("unknown", "some text");
 
-        // TODO This whole thing looks like a really whack way of transforming the MultipartBody into a Hyper Body.
-        // It appears the From impl fails to transform it when directly inserting the initial req object into the oneshot
-
         let req = form
-            .set_body::<MultipartBody>(
+            .set_body_convert::<hyper::Body, MultipartBody>(
                 HyperRequest::builder()
                     .method(Method::POST)
                     .uri("/run")
                     .header(header::CONTENT_LENGTH, "0"),
             )
             .unwrap();
-
-        let (parts, body) = req.into_parts();
-
-        let req = HyperRequest::from_parts(parts, body.into());
 
         let res = test_routes.oneshot(req).await.unwrap();
 
@@ -352,23 +345,18 @@ mod tests {
         let options = TestOptions { filter: None };
 
         let mut form = Form::default();
-        form.add_text("options", serde_json::to_string(&options).unwrap());
 
-        // TODO This whole thing looks like a really whack way of transforming the MultipartBody into a Hyper Body.
-        // It appears the From impl fails to transform it when directly inserting the initial req object into the oneshot
+        let json = Cursor::new(serde_json::to_vec(&options).unwrap());
+        form.add_reader_file_with_mime("options", json, "options.json", mime::APPLICATION_JSON);
 
         let req = form
-            .set_body::<MultipartBody>(
+            .set_body_convert::<hyper::Body, MultipartBody>(
                 HyperRequest::builder()
                     .method(Method::POST)
                     .uri("/run")
                     .header(header::CONTENT_LENGTH, "0"),
             )
             .unwrap();
-
-        let (parts, body) = req.into_parts();
-
-        let req = HyperRequest::from_parts(parts, body.into());
 
         let res = test_routes.oneshot(req).await.unwrap();
 
@@ -396,11 +384,8 @@ mod tests {
 
         form.add_reader_file_with_mime("runner", data, "some_runner_file", mime::APPLICATION_JSON);
 
-        // TODO This whole thing looks like a really whack way of transforming the MultipartBody into a Hyper Body.
-        // It appears the From impl fails to transform it when directly inserting the initial req object into the oneshot
-
         let req = form
-            .set_body::<MultipartBody>(
+            .set_body_convert::<hyper::Body, MultipartBody>(
                 HyperRequest::builder()
                     .method(Method::POST)
                     .uri("/run")
@@ -408,16 +393,62 @@ mod tests {
             )
             .unwrap();
 
-        let (parts, body) = req.into_parts();
-
-        let req = HyperRequest::from_parts(parts, body.into());
-
         let res = test_routes.oneshot(req).await.unwrap();
 
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
         assert_eq!(
             "Invalid file format provided for field 'runner'. Expecting binary executable.",
+            String::from_utf8_lossy(
+                hyper::body::to_bytes(res.into_body())
+                    .await
+                    .unwrap()
+                    .as_ref()
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn test_endpoint_wrong_options_field_data_type() {
+        let task_manager = Arc::new(TaskManager::new());
+        let test_routes = test_routes(DB.clone(), task_manager);
+
+        let options = TestOptions { filter: None };
+
+        let mut form = Form::default();
+
+        let json = Cursor::new(serde_json::to_vec(&options).unwrap());
+        form.add_reader_file_with_mime(
+            "options",
+            json,
+            "options.json",
+            mime::APPLICATION_JAVASCRIPT,
+        );
+
+        let data = Cursor::new("Some data");
+
+        form.add_reader_file_with_mime(
+            "runner",
+            data,
+            "some_runner_file",
+            mime::APPLICATION_OCTET_STREAM,
+        );
+
+        let req = form
+            .set_body_convert::<hyper::Body, MultipartBody>(
+                HyperRequest::builder()
+                    .method(Method::POST)
+                    .uri("/run")
+                    .header(header::CONTENT_LENGTH, "0"),
+            )
+            .unwrap();
+
+        let res = test_routes.oneshot(req).await.unwrap();
+
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+
+        assert_eq!(
+            "Invalid file format provided for field 'options'. Expecting json data.",
             String::from_utf8_lossy(
                 hyper::body::to_bytes(res.into_body())
                     .await
@@ -443,21 +474,14 @@ mod tests {
             mime::APPLICATION_OCTET_STREAM,
         );
 
-        // TODO This whole thing looks like a really whack way of transforming the MultipartBody into a Hyper Body.
-        // It appears the From impl fails to transform it when directly inserting the initial req object into the oneshot
-
         let req = form
-            .set_body::<MultipartBody>(
+            .set_body_convert::<hyper::Body, MultipartBody>(
                 HyperRequest::builder()
                     .method(Method::POST)
                     .uri("/run")
                     .header(header::CONTENT_LENGTH, "0"),
             )
             .unwrap();
-
-        let (parts, body) = req.into_parts();
-
-        let req = HyperRequest::from_parts(parts, body.into());
 
         let res = test_routes.oneshot(req).await.unwrap();
 
@@ -493,21 +517,14 @@ mod tests {
             mime::APPLICATION_OCTET_STREAM,
         );
 
-        // TODO This whole thing looks like a really whack way of transforming the MultipartBody into a Hyper Body.
-        // It appears the From impl fails to transform it when directly inserting the initial req object into the oneshot
-
         let req = form
-            .set_body::<MultipartBody>(
+            .set_body_convert::<hyper::Body, MultipartBody>(
                 HyperRequest::builder()
                     .method(Method::POST)
                     .uri("/run")
                     .header(header::CONTENT_LENGTH, "0"),
             )
             .unwrap();
-
-        let (parts, body) = req.into_parts();
-
-        let req = HyperRequest::from_parts(parts, body.into());
 
         let res = test_routes.oneshot(req).await.unwrap();
 
