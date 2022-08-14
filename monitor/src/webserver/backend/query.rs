@@ -21,7 +21,7 @@ use super::model::{
     UserResponse,
 };
 
-const RUNNER_LOGFILE_PATH: &str = "/mnt/hivetmp/runner.log";
+const RUNNER_LOGFILE_PATH: &str = "./data/logs/runner.log";
 
 pub(in crate::webserver) struct BackendQuery;
 
