@@ -268,7 +268,7 @@ onTestprogramDeleted(() => {
 
 <template>
   <v-toolbar color="surface" elevation="1">
-    <v-icon size="25" class="mr-2" icon="mdi-file-code-outline" />
+    <v-icon size="25" class="ml-2" icon="mdi-file-code-outline" />
 
     <v-toolbar-title>Testprogram</v-toolbar-title>
 
@@ -279,63 +279,39 @@ onTestprogramDeleted(() => {
       </v-tabs>
 
       <v-spacer></v-spacer>
-      <v-btn
-        :color="selectedIsActive ? 'disabled' : 'info'"
-        :disabled="selectedIsActive"
-        @click="setActiveTestprogram({ testprogramName: selectedTestprogram })"
-        >Set active</v-btn
-      >
-      <v-btn
-        v-if="selectedTestprogram !== DEFAULT_TESTPROGRAM"
-        color="error"
-        @click="showDeleteTestprogramConfirmDialog = true"
-        >Delete Testprogram</v-btn
-      >
-      <v-btn v-if="selectedTestprogram !== DEFAULT_TESTPROGRAM" color="success"
-        >Check & Save</v-btn
-      >
+      <v-btn :color="selectedIsActive ? 'disabled' : 'info'" :disabled="selectedIsActive"
+        @click="setActiveTestprogram({ testprogramName: selectedTestprogram })">Set active</v-btn>
+      <v-btn v-if="selectedTestprogram !== DEFAULT_TESTPROGRAM" color="error"
+        @click="showDeleteTestprogramConfirmDialog = true">Delete Testprogram</v-btn>
+      <v-btn v-if="selectedTestprogram !== DEFAULT_TESTPROGRAM" color="success">Check & Save</v-btn>
     </template>
 
     <v-spacer />
 
-    <v-icon
-      v-if="selectedIsActive"
-      color="success"
-      icon="mdi-check-circle-outline"
-    />
-    <!--<v-tooltip activator="parent" anchor="bottom end">Testprogram is currently active</v-tooltip>-->
+    <v-icon v-if="selectedIsActive" color="success" icon="mdi-check-circle-outline" />
+    <!--<v-tooltip activator="parent" location="bottom end" origin="top start">Testprogram is currently active</v-tooltip>-->
 
     <v-btn>
       {{ selectedTestprogram }}
       <v-menu activator="parent">
         <v-list>
-          <v-list-item
-            v-for="testprogram in testprograms"
-            :key="testprogram"
-            :value="testprogram"
-            @click="selectedTestprogram = testprogram"
-          >
+          <v-list-item v-for="testprogram in testprograms" :key="testprogram" :value="testprogram"
+            @click="selectedTestprogram = testprogram">
             <v-list-item-title>{{
-              testprogram.toUpperCase()
+                testprogram.toUpperCase()
             }}</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
     </v-btn>
 
-    <v-btn icon="mdi-plus" @click="createTestprogramDialog = true">
-      <v-tooltip activator="parent" anchor="bottom end"
-        >Add testprogram</v-tooltip
-      >
+    <v-btn icon @click="createTestprogramDialog = true">
+      <v-icon>mdi-plus</v-icon>
+      <v-tooltip activator="parent" location="bottom end">Add testprogram</v-tooltip>
     </v-btn>
   </v-toolbar>
 
-  <v-dialog
-    v-model="createTestprogramDialog"
-    persistent
-    max-width="800px"
-    transition="dialog-top-transition"
-  >
+  <v-dialog v-model="createTestprogramDialog" persistent max-width="800px" transition="dialog-top-transition">
     <v-card style="min-width: 50vw">
       <v-card-title class="text-h5 grey lighten-2">
         Create new testprogram
@@ -343,12 +319,7 @@ onTestprogramDeleted(() => {
 
       <v-card-text>
         <v-form>
-          <v-text-field
-            v-model="newTestprogramName"
-            label="Testprogram name"
-            variant="underlined"
-            density="compact"
-          />
+          <v-text-field v-model="newTestprogramName" label="Testprogram name" variant="underlined" density="compact" />
         </v-form>
       </v-card-text>
 
@@ -359,41 +330,23 @@ onTestprogramDeleted(() => {
           Cancel
         </v-btn>
         <v-spacer></v-spacer>
-        <v-btn
-          color="success"
-          text
-          @click="createTestprogram({ testprogramName: newTestprogramName })"
-        >
+        <v-btn color="success" text @click="createTestprogram({ testprogramName: newTestprogramName })">
           Create new testprogram
         </v-btn>
       </v-card-actions>
 
       <!--Replace with loading save and exit button once available in vuetify-->
-      <v-overlay
-        v-model="testprogramCreateLoading"
-        contained
-        class="align-center justify-center"
-      >
+      <v-overlay v-model="testprogramCreateLoading" contained class="align-center justify-center">
         <v-progress-circular size="80" color="secondary" indeterminate />
       </v-overlay>
     </v-card>
   </v-dialog>
 
-  <Testprogram
-    :testprogram-name="selectedTestprogram"
-    :selected-architecture="selectedArchitecture"
-  />
+  <Testprogram :testprogram-name="selectedTestprogram" :selected-architecture="selectedArchitecture" />
 
-  <ConfirmDialog
-    :is-active="showDeleteTestprogramConfirmDialog"
-    @cancel="showDeleteTestprogramConfirmDialog = false"
+  <ConfirmDialog :is-active="showDeleteTestprogramConfirmDialog" @cancel="showDeleteTestprogramConfirmDialog = false"
     @confirm="deleteCurrentTestprogram"
-    :text="`Do you really want to delete the testprogram '${selectedTestprogram}'?`"
-  />
+    :text="`Do you really want to delete the testprogram '${selectedTestprogram}'?`" />
 
-  <ErrorSnackbar
-    :is-error="isError"
-    :message="errorMessage"
-    @close-event="isError = false"
-  />
+  <ErrorSnackbar :is-error="isError" :message="errorMessage" @close-event="isError = false" />
 </template>

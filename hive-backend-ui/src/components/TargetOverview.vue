@@ -190,30 +190,16 @@ function submit(targetName: string) {
       </v-card-subtitle>
 
       <v-card-subtitle v-else>
-        <v-icon
-          icon="mdi-checkbox-marked"
-          size="18"
-          color="success"
-          class="mr-1 pb-1"
-        />
+        <v-icon icon="mdi-checkbox-marked" size="18" color="success" class="mr-1 pb-1" />
 
         {{ props.statusMessage }}
       </v-card-subtitle>
     </template>
 
-    <v-card-text class="pb-0">
-      <v-autocomplete
-        @update:modelValue="submit"
-        v-model:search="search"
-        v-model="selectedChip"
-        :loading="searchLoading"
-        :items="foundChips"
-        dense
-        label="Chip model"
-        hint="Please select the appropriate chip"
-        persistent-hint
-        no-data-text="No matching models found"
-      >
+    <v-card-text class="pb-0" style="margin-bottom: 1vh">
+      <v-autocomplete @update:modelValue="submit" v-model:search="search" v-model="selectedChip"
+        :loading="searchLoading" :items="foundChips" dense label="Chip model" hint="Please select the appropriate chip"
+        persistent-hint no-data-text="No matching models found">
       </v-autocomplete>
     </v-card-text>
   </v-card>

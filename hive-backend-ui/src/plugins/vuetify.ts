@@ -5,6 +5,9 @@ import "vuetify/styles";
 // Vuetify
 import { createVuetify } from "vuetify";
 
+// Custom Icons
+import hiveIcon from "@/components/icons/hive.vue";
+
 // Custom themes
 export enum AppTheme {
   Light = "hiveLightTheme",
@@ -35,6 +38,11 @@ export default createVuetify({
     themes: {
       hiveLightTheme: { ...HiveLightTheme },
       hiveDarkTheme: { ...HiveDarkTheme },
+    },
+  },
+  icons: {
+    values: {
+      hiveIcon
     },
   },
 });

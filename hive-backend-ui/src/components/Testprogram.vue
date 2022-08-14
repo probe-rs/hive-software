@@ -61,7 +61,7 @@ const code = computed(() => {
     case Architecture.Arm:
       return base64.decode(result.value.testprogram.codeArm);
     case Architecture.Riscv:
-      return base64.decode(result.value.testprogram.codeArm);
+      return base64.decode(result.value.testprogram.codeRiscv);
   }
 });
 
@@ -83,11 +83,7 @@ const compileMessage = computed(() => {
 <template>
   <v-row class="pt-4">
     <v-col style="height: 55vh">
-      <CodeEditor
-        v-if="!loading"
-        :code="code"
-        :read-only="props.testprogramName === DEFAULT_TESTPROGRAM"
-      />
+      <CodeEditor v-if="!loading" :code="code" :read-only="props.testprogramName === DEFAULT_TESTPROGRAM" />
       <template v-else>
         <!--TODO: Replace with skeleton loader once it is supported by vuetify-->
         <v-row>
@@ -96,17 +92,14 @@ const compileMessage = computed(() => {
               <v-progress-linear indeterminate color="secondary" />
             </v-row>
             <v-row class="justify-center">
-              <p
-                class="align-self-center"
-                style="
+              <p class="align-self-center" style="
                   max-width: 70%;
                   text-align: center;
                   color: rgb(
                     var(--v-theme-on-surface),
                     var(--v-disabled-opacity)
                   );
-                "
-              >
+                ">
                 Loading data...
               </p>
             </v-row>
@@ -127,17 +120,14 @@ const compileMessage = computed(() => {
               <v-progress-linear indeterminate color="secondary" />
             </v-row>
             <v-row class="justify-center">
-              <p
-                class="align-self-center"
-                style="
+              <p class="align-self-center" style="
                   max-width: 70%;
                   text-align: center;
                   color: rgb(
                     var(--v-theme-on-surface),
                     var(--v-disabled-opacity)
                   );
-                "
-              >
+                ">
                 Loading data...
               </p>
             </v-row>
@@ -149,18 +139,11 @@ const compileMessage = computed(() => {
       <v-card elevation="1">
         <v-card-title> Upload </v-card-title>
 
-        <v-card-content>
-          <v-file-input
-            style="max-width: 300px"
-            density="compact"
-            class="align-self-start"
-            accept=".S"
-            label="Upload Testprogram"
-            persistent-hint
-            hint="Accepted files are Assemblyfiles"
-            :disabled="props.testprogramName === DEFAULT_TESTPROGRAM"
-          />
-        </v-card-content>
+        <v-card-text>
+          <v-file-input style="max-width: 300px" density="compact" class="align-self-start" accept=".S"
+            label="Upload Testprogram" persistent-hint hint="Accepted files are Assemblyfiles"
+            :disabled="props.testprogramName === DEFAULT_TESTPROGRAM" />
+        </v-card-text>
       </v-card>
     </v-col>
   </v-row>

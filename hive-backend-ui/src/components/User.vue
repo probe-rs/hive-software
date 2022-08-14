@@ -9,7 +9,7 @@ import {
 } from "@/gql/backend";
 
 import { ref, watch, type PropType } from "vue";
-import generator from "generate-password";
+import generator from "generate-password-browser";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import { useMutation } from "@vue/apollo-composable";
 import gql from "graphql-tag";
@@ -126,7 +126,7 @@ function changePassword() {
   showPasswordConfirmDialog.value = false;
 
   const generatedPassword = generator.generate({
-    length: 12,
+    length: 24,
     numbers: true,
     symbols: true,
     strict: true,
@@ -208,12 +208,7 @@ function deleteUser() {
 <template>
   <tr>
     <td>
-      <input
-        label="Username"
-        variant="plain"
-        density="compact"
-        v-model="modifiedUsername"
-      />
+      <input label="Username" variant="plain" density="compact" v-model="modifiedUsername" />
     </td>
     <td>
       <p>
@@ -222,67 +217,32 @@ function deleteUser() {
         <v-menu activator="parent">
           <v-list density="compact">
             <v-list-item>
-              <v-list-item-title @click="modifiedRole = Role.Admin"
-                >ADMIN</v-list-item-title
-              >
+              <v-list-item-title @click="modifiedRole = Role.Admin">ADMIN</v-list-item-title>
             </v-list-item>
             <v-list-item>
-              <v-list-item-title @click="modifiedRole = Role.Maintainer"
-                >MAINTAINER</v-list-item-title
-              >
+              <v-list-item-title @click="modifiedRole = Role.Maintainer">MAINTAINER</v-list-item-title>
             </v-list-item>
           </v-list>
         </v-menu>
       </p>
     </td>
     <td class="text-right">
-      <v-btn
-        size="small"
-        variant="text"
-        color="info"
-        @click="showPasswordConfirmDialog = true"
-        >Reset Password
+      <v-btn size="small" variant="text" color="info" @click="showPasswordConfirmDialog = true">Reset Password
       </v-btn>
-      <v-btn
-        icon="mdi-delete"
-        size="small"
-        variant="text"
-        color="error"
-        @click="showDeleteConfirmDialog = true"
-      />
-      <v-btn
-        v-if="dataChanged"
-        size="small"
-        variant="text"
-        color="success"
-        @click="modifyUser"
-        >Apply Changes
+      <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="showDeleteConfirmDialog = true" />
+      <v-btn v-if="dataChanged" size="small" variant="text" color="success" @click="modifyUser">Apply Changes
       </v-btn>
     </td>
   </tr>
 
-  <ConfirmDialog
-    :is-active="showPasswordConfirmDialog"
-    @cancel="showPasswordConfirmDialog = false"
-    @confirm="changePassword"
-    :text="`Do you really want to change the password of the user '${props.username}'?`"
-  />
+  <ConfirmDialog :is-active="showPasswordConfirmDialog" @cancel="showPasswordConfirmDialog = false"
+    @confirm="changePassword" :text="`Do you really want to change the password of the user '${props.username}'?`" />
 
-  <ConfirmDialog
-    :is-active="showDeleteConfirmDialog"
-    @cancel="showDeleteConfirmDialog = false"
-    @confirm="deleteUser"
-    :text="`Do you really want to delete the user '${props.username}'?`"
-  />
+  <ConfirmDialog :is-active="showDeleteConfirmDialog" @cancel="showDeleteConfirmDialog = false" @confirm="deleteUser"
+    :text="`Do you really want to delete the user '${props.username}'?`" />
 
-  <SuccessSnackbar
-    :is-success="userModifySuccess"
-    @close-event="userModifySuccess = false"
-    message="Successfully modified user"
-  />
-  <SuccessSnackbar
-    :is-success="userDeleteSuccess"
-    @close-event="userDeleteSuccess = false"
-    message="Successfully deleted user"
-  />
+  <SuccessSnackbar :is-success="userModifySuccess" @close-event="userModifySuccess = false"
+    message="Successfully modified user, any regenerated passwords have been copied to clipboard" />
+  <SuccessSnackbar :is-success="userDeleteSuccess" @close-event="userDeleteSuccess = false"
+    message="Successfully deleted user" />
 </template>

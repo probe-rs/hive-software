@@ -6,7 +6,7 @@ import { useMutation, useQuery } from "@vue/apollo-composable";
 import gql from "graphql-tag";
 import { computed, ref } from "vue";
 import SuccessSnackbar from "@/components/SuccessSnackbar.vue";
-import generator from "generate-password";
+import generator from "generate-password-browser";
 import { cloneDeep } from "@apollo/client/utilities";
 
 const { result, loading } = useQuery<BackendQuery>(gql`
@@ -85,7 +85,7 @@ function closeAddUserDialog() {
 
 function addUser() {
   const generatedPassword = generator.generate({
-    length: 12,
+    length: 24,
     numbers: true,
     symbols: true,
     strict: true,
@@ -103,13 +103,14 @@ function addUser() {
 
 <template>
   <v-toolbar color="surface" elevation="1">
-    <v-icon size="25" class="mr-2" icon="mdi-account" />
+    <v-icon size="25" class="ml-2" icon="mdi-account" />
 
     <v-toolbar-title>Users</v-toolbar-title>
 
     <v-spacer />
 
-    <v-btn icon="mdi-plus" @click="addUserDialog = true">
+    <v-btn icon @click="addUserDialog = true">
+      <v-icon>mdi-account-plus</v-icon>
       <v-tooltip activator="parent" anchor="bottom end">Add User</v-tooltip>
     </v-btn>
   </v-toolbar>
@@ -125,41 +126,21 @@ function addUser() {
           </tr>
         </thead>
         <tbody>
-          <User
-            v-for="(user, idx) in users"
-            :username="user.username"
-            :role="user.role"
-            :key="`user-${idx}`"
-          />
+          <User v-for="(user, idx) in users" :username="user.username" :role="user.role" :key="`user-${idx}`" />
         </tbody>
       </v-table>
       <v-progress-linear v-else indeterminate color="secondary" />
     </v-col>
   </v-row>
 
-  <v-dialog
-    v-model="addUserDialog"
-    persistent
-    max-width="800px"
-    transition="dialog-top-transition"
-  >
+  <v-dialog v-model="addUserDialog" persistent max-width="800px" transition="dialog-top-transition">
     <v-card style="min-width: 50vw">
       <v-card-title class="text-h5 grey lighten-2"> Add User </v-card-title>
 
       <v-card-text>
         <v-form>
-          <v-text-field
-            v-model="newUsername"
-            label="Username"
-            variant="underlined"
-            density="compact"
-          />
-          <v-select
-            v-model="newUserRole"
-            label="Role"
-            variant="underlined"
-            :items="roles"
-          ></v-select>
+          <v-text-field v-model="newUsername" label="Username" variant="underlined" density="compact" />
+          <v-select v-model="newUserRole" label="Role" variant="underlined" :items="roles"></v-select>
         </v-form>
       </v-card-text>
 
@@ -172,19 +153,12 @@ function addUser() {
       </v-card-actions>
 
       <!--Replace with loading save and exit button once available in vuetify-->
-      <v-overlay
-        v-model="loading"
-        contained
-        class="align-center justify-center"
-      >
+      <v-overlay v-model="loading" contained class="align-center justify-center">
         <v-progress-circular size="80" color="secondary" indeterminate />
       </v-overlay>
     </v-card>
-
-    <SuccessSnackbar
-      :isSuccess="addUserSuccess"
-      @closeEvent="addUserSuccess = false"
-      message="Successfully added new user, the generated password has been copied to clipboard."
-    />
   </v-dialog>
+
+  <SuccessSnackbar :isSuccess="addUserSuccess" @closeEvent="addUserSuccess = false"
+    message="Successfully added new user, the generated password has been copied to clipboard." />
 </template>

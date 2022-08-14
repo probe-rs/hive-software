@@ -5,12 +5,12 @@ import { onMounted, ref } from "vue";
 import AppSettings from "@/components/AppSettings.vue";
 import Navigation from "@/components/Navigation.vue";
 import ErrorSnackbar from "@/components/ErrorSnackbar.vue";
-import hiveLogo from "@/assets/probe-rs-icon.png";
 import { useMutation } from "@vue/apollo-composable";
 import gql from "graphql-tag";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/stores/userStore";
 import { APOLLO_ERROR } from "@/plugins/apollo";
+import hiveIcon from "@/components/icons/hive.vue"
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -54,13 +54,10 @@ function resizeEvent() {
 <template>
   <v-app-bar color="primary" app>
     <v-btn icon rounded="0" dark class="ml-1 pa-1" @click="toggleNavigation">
-      <v-img :src="hiveLogo" alt="menu" />
+      <hiveIcon />
     </v-btn>
 
-    <p
-      style="font-family: Poppins; font-size: 27pt; color: white"
-      class="font-weight-bold pl-2"
-    >
+    <p style="font-family: Poppins; font-size: 27pt; color: white" class="font-weight-bold pl-2">
       Hive
     </p>
 
@@ -74,17 +71,12 @@ function resizeEvent() {
       <AppSettings />
     </v-menu>
     <v-btn icon rounded="0" @click="logout">
-      <v-tooltip anchor="bottom end" activator="parent">Log out</v-tooltip>
+      <v-tooltip location="bottom end" origin="top center" activator="parent">Log out</v-tooltip>
       <v-icon> mdi-logout </v-icon>
     </v-btn>
   </v-app-bar>
 
-  <v-navigation-drawer
-    clipped
-    :model-value="showNavigation"
-    app
-    @transitionend="resizeEvent"
-  >
+  <v-navigation-drawer clipped :model-value="showNavigation" app @transitionend="resizeEvent">
     <Navigation />
   </v-navigation-drawer>
 
@@ -94,9 +86,5 @@ function resizeEvent() {
     </v-container>
   </v-main>
 
-  <ErrorSnackbar
-    :is-error="showError"
-    :message="errorMessage"
-    @close-event="showError = false"
-  />
+  <ErrorSnackbar :is-error="showError" :message="errorMessage" @close-event="showError = false" />
 </template>

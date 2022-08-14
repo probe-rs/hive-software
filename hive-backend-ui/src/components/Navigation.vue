@@ -8,11 +8,6 @@ const menu = [
     url: "/",
   },
   {
-    title: "Details",
-    icon: "mdi-anvil",
-    url: "/details",
-  },
-  {
     title: "Testprograms",
     icon: "mdi-desktop-classic",
     url: "/testprograms",
@@ -47,16 +42,8 @@ function isAuthorized(min_role: string | undefined): boolean {
 
 <template>
   <v-list density="compact">
-    <v-list-item
-      v-for="link in menu"
-      :v-if="isAuthorized(link.minRole)"
-      :key="link.title"
-      :to="link.url"
-      link
-    >
-      <v-list-item-avatar start>
-        <v-icon>{{ link.icon }}</v-icon>
-      </v-list-item-avatar>
+    <v-list-item v-for="link in menu" :v-if="isAuthorized(link.minRole)" :key="link.title" :to="link.url" link
+      :prependIcon="link.icon">
       <v-list-item-title>{{ link.title }}</v-list-item-title>
     </v-list-item>
   </v-list>

@@ -8,10 +8,10 @@ import type {
 import ProbeOverview from "@/components/ProbeOverview.vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import gql from "graphql-tag";
-import { computed, ref, type ComputedRef } from "vue";
+import { computed, ref, watch, type ComputedRef } from "vue";
 import SuccessSnackbar from "./SuccessSnackbar.vue";
 
-const { loading, result } = useQuery<BackendQuery>(gql`
+const { loading, result, refetch } = useQuery<BackendQuery>(gql`
   query {
     assignedProbes {
       state
@@ -25,13 +25,15 @@ const { loading, result } = useQuery<BackendQuery>(gql`
       serialNumber
     }
   }
-`);
+`, {
+  fetchPolicy: 'cache-and-network'
+});
 
 const reloadSuccess = ref(false);
 const {
   mutate: reloadTestrack,
   loading: testrackLoading,
-  onDone,
+  onDone: onReloadDone,
 } = useMutation<BackendMutation>(
   gql`
     mutation {
@@ -41,8 +43,11 @@ const {
   { fetchPolicy: "no-cache" },
 );
 
-onDone(() => {
+onReloadDone(() => {
   reloadSuccess.value = true;
+
+  // refetch query as some data might have changed after hardware reinitialization
+  refetch();
 });
 
 const assignedProbes: ComputedRef<Array<FlatProbeState>> = computed(() => {
@@ -81,19 +86,14 @@ const hasUnassignedProbes = computed(() => {
 
           <v-spacer />
 
-          <v-icon
-            size="25"
-            class="align-self-center"
-            :icon="
-              !hasUnassignedProbes ? 'mdi-checkbox-marked' : 'mdi-help-box'
-            "
-            :color="!hasUnassignedProbes ? 'success' : 'info'"
-          />
+          <v-icon size="25" class="align-self-center" :icon="
+            !hasUnassignedProbes ? 'mdi-checkbox-marked' : 'mdi-help-box'
+          " :color="!hasUnassignedProbes ? 'success' : 'info'" />
           <p class="align-self-center pl-2">
             {{
-              !hasUnassignedProbes
-                ? "All probes are assigned to a channel"
-                : "Detected unassigned probes"
+                !hasUnassignedProbes
+                  ? "All probes are assigned to a channel"
+                  : "Detected unassigned probes"
             }}
           </p>
         </v-row>
@@ -125,12 +125,7 @@ const hasUnassignedProbes = computed(() => {
         <v-sheet rounded elevation="1" class="pa-4">
           <v-row class="pa-2">
             <v-spacer />
-            <v-btn
-              v-if="!testrackLoading"
-              color="success"
-              variant="text"
-              @click="reloadTestrack"
-            >
+            <v-btn v-if="!testrackLoading" color="success" variant="text" @click="reloadTestrack">
               Reload Testrack
             </v-btn>
             <v-progress-linear v-else indeterminate color="secondary" />
@@ -139,11 +134,8 @@ const hasUnassignedProbes = computed(() => {
       </v-col>
     </v-row>
 
-    <SuccessSnackbar
-      :isSuccess="reloadSuccess"
-      message="Testrack successfully reloaded"
-      @closeEvent="reloadSuccess = false"
-    />
+    <SuccessSnackbar :isSuccess="reloadSuccess" message="Testrack successfully reloaded"
+      @closeEvent="reloadSuccess = false" />
   </template>
 
   <template v-else>
@@ -154,14 +146,11 @@ const hasUnassignedProbes = computed(() => {
           <v-progress-linear indeterminate color="secondary" />
         </v-row>
         <v-row class="justify-center">
-          <p
-            class="align-self-center"
-            style="
+          <p class="align-self-center" style="
               max-width: 70%;
               text-align: center;
               color: rgb(var(--v-theme-on-surface), var(--v-disabled-opacity));
-            "
-          >
+            ">
             Loading data...
           </p>
         </v-row>

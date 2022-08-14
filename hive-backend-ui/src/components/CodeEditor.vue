@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { VAceEditor } from "vue3-ace-editor";
 
 import "ace-builds/src-noconflict/mode-assembly_x86";
@@ -20,6 +20,13 @@ const props = defineProps({
   },
 });
 
+watch(
+  () => props.code,
+  (newCode) => {
+    code.value = newCode;
+  },
+);
+
 const code = ref(props.code);
 
 const appConfig = useAppConfig();
@@ -32,16 +39,9 @@ const editorTheme = computed(() => {
 </script>
 
 <template>
-  <VAceEditor
-    style="height: 100%"
-    :options="{
-      fontSize: 20,
-      fontFamily: 'Ubuntu Mono',
-      readOnly: props.readOnly,
-    }"
-    wrap
-    v-model:value="code"
-    :theme="editorTheme"
-    lang="assembly_x86"
-  />
+  <VAceEditor style="height: 100%" :options="{
+    fontSize: 20,
+    fontFamily: 'Ubuntu Mono',
+    readOnly: props.readOnly,
+  }" wrap v-model:value="code" :theme="editorTheme" lang="assembly_x86" />
 </template>

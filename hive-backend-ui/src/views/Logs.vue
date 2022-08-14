@@ -57,7 +57,7 @@ const terminalText = computed(() => {
 
 <template>
   <v-toolbar color="surface" elevation="1">
-    <v-icon size="25" class="mr-2" icon="mdi-console" />
+    <v-icon size="25" class="ml-2" icon="mdi-console" />
 
     <v-toolbar-title>Logs</v-toolbar-title>
 
@@ -77,12 +77,7 @@ const terminalText = computed(() => {
       Level: {{ selectedLogLevel }}
       <v-menu activator="parent">
         <v-list>
-          <v-list-item
-            v-for="level in logLevels"
-            :key="level"
-            :value="level"
-            @click="selectedLogLevel = level"
-          >
+          <v-list-item v-for="level in logLevels" :key="level" :value="level" @click="selectedLogLevel = level">
             <v-list-item-title>{{ level }}</v-list-item-title>
           </v-list-item>
         </v-list>

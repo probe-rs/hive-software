@@ -37,6 +37,7 @@ const { loading, result, error, refetch, load, onResult } = useLazyQuery<
 
 const isError = computed(() => {
   if (error.value) {
+    password.value = "";
     return true;
   }
   return false;
@@ -66,28 +67,14 @@ function submitLogin() {
     <v-card-title>
       <h3 style="font-family: Poppins">Hive Backend</h3>
     </v-card-title>
-    <v-card-content>
-      <v-text-field
-        v-model="username"
-        variant="underlined"
-        density="compact"
-        label="Username"
-        :error="isError"
-        @keydown.enter="submitLogin"
-      />
-      <v-text-field
-        v-model="password"
-        :append-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-        variant="underlined"
-        density="compact"
-        :type="showPassword ? 'text' : 'password'"
-        label="Password"
-        :error="isError"
+    <v-card-text>
+      <v-text-field v-model="username" variant="underlined" density="compact" label="Username" :error="isError"
+        @keydown.enter="submitLogin" />
+      <v-text-field v-model="password" :append-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'" variant="underlined"
+        density="compact" :type="showPassword ? 'text' : 'password'" label="Password" :error="isError"
         :error-messages="isError ? 'Wrong username or password' : undefined"
-        @click:append="showPassword = !showPassword"
-        @keydown.enter="submitLogin"
-      />
-    </v-card-content>
+        @click:append="showPassword = !showPassword" @keydown.enter="submitLogin" />
+    </v-card-text>
     <v-card-actions>
       <v-spacer />
       <v-btn color="secondary" variant="text" @click="submitLogin">Login</v-btn>

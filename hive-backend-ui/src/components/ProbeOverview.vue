@@ -126,9 +126,9 @@ const availableProbes = computed(() => {
 
         if (
           assignedProbes.value[i].data!.identifier ===
-            connectedProbe.identifier &&
+          connectedProbe.identifier &&
           assignedProbes.value[i].data!.serialNumber ===
-            connectedProbe.serialNumber
+          connectedProbe.serialNumber
         ) {
           return false;
         }
@@ -149,9 +149,8 @@ const availableProbes = computed(() => {
 function displayAssignedProbe(probe: FlatProbeState): string {
   switch (probe.state) {
     case State.Known:
-      return `${probe.data!.identifier} (S/N: ${
-        probe.data!.serialNumber ? probe.data!.serialNumber : "unknown"
-      })`;
+      return `${probe.data!.identifier} (S/N: ${probe.data!.serialNumber ? probe.data!.serialNumber : "unknown"
+        })`;
     case State.Unknown:
       return "Unknown";
     case State.NotConnected:
@@ -162,9 +161,8 @@ function displayAssignedProbe(probe: FlatProbeState): string {
 }
 
 function displayProbe(probe: ProbeInfo): string {
-  return `${probe.identifier} (S/N: ${
-    probe.serialNumber ? probe.serialNumber : "unknown"
-  })`;
+  return `${probe.identifier} (S/N: ${probe.serialNumber ? probe.serialNumber : "unknown"
+    })`;
 }
 
 function submit(probeName: string) {
@@ -215,18 +213,10 @@ function submit(probeName: string) {
       Testchannel {{ props.channel }}
     </v-card-title>
 
-    <v-card-text class="pb-0">
-      <v-autocomplete
-        @update:modelValue="submit"
-        v-model="selectedProbe"
-        :loading="loading"
-        :items="availableProbes"
-        dense
-        label="Debug Probe"
-        hint="Please select the corresponding probe"
-        persistent-hint
-        no-data-text="No probes found"
-      >
+    <v-card-text class="pb-0" style="margin-bottom: 1vh">
+      <v-autocomplete @update:modelValue="submit" v-model="selectedProbe" :loading="loading" :items="availableProbes"
+        dense label="Debug Probe" hint="Please select the corresponding probe" persistent-hint
+        no-data-text="No probes found">
       </v-autocomplete>
     </v-card-text>
   </v-card>
