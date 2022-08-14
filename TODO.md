@@ -54,7 +54,7 @@
 - [X] User store does not stay persistent between page reloads, leading to wrongly denied routes
 - [X] Fix appearance of Hive Testrack. Currently the active animation will not reset. Probably due to reassigning the Konva Tween object (It then looses info on its state)
 - [X] Display unhandled errors to user as snackbar
-- [ ] Fix tooltips, most of them don't show at all. Might be related to using alpha/beta version of vuetify
+- [X] Fix tooltips, most of them don't show at all. Might be related to using alpha/beta version of vuetify
 - [X] Add status to target which matches the actual status in runtime
 
 ## Hive CLI 
