@@ -12,7 +12,7 @@ const MODULE_EXAMPLE: &str = "\n\n#[hive]\npub mod tests {\n\t// Testfunctions e
 /// The mandatory name of the Hive test top level module which is annotated with the `#[hive]` macro
 const TOP_LEVEL_MODULE_NAME: &str = "tests";
 /// List of allowed crates as dependencies in Hive test modules
-const ALLOWED_DEPENDENCIES: [&str; 4] = ["std", "hive_test", "probe_rs_test", "super"];
+const ALLOWED_DEPENDENCIES: [&str; 5] = ["core", "std", "hive_test", "probe_rs_test", "super"];
 
 pub fn run(attr: TokenStream, item: TokenStream) -> TokenStream {
     // parse macro attributes
