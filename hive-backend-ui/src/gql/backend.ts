@@ -260,6 +260,7 @@ export type SystemInfo = {
   __typename?: 'SystemInfo';
   controller: Scalars['String'];
   soc: Scalars['String'];
+  cores: Scalars['Int'];
   hostname: Scalars['String'];
   os: Scalars['String'];
   memory: MemoryInfo;

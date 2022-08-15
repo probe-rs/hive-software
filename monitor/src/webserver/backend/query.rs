@@ -250,6 +250,7 @@ impl BackendQuery {
             let device_info = DeviceInfo::new()?;
 
             let hostname = sys_info::hostname()?;
+            let cores = sys_info::cpu_num()?;
             let os = sys_info::linux_os_release()?;
             let memory = sys_info::mem_info()?;
             let disk = sys_info::disk_info()?;
@@ -259,6 +260,7 @@ impl BackendQuery {
                 controller: device_info.model().to_string(),
                 soc: device_info.soc().to_string(),
                 hostname,
+                cores,
                 os: os.pretty_name.unwrap_or("Unknown".to_owned()),
                 average_load: load.one,
                 memory: memory.into(),

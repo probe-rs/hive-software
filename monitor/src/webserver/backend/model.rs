@@ -225,6 +225,7 @@ impl Into<Level> for LogLevel {
 pub(super) struct SystemInfo {
     pub controller: String,
     pub soc: String,
+    pub cores: u32,
     pub hostname: String,
     pub os: String,
     pub memory: MemoryInfo,

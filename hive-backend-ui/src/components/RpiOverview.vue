@@ -15,6 +15,7 @@ const { loading, result, onError } = useQuery<BackendQuery>(gql`
       controller
       soc
       hostname
+      cores
       os
       memory {
         total
@@ -47,6 +48,7 @@ const systemInfo = computed(() => {
         diskFree: Math.round((systemInfo.disk.free / 1000000) * 1000) / 1000,
         averageLoad: systemInfo.averageLoad,
         controller: systemInfo.controller,
+        cores: systemInfo.cores,
         soc: systemInfo.soc,
         hostname: systemInfo.hostname,
         os: systemInfo.os,
@@ -68,6 +70,14 @@ const diskUsage = computed(() => {
 
     return ((systemInfo.value.diskTotal - systemInfo.value.diskFree) / systemInfo.value.diskTotal) * 100;
 });
+
+const averageLoad = computed(() => {
+    if (!systemInfo.value || systemInfo.value.cores === 0) {
+        return 0;
+    }
+
+    return (systemInfo.value.averageLoad / systemInfo.value.cores) * 100;
+})
 
 const errorMessage = ref("");
 const showError = ref(false);
@@ -162,7 +172,7 @@ onError((error) => {
                             <strong>Avg. System Load:</strong>
                         </div>
                         <div style="flex-grow: 1;" class="pl-2">
-                            <v-progress-linear v-model="systemInfo!.averageLoad" rounded color="secondary" height="25">
+                            <v-progress-linear v-model="averageLoad" rounded color="secondary" height="25">
                                 <template v-slot:default="{ value }">
                                     <strong>{{ Math.ceil(value) }}%</strong>
                                 </template>
