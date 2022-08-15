@@ -11,6 +11,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  scrollToBottom: {
+    type: Boolean,
+    required: true,
+  }
 });
 
 const terminalParent = ref(null);
@@ -34,6 +38,10 @@ watch(
   (newVal) => {
     terminal.reset();
     terminal.write(newVal);
+
+    if (props.scrollToBottom) {
+      terminal.scrollToBottom();
+    }
   },
 );
 

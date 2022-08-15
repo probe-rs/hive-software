@@ -87,7 +87,7 @@ const terminalText = computed(() => {
 
   <v-row class="pt-4 pb-4">
     <v-col>
-      <Terminal :content="terminalText" />
+      <Terminal :content="terminalText" :scrollToBottom="true" />
     </v-col>
   </v-row>
 </template>

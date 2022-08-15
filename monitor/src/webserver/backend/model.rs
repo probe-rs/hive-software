@@ -219,3 +219,45 @@ impl Into<Level> for LogLevel {
         }
     }
 }
+
+/// System information of the System running this application
+#[derive(Debug, SimpleObject)]
+pub(super) struct SystemInfo {
+    pub controller: String,
+    pub soc: String,
+    pub hostname: String,
+    pub os: String,
+    pub memory: MemoryInfo,
+    pub disk: DiskInfo,
+    pub average_load: f64,
+}
+
+#[derive(Debug, SimpleObject)]
+pub(super) struct MemoryInfo {
+    total: u64,
+    free: u64,
+}
+
+impl From<sys_info::MemInfo> for MemoryInfo {
+    fn from(info: sys_info::MemInfo) -> Self {
+        Self {
+            total: info.total,
+            free: info.free,
+        }
+    }
+}
+
+#[derive(Debug, SimpleObject)]
+pub(super) struct DiskInfo {
+    total: u64,
+    free: u64,
+}
+
+impl From<sys_info::DiskInfo> for DiskInfo {
+    fn from(info: sys_info::DiskInfo) -> Self {
+        Self {
+            total: info.total,
+            free: info.free,
+        }
+    }
+}

@@ -12,13 +12,14 @@ use hive_db::CborDb;
 use log::Level;
 use probe_rs::config::search_chips;
 use probe_rs::Probe;
+use rppal::system::DeviceInfo;
 
 use crate::database::{keys, MonitorDb};
 use crate::testprogram::Testprogram;
 
 use super::model::{
     Application, FlatProbeState, FlatTargetState, FullTestProgramResponse, LogLevel, ProbeInfo,
-    UserResponse,
+    SystemInfo, UserResponse,
 };
 
 const RUNNER_LOGFILE_PATH: &str = "./data/logs/runner.log";
@@ -103,8 +104,6 @@ impl BackendQuery {
             .collect::<Vec<FlatProbeState>>()
             .try_into()
             .unwrap();
-
-        println!("Sending: {:?}", res);
 
         res
     }
@@ -243,5 +242,30 @@ impl BackendQuery {
             code_arm,
             code_riscv,
         })
+    }
+
+    /// Get information about the system on which Hive runs
+    async fn system_info<'ctx>(&self, ctx: &Context<'ctx>) -> GrapqlResult<SystemInfo> {
+        tokio::task::spawn_blocking(|| {
+            let device_info = DeviceInfo::new()?;
+
+            let hostname = sys_info::hostname()?;
+            let os = sys_info::linux_os_release()?;
+            let memory = sys_info::mem_info()?;
+            let disk = sys_info::disk_info()?;
+            let load = sys_info::loadavg()?;
+
+            Ok(SystemInfo {
+                controller: device_info.model().to_string(),
+                soc: device_info.soc().to_string(),
+                hostname,
+                os: os.pretty_name.unwrap_or("Unknown".to_owned()),
+                average_load: load.one,
+                memory: memory.into(),
+                disk: disk.into(),
+            })
+        })
+        .await
+        .unwrap()
     }
 }
