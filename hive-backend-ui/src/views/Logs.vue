@@ -47,12 +47,24 @@ const { result } = useQuery(
   },
 );
 
-const terminalText = computed(() => {
+const terminalText = computed<string>(() => {
   if (result.value) {
     return result.value.applicationLog.join("");
   }
   return "Loading data...\n";
 });
+
+function exportLog() {
+  const url = window.URL.createObjectURL(new Blob([terminalText.value], { type: "text/plain" }));
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", `${selectedApplicationString.value.toLowerCase()}_log.txt`);
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
 </script>
 
 <template>
@@ -68,7 +80,7 @@ const terminalText = computed(() => {
       </v-tabs>
 
       <v-spacer></v-spacer>
-      <v-btn color="success">Export</v-btn>
+      <v-btn color="success" @click="exportLog">Export</v-btn>
     </template>
 
     <v-spacer />
