@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, toRefs, watch } from "vue";
 
 const SNACKBAR_TIMEOUT = 3000; // 3s
 
@@ -16,14 +16,13 @@ const props = defineProps({
   },
 });
 
+const { isError, message } = toRefs(props);
+
 const snackbar = ref(false);
 
-watch(
-  () => props.isError,
-  (newVal) => {
-    snackbar.value = newVal;
-  },
-);
+watch(isError, (newVal) => {
+  snackbar.value = newVal;
+});
 
 watch(snackbar, (isActive) => {
   if (!isActive) {
@@ -34,6 +33,6 @@ watch(snackbar, (isActive) => {
 
 <template>
   <v-snackbar v-model="snackbar" :timeout="SNACKBAR_TIMEOUT" color="error">
-    {{ props.message }}
+    {{ message }}
   </v-snackbar>
 </template>

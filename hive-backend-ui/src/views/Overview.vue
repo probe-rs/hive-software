@@ -29,11 +29,14 @@ function handleSelect(location: number) {
     <v-row>
       <v-col cols="12" class="pa-4">
         <v-row class="justify-center">
-          <p class="align-self-center" style="
+          <p
+            class="align-self-center"
+            style="
               max-width: 70%;
               text-align: center;
               color: rgb(var(--v-theme-on-surface), var(--v-disabled-opacity));
-            ">
+            "
+          >
             Select a part in the Testrack above to display information and
             adjust settings of this part
           </p>

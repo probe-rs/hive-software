@@ -11,7 +11,7 @@ import {
 import { cloneDeep } from "@apollo/client/utilities";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import gql from "graphql-tag";
-import { computed, ref, type PropType } from "vue";
+import { computed, ref, toRefs, type PropType } from "vue";
 
 const props = defineProps({
   channel: {
@@ -24,7 +24,9 @@ const props = defineProps({
   },
 });
 
-const selectedProbe = ref(displayAssignedProbe(props.initialData));
+const { channel, initialData } = toRefs(props);
+
+const selectedProbe = ref(displayAssignedProbe(initialData.value));
 
 const { loading, result } = useQuery<BackendQuery>(gql`
   query {
@@ -126,9 +128,9 @@ const availableProbes = computed(() => {
 
         if (
           assignedProbes.value[i].data!.identifier ===
-          connectedProbe.identifier &&
+            connectedProbe.identifier &&
           assignedProbes.value[i].data!.serialNumber ===
-          connectedProbe.serialNumber
+            connectedProbe.serialNumber
         ) {
           return false;
         }
@@ -149,8 +151,9 @@ const availableProbes = computed(() => {
 function displayAssignedProbe(probe: FlatProbeState): string {
   switch (probe.state) {
     case State.Known:
-      return `${probe.data!.identifier} (S/N: ${probe.data!.serialNumber ? probe.data!.serialNumber : "unknown"
-        })`;
+      return `${probe.data!.identifier} (S/N: ${
+        probe.data!.serialNumber ? probe.data!.serialNumber : "unknown"
+      })`;
     case State.Unknown:
       return "Unknown";
     case State.NotConnected:
@@ -161,8 +164,9 @@ function displayAssignedProbe(probe: FlatProbeState): string {
 }
 
 function displayProbe(probe: ProbeInfo): string {
-  return `${probe.identifier} (S/N: ${probe.serialNumber ? probe.serialNumber : "unknown"
-    })`;
+  return `${probe.identifier} (S/N: ${
+    probe.serialNumber ? probe.serialNumber : "unknown"
+  })`;
 }
 
 function submit(probeName: string) {
@@ -202,7 +206,7 @@ function submit(probeName: string) {
     }
   }
 
-  submitProbe({ probePos: props.channel, probeState: probeState });
+  submitProbe({ probePos: channel.value, probeState: probeState });
 }
 </script>
 
@@ -210,13 +214,21 @@ function submit(probeName: string) {
   <v-card elevation="1">
     <v-card-title prepend-icon="mdi-chip">
       <v-icon icon="mdi-ray-start-end" size="40" class="mr-2" />
-      Testchannel {{ props.channel }}
+      Testchannel {{ channel }}
     </v-card-title>
 
     <v-card-text class="pb-0" style="margin-bottom: 1vh">
-      <v-autocomplete @update:modelValue="submit" v-model="selectedProbe" :loading="loading" :items="availableProbes"
-        dense label="Debug Probe" hint="Please select the corresponding probe" persistent-hint
-        no-data-text="No probes found">
+      <v-autocomplete
+        @update:modelValue="submit"
+        v-model="selectedProbe"
+        :loading="loading"
+        :items="availableProbes"
+        dense
+        label="Debug Probe"
+        hint="Please select the corresponding probe"
+        persistent-hint
+        no-data-text="No probes found"
+      >
       </v-autocomplete>
     </v-card-text>
   </v-card>

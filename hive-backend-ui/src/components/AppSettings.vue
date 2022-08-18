@@ -24,12 +24,21 @@ const accountDialog = ref(false);
     <v-list-item key="Account" @click="" prepend-icon="mdi-account">
       <v-list-item-title>Account</v-list-item-title>
 
-      <v-dialog v-model="accountDialog" activator="parent" persistent max-width="800px"
-        transition="dialog-top-transition">
+      <v-dialog
+        v-model="accountDialog"
+        activator="parent"
+        persistent
+        max-width="800px"
+        transition="dialog-top-transition"
+      >
         <account-settings @closeEvent="accountDialog = false" />
       </v-dialog>
     </v-list-item>
-    <v-list-item key="Theme" @click="appConfig.toggleTheme" :prepend-icon="themeText.icon">
+    <v-list-item
+      key="Theme"
+      @click="appConfig.toggleTheme"
+      :prepend-icon="themeText.icon"
+    >
       <v-list-item-title v-text="themeText.text"></v-list-item-title>
     </v-list-item>
   </v-list>

@@ -55,11 +55,16 @@ const terminalText = computed<string>(() => {
 });
 
 function exportLog() {
-  const url = window.URL.createObjectURL(new Blob([terminalText.value], { type: "text/plain" }));
+  const url = window.URL.createObjectURL(
+    new Blob([terminalText.value], { type: "text/plain" }),
+  );
 
   const link = document.createElement("a");
   link.href = url;
-  link.setAttribute("download", `${selectedApplicationString.value.toLowerCase()}_log.txt`);
+  link.setAttribute(
+    "download",
+    `${selectedApplicationString.value.toLowerCase()}_log.txt`,
+  );
 
   document.body.appendChild(link);
   link.click();
@@ -89,7 +94,12 @@ function exportLog() {
       Level: {{ selectedLogLevel }}
       <v-menu activator="parent">
         <v-list>
-          <v-list-item v-for="level in logLevels" :key="level" :value="level" @click="selectedLogLevel = level">
+          <v-list-item
+            v-for="level in logLevels"
+            :key="level"
+            :value="level"
+            @click="selectedLogLevel = level"
+          >
             <v-list-item-title>{{ level }}</v-list-item-title>
           </v-list-item>
         </v-list>

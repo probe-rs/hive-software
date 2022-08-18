@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+
 const props = defineProps({
   text: {
     type: String,
@@ -9,6 +11,8 @@ const props = defineProps({
     required: true,
   },
 });
+
+const { isActive, text } = toRefs(props);
 
 const emit = defineEmits(["confirm", "cancel"]);
 
@@ -22,10 +26,10 @@ function cancel() {
 </script>
 
 <template>
-  <v-dialog v-model="props.isActive" persistent>
+  <v-dialog v-model="isActive" persistent>
     <v-card>
       <v-card-title class="text-h5"> Confirmation </v-card-title>
-      <v-card-text>{{ props.text }}</v-card-text>
+      <v-card-text>{{ text }}</v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn color="error" text @click="cancel"> Cancel </v-btn>

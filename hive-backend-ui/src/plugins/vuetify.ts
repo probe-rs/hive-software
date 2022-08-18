@@ -42,7 +42,7 @@ export default createVuetify({
   },
   icons: {
     values: {
-      hiveIcon
+      hiveIcon,
     },
   },
 });

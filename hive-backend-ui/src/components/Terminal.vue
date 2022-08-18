@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeMount, onUnmounted, watch } from "vue";
+import { ref, onMounted, onBeforeMount, onUnmounted, watch, toRefs } from "vue";
 import { Terminal } from "xterm";
 import "xterm/css/xterm.css";
 import { FitAddon } from "xterm-addon-fit";
@@ -14,8 +14,10 @@ const props = defineProps({
   scrollToBottom: {
     type: Boolean,
     required: true,
-  }
+  },
 });
+
+const { content, scrollToBottom } = toRefs(props);
 
 const terminalParent = ref(null);
 const terminal = new Terminal({
@@ -31,19 +33,16 @@ const terminal = new Terminal({
 const terminalFit = new FitAddon();
 terminal.loadAddon(terminalFit);
 terminal.loadAddon(new XtermWebfont());
-terminal.write(props.content);
+terminal.write(content.value);
 
-watch(
-  () => props.content,
-  (newVal) => {
-    terminal.reset();
-    terminal.write(newVal);
+watch(content, (newVal) => {
+  terminal.reset();
+  terminal.write(newVal);
 
-    if (props.scrollToBottom) {
-      terminal.scrollToBottom();
-    }
-  },
-);
+  if (scrollToBottom.value) {
+    terminal.scrollToBottom();
+  }
+});
 
 onBeforeMount(() => {
   window.addEventListener("resize", updateTerminalSize);

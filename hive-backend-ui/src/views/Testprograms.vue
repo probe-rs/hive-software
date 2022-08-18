@@ -6,7 +6,6 @@ import {
   Architecture,
   type BackendMutation,
   type BackendMutationCreateTestprogramArgs,
-  type BackendMutationDeleteTestprogramArgs,
   type BackendMutationSetActiveTestprogramArgs,
   type BackendQuery,
 } from "@/gql/backend";
@@ -21,10 +20,13 @@ const DEFAULT_TESTPROGRAM = "default";
 const selectedTestprogram = ref(DEFAULT_TESTPROGRAM);
 const selectedArchitecture = ref(Architecture.Arm);
 const createTestprogramDialog = ref(false);
+const deleteSelectedTestprogram = ref(false);
 const isError = ref(false);
 const errorMessage = ref("");
+// Flag which is true if there have been unsaved changed
+const unsavedChanges = ref(false);
 
-const { result } = useQuery<BackendQuery>(
+const { result, refetch: refetchTestprograms } = useQuery<BackendQuery>(
   gql`
     query {
       availableTestprograms {
@@ -178,6 +180,7 @@ onTestprogramCreated((response) => {
 
   if (response.data) {
     selectedTestprogram.value = response.data.createTestprogram.name;
+    refetchTestprograms();
   }
 });
 
@@ -191,79 +194,29 @@ function closeCreateTestprogramDialog() {
   newTestprogramName.value = "";
 }
 
-const { mutate: deleteTestprogram, onDone: onTestprogramDeleted } = useMutation<
-  BackendMutation,
-  BackendMutationDeleteTestprogramArgs
->(
-  gql`
-    mutation ($testprogramName: String!) {
-      deleteTestprogram(testprogramName: $testprogramName)
-    }
-  `,
-  {
-    update: (cache, { data }) => {
-      if (!data) {
-        return;
-      }
-
-      const deleteTestprogram = data.deleteTestprogram;
-
-      const QUERY = gql`
-        query {
-          availableTestprograms {
-            name
-            testprogramArm {
-              architecture
-              status
-              compileMessage
-            }
-            testprogramRiscv {
-              architecture
-              status
-              compileMessage
-            }
-          }
-        }
-      `;
-
-      let cacheData: BackendQuery | null = cache.readQuery({
-        query: QUERY,
-      });
-
-      if (!cacheData) {
-        return;
-      }
-
-      const newAvailableTestprograms = cloneDeep(
-        cacheData.availableTestprograms,
-      );
-      const idx = newAvailableTestprograms.findIndex(
-        (e) => e.name === deleteTestprogram,
-      );
-
-      newAvailableTestprograms.splice(idx, 1);
-
-      cacheData = {
-        ...cacheData,
-        availableTestprograms: newAvailableTestprograms,
-      };
-
-      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
-    },
-  },
-);
-
-const showDeleteTestprogramConfirmDialog = ref(false);
-
-function deleteCurrentTestprogram() {
-  showDeleteTestprogramConfirmDialog.value = false;
-
-  deleteTestprogram({ testprogramName: selectedTestprogram.value });
+function onTestprogramDeleted() {
+  selectedTestprogram.value = DEFAULT_TESTPROGRAM;
+  deleteSelectedTestprogram.value = false;
+  refetchTestprograms();
 }
 
-onTestprogramDeleted(() => {
-  selectedTestprogram.value = DEFAULT_TESTPROGRAM;
-});
+const showConfirmChangeSelectedProgram = ref(false);
+const selectedTestprogramCandidate = ref("");
+
+function changeSelectedTestprogram(testprogram: string) {
+  if (unsavedChanges.value) {
+    showConfirmChangeSelectedProgram.value = true;
+    selectedTestprogramCandidate.value = testprogram;
+    return;
+  }
+
+  selectedTestprogram.value = testprogram;
+}
+
+function confirmChangeSelectedProgram() {
+  showConfirmChangeSelectedProgram.value = false;
+  selectedTestprogram.value = selectedTestprogramCandidate.value;
+}
 </script>
 
 <template>
@@ -279,26 +232,46 @@ onTestprogramDeleted(() => {
       </v-tabs>
 
       <v-spacer></v-spacer>
-      <v-btn :color="selectedIsActive ? 'disabled' : 'info'" :disabled="selectedIsActive"
-        @click="setActiveTestprogram({ testprogramName: selectedTestprogram })">Set active</v-btn>
-      <v-btn v-if="selectedTestprogram !== DEFAULT_TESTPROGRAM" color="error"
-        @click="showDeleteTestprogramConfirmDialog = true">Delete Testprogram</v-btn>
-      <v-btn v-if="selectedTestprogram !== DEFAULT_TESTPROGRAM" color="success">Check & Save</v-btn>
+      <v-btn
+        :color="selectedIsActive ? 'disabled' : 'info'"
+        :disabled="selectedIsActive"
+        @click="setActiveTestprogram({ testprogramName: selectedTestprogram })"
+        >Set active</v-btn
+      >
+      <v-btn
+        v-if="selectedTestprogram !== DEFAULT_TESTPROGRAM"
+        color="error"
+        @click="deleteSelectedTestprogram = true"
+      >
+        Delete Testprogram</v-btn
+      >
+      <v-btn v-if="selectedTestprogram !== DEFAULT_TESTPROGRAM" color="success"
+        >Check & Save</v-btn
+      >
     </template>
 
     <v-spacer />
 
-    <v-icon v-if="selectedIsActive" color="success" icon="mdi-check-circle-outline" />
+    <v-icon
+      v-if="selectedIsActive"
+      color="success"
+      icon="mdi-check-circle-outline"
+    />
     <!--<v-tooltip activator="parent" location="bottom end" origin="top start">Testprogram is currently active</v-tooltip>-->
 
     <v-btn>
       {{ selectedTestprogram }}
       <v-menu activator="parent">
         <v-list>
-          <v-list-item v-for="testprogram in testprograms" :key="testprogram" :value="testprogram"
-            @click="selectedTestprogram = testprogram">
+          <v-list-item
+            v-for="testprogram in testprograms"
+            :key="testprogram"
+            :value="testprogram"
+            @click="changeSelectedTestprogram(testprogram)"
+            :v-if="testprogram !== selectedTestprogram"
+          >
             <v-list-item-title>{{
-                testprogram.toUpperCase()
+              testprogram.toUpperCase()
             }}</v-list-item-title>
           </v-list-item>
         </v-list>
@@ -307,11 +280,18 @@ onTestprogramDeleted(() => {
 
     <v-btn icon @click="createTestprogramDialog = true">
       <v-icon>mdi-plus</v-icon>
-      <v-tooltip activator="parent" location="bottom end">Add testprogram</v-tooltip>
+      <v-tooltip activator="parent" location="bottom end"
+        >Add testprogram</v-tooltip
+      >
     </v-btn>
   </v-toolbar>
 
-  <v-dialog v-model="createTestprogramDialog" persistent max-width="800px" transition="dialog-top-transition">
+  <v-dialog
+    v-model="createTestprogramDialog"
+    persistent
+    max-width="800px"
+    transition="dialog-top-transition"
+  >
     <v-card style="min-width: 50vw">
       <v-card-title class="text-h5 grey lighten-2">
         Create new testprogram
@@ -319,7 +299,12 @@ onTestprogramDeleted(() => {
 
       <v-card-text>
         <v-form>
-          <v-text-field v-model="newTestprogramName" label="Testprogram name" variant="underlined" density="compact" />
+          <v-text-field
+            v-model="newTestprogramName"
+            label="Testprogram name"
+            variant="underlined"
+            density="compact"
+          />
         </v-form>
       </v-card-text>
 
@@ -330,23 +315,45 @@ onTestprogramDeleted(() => {
           Cancel
         </v-btn>
         <v-spacer></v-spacer>
-        <v-btn color="success" text @click="createTestprogram({ testprogramName: newTestprogramName })">
+        <v-btn
+          color="success"
+          text
+          @click="createTestprogram({ testprogramName: newTestprogramName })"
+        >
           Create new testprogram
         </v-btn>
       </v-card-actions>
 
       <!--Replace with loading save and exit button once available in vuetify-->
-      <v-overlay v-model="testprogramCreateLoading" contained class="align-center justify-center">
+      <v-overlay
+        v-model="testprogramCreateLoading"
+        contained
+        class="align-center justify-center"
+      >
         <v-progress-circular size="80" color="secondary" indeterminate />
       </v-overlay>
     </v-card>
   </v-dialog>
 
-  <Testprogram :testprogram-name="selectedTestprogram" :selected-architecture="selectedArchitecture" />
+  <Testprogram
+    :deleteTestprogramEvent="deleteSelectedTestprogram"
+    :testprogram-name="selectedTestprogram"
+    :selected-architecture="selectedArchitecture"
+    @testprogramDeleted="onTestprogramDeleted"
+    @testprogramNotDeleted="deleteSelectedTestprogram = false"
+    @code-edited="unsavedChanges = true"
+  />
 
-  <ConfirmDialog :is-active="showDeleteTestprogramConfirmDialog" @cancel="showDeleteTestprogramConfirmDialog = false"
-    @confirm="deleteCurrentTestprogram"
-    :text="`Do you really want to delete the testprogram '${selectedTestprogram}'?`" />
+  <ConfirmDialog
+    :is-active="showConfirmChangeSelectedProgram"
+    text="Current Testprogram has unsaved changes which will get lost if you change testprograms. Proceed anyway?"
+    @confirm="confirmChangeSelectedProgram"
+    @cancel="showConfirmChangeSelectedProgram = false"
+  />
 
-  <ErrorSnackbar :is-error="isError" :message="errorMessage" @close-event="isError = false" />
+  <ErrorSnackbar
+    :is-error="isError"
+    :message="errorMessage"
+    @close-event="isError = false"
+  />
 </template>

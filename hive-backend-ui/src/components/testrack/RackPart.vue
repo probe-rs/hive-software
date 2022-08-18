@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type PropType, ref, onMounted, watch } from "vue";
+import { type PropType, ref, onMounted, watch, toRefs } from "vue";
 import type { PartType } from "./types";
 import { defaultRackScale } from "./constants";
 import Konva from "konva";
@@ -19,10 +19,6 @@ interface VueKonvaImageTween extends Konva.Image {
 }
 
 const props = defineProps({
-  type: {
-    type: Number as PropType<PartType>,
-    required: true,
-  },
   location: {
     type: Number,
     required: true,
@@ -37,18 +33,20 @@ const props = defineProps({
   },
 });
 
+const { location, config, isSelected } = toRefs(props);
+
 onMounted(() => {
-  setTween(props.config.y);
+  setTween(config.value.y);
 
   const node = (part.value! as VueKonvaImage).getNode();
 
   // Reset the tween to the new image size in case the image changed (for example a Daughterboard has been inserted)
   node.on("imageChange", () => {
-    node.y(props.config.y);
+    node.y(config.value.y);
 
-    setTween(props.config.y);
+    setTween(config.value.y);
 
-    if (props.isSelected) {
+    if (isSelected.value) {
       node.enterTween.play();
     }
   });
@@ -69,20 +67,17 @@ function setTween(y: number) {
   });
 }
 
-watch(
-  () => props.isSelected,
-  (isSelected) => {
-    if (!part.value) {
-      return;
-    }
+watch(isSelected, (isSelected) => {
+  if (!part.value) {
+    return;
+  }
 
-    if (isSelected) {
-      (part.value as VueKonvaImage).getNode().enterTween.play();
-    } else {
-      (part.value as VueKonvaImage).getNode().enterTween.reverse();
-    }
-  },
-);
+  if (isSelected) {
+    (part.value as VueKonvaImage).getNode().enterTween.play();
+  } else {
+    (part.value as VueKonvaImage).getNode().enterTween.reverse();
+  }
+});
 
 const scale = ref(defaultRackScale);
 const part = ref(null);
@@ -94,7 +89,7 @@ function handleMouseEnter() {
 
   (part.value as any).getNode().getStage().container().style.cursor = "pointer";
 
-  if (!props.isSelected) {
+  if (!isSelected.value) {
     (part.value as VueKonvaImage).getNode().enterTween.play();
   }
 }
@@ -106,7 +101,7 @@ function handleMouseLeave() {
 
   (part.value as any).getNode().getStage().container().style.cursor = "default";
 
-  if (!props.isSelected) {
+  if (!isSelected.value) {
     (part.value as VueKonvaImage).getNode().enterTween.reverse();
   }
 }
@@ -114,12 +109,12 @@ function handleMouseLeave() {
 
 <template>
   <v-image
-    @click="$emit('mouseClick', props.location)"
+    @click="$emit('mouseClick', location)"
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
     ref="part"
     :config="{
-      ...props.config,
+      ...config,
       scale: {
         x: scale,
         y: scale,

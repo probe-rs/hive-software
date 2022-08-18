@@ -11,7 +11,7 @@ import {
 import { ref, defineProps, watch, type PropType } from "vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import { gql } from "@apollo/client/core";
-import { computed } from "@vue/reactivity";
+import { computed, toRefs } from "@vue/reactivity";
 import { cloneDeep } from "@apollo/client/utilities";
 
 const props = defineProps({
@@ -36,6 +36,8 @@ const props = defineProps({
     required: true,
   },
 });
+
+const { target, status, statusMessage, tssPos, initialData } = toRefs(props);
 
 const search = ref("");
 const selectedChip = ref(getInitialSelectedChip());
@@ -143,12 +145,13 @@ const { mutate: submitTarget } = useMutation<
 );
 
 function getInitialSelectedChip() {
-  if (props.initialData.state === State.Unknown) {
-    return "Unknown";
-  } else if (props.initialData.state === State.NotConnected) {
-    return "Not Connected";
-  } else {
-    return props.initialData.data!.name;
+  switch (initialData.value.state) {
+    case State.Unknown:
+      return "Unknown";
+    case State.NotConnected:
+      return "Not Connected";
+    default:
+      return initialData.value.data!.name;
   }
 }
 
@@ -163,15 +166,12 @@ const foundChips = computed(() => {
   return ["Unknown", "Not Connected"];
 });
 
-watch(
-  () => props.tssPos,
-  () => {
-    selectedChip.value = getInitialSelectedChip();
-  },
-);
+watch(tssPos, () => {
+  selectedChip.value = getInitialSelectedChip();
+});
 
 function submit(targetName: string) {
-  submitTarget({ tssPos: props.tssPos, targetPos: props.target, targetName });
+  submitTarget({ tssPos: tssPos.value, targetPos: target.value, targetName });
 }
 </script>
 
@@ -179,27 +179,54 @@ function submit(targetName: string) {
   <v-card elevation="1">
     <v-card-title prepend-icon="mdi-chip">
       <v-icon icon="mdi-chip" size="40" class="mr-2" />
-      Target {{ props.target }}
+      Target {{ target }}
     </v-card-title>
 
-    <template v-if="props.initialData.state === State.Known">
-      <v-card-subtitle v-if="props.status === ResultEnum.Error">
+    <template v-if="initialData.state === State.Known">
+      <v-card-subtitle v-if="status === ResultEnum.Error">
         <v-icon icon="mdi-alert" size="18" color="error" class="mr-1 pb-1" />
 
-        {{ props.statusMessage }}
+        {{ statusMessage }}
       </v-card-subtitle>
 
       <v-card-subtitle v-else>
-        <v-icon icon="mdi-checkbox-marked" size="18" color="success" class="mr-1 pb-1" />
+        <v-icon
+          icon="mdi-checkbox-marked"
+          size="18"
+          color="success"
+          class="mr-1 pb-1"
+        />
 
-        {{ props.statusMessage }}
+        {{ statusMessage }}
+      </v-card-subtitle>
+    </template>
+
+    <template v-else>
+      <v-card-subtitle style="visibility: hidden">
+        <v-icon
+          icon="mdi-checkbox-marked"
+          size="18"
+          color="success"
+          class="mr-1 pb-1"
+        />
+
+        placeholder
       </v-card-subtitle>
     </template>
 
     <v-card-text class="pb-0" style="margin-bottom: 1vh">
-      <v-autocomplete @update:modelValue="submit" v-model:search="search" v-model="selectedChip"
-        :loading="searchLoading" :items="foundChips" dense label="Chip model" hint="Please select the appropriate chip"
-        persistent-hint no-data-text="No matching models found">
+      <v-autocomplete
+        @update:modelValue="submit"
+        v-model:search="search"
+        v-model="selectedChip"
+        :loading="searchLoading"
+        :items="foundChips"
+        dense
+        label="Chip model"
+        hint="Please select the appropriate chip"
+        persistent-hint
+        no-data-text="No matching models found"
+      >
       </v-autocomplete>
     </v-card-text>
   </v-card>

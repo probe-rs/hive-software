@@ -5,7 +5,7 @@ import { VAceEditor } from "vue3-ace-editor";
 import "ace-builds/src-noconflict/mode-assembly_x86";
 import "ace-builds/src-noconflict/theme-dracula";
 import "ace-builds/src-noconflict/theme-kuroir";
-import { computed } from "@vue/reactivity";
+import { computed, toRefs } from "@vue/reactivity";
 import { useAppConfig } from "@/stores/appConfig";
 import { AppTheme } from "@/plugins/vuetify";
 
@@ -20,14 +20,24 @@ const props = defineProps({
   },
 });
 
-watch(
-  () => props.code,
-  (newCode) => {
-    code.value = newCode;
-  },
-);
+// type-based
+const emit = defineEmits<{
+  (e: "codeChange", code: string): void;
+}>();
 
-const code = ref(props.code);
+const { code, readOnly } = toRefs(props);
+
+// The code prop is not mutable, therefore mutations happen on the mutableCode ref.
+const mutableCode = ref(props.code);
+
+watch(code, (newCode) => {
+  // Update mutableCode with newCode
+  mutableCode.value = newCode;
+});
+
+function onCodeChange() {
+  emit("codeChange", mutableCode.value);
+}
 
 const appConfig = useAppConfig();
 const editorTheme = computed(() => {
@@ -39,9 +49,17 @@ const editorTheme = computed(() => {
 </script>
 
 <template>
-  <VAceEditor style="height: 100%" :options="{
-    fontSize: 20,
-    fontFamily: 'Ubuntu Mono',
-    readOnly: props.readOnly,
-  }" wrap v-model:value="code" :theme="editorTheme" lang="assembly_x86" />
+  <VAceEditor
+    style="height: 100%"
+    :options="{
+      fontSize: 20,
+      fontFamily: 'Ubuntu Mono',
+      readOnly: readOnly,
+    }"
+    wrap
+    v-model:value="mutableCode"
+    :theme="editorTheme"
+    lang="assembly_x86"
+    @change="onCodeChange"
+  />
 </template>

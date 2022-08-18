@@ -42,8 +42,14 @@ function isAuthorized(min_role: string | undefined): boolean {
 
 <template>
   <v-list density="compact">
-    <v-list-item v-for="link in menu" :v-if="isAuthorized(link.minRole)" :key="link.title" :to="link.url" link
-      :prependIcon="link.icon">
+    <v-list-item
+      v-for="link in menu"
+      :v-if="isAuthorized(link.minRole)"
+      :key="link.title"
+      :to="link.url"
+      link
+      :prependIcon="link.icon"
+    >
       <v-list-item-title>{{ link.title }}</v-list-item-title>
     </v-list-item>
   </v-list>

@@ -15,12 +15,6 @@ import {
 import { useQuery } from "@vue/apollo-composable";
 import gql from "graphql-tag";
 
-enum PartType {
-  RPI,
-  PSS,
-  TSS,
-}
-
 const emit = defineEmits<{
   (event: "selectedPartLocation", location: number): void;
 }>();
@@ -240,14 +234,12 @@ const showTssIndexes = computed(() => {
     <v-stage :config="stageConfig" ref="stage">
       <v-layer ref="layer">
         <RackPartComponent
-          :type="PartType.RPI"
           :config="rpiConfig"
           :location="0"
           :isSelected="isSelected[0]"
           @mouseClick="handlePartClick"
         />
         <RackPartComponent
-          :type="PartType.PSS"
           :config="pssConfig"
           :location="1"
           :isSelected="isSelected[1]"
@@ -255,7 +247,6 @@ const showTssIndexes = computed(() => {
         />
         <RackPartComponent
           v-for="idx in showTssIndexes"
-          :type="PartType.TSS"
           :config="tssConfig(idx, assignedTargets[idx])"
           :location="idx + 2"
           :isSelected="isSelected[idx + 2]"
