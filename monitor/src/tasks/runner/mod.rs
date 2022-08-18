@@ -220,8 +220,6 @@ impl TaskRunner {
                 )
             })
             }
-
-            *hardware_data_changed = false;
         }
 
         if *testprogram_data_changed || *hardware_data_changed {
@@ -231,6 +229,7 @@ impl TaskRunner {
             // Reflash testprograms
             flash::flash_testbinaries(self.db.clone(), hardware);
 
+            *hardware_data_changed = false;
             *testprogram_data_changed = false;
         }
     }
@@ -296,6 +295,8 @@ impl TaskRunner {
             "--ro-bind", "/sys/class/hidraw", "/sys/class/hidraw",
             // Bind log as rw so runner can save logs
             "--bind", "./data/logs/", "./data/logs/",
+            // Bind testprograms as r so runner can use them to flash
+            "--ro-bind", "./data/testprograms/", "./data/testprograms/",
             // Bind runner dir to get access to ipc and runner executable
             "--ro-bind", "./data/runner/", "./data/runner/",
             RUNNER_BINARY_PATH

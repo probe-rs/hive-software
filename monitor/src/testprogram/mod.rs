@@ -100,6 +100,21 @@ impl Testprogram {
 
         fs::create_dir_all(&path).expect("Failed to create directory for Testprogram");
 
+        // create blank main.S File
+        fs::create_dir(path.join("arm")).expect("Failed to create ARM testprogram directory");
+        fs::create_dir(path.join("riscv")).expect("Failed to create RISCV testprogram directory");
+
+        OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(path.join("arm/main.S"))
+            .expect("Failed to create ARM main.S File in testprogram");
+        OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(path.join("riscv/main.S"))
+            .expect("Failed to create RISCV main.S File in testprogram");
+
         Self {
             name: name.clone(),
             path,
