@@ -2,6 +2,7 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fs;
+use std::time::Duration;
 
 use anyhow::{anyhow, bail, Result};
 use cargo_toml::Manifest;
@@ -89,6 +90,7 @@ pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
                 config.testserver.as_ref().unwrap().as_https_url()
             ))
             .multipart(form)
+            .timeout(Duration::from_secs(300))
             .send()
             .map_err(|err| {
                 anyhow!(
