@@ -1,11 +1,12 @@
 //! The graphql query
 use std::fs::{self, File};
 use std::io::Error as IoError;
+use std::io::{BufRead, BufReader};
+use std::str::FromStr;
 use std::{path::Path, sync::Arc};
 
 use anyhow::anyhow;
 use async_graphql::{Context, Object, Result as GrapqlResult};
-use ciborium::de::from_reader;
 use comm_types::auth::Role;
 use controller::logger::LogEntry;
 use hive_db::CborDb;
@@ -149,14 +150,27 @@ impl BackendQuery {
 
         let log_entries = tokio::task::spawn_blocking::<_, Result<_, IoError>>(move || {
             let logfile = File::open(filepath)?;
+            let file_reader = BufReader::new(logfile);
 
             let mut log_entries = vec![];
 
             let mut entry_count = 0;
-            while let Ok(entry) = from_reader::<LogEntry, _>(&logfile) {
-                if entry.level <= <LogLevel as Into<Level>>::into(level) && entry_count < 100 {
-                    log_entries.push(entry.message);
-                    entry_count += 1;
+
+            for line in file_reader.lines() {
+                let line = line?;
+                let entry: LogEntry = serde_json::from_str(&line)?;
+
+                if let Ok(entry_level) = log::Level::from_str(&entry.level) {
+                    if entry_level <= <LogLevel as Into<Level>>::into(level) {
+                        log_entries.push(line);
+                        entry_count += 1;
+                    }
+                } else {
+                    continue;
+                }
+
+                if entry_count >= 100 {
+                    break;
                 }
             }
 

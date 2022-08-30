@@ -3,8 +3,6 @@ import { ref, onMounted, onBeforeMount, onUnmounted, watch, toRefs } from "vue";
 import { Terminal } from "xterm";
 import "xterm/css/xterm.css";
 import { FitAddon } from "xterm-addon-fit";
-// @ts-ignore
-import * as XtermWebfont from "xterm-webfont";
 
 const props = defineProps({
   content: {
@@ -32,7 +30,6 @@ const terminal = new Terminal({
 });
 const terminalFit = new FitAddon();
 terminal.loadAddon(terminalFit);
-terminal.loadAddon(new XtermWebfont());
 terminal.write(content.value);
 
 watch(content, (newVal) => {
@@ -50,7 +47,7 @@ onBeforeMount(() => {
 
 onMounted(async () => {
   // @ts-ignore
-  await terminal.loadWebfontAndOpen(terminalParent.value!);
+  await terminal.open(terminalParent.value!) //loadWebfontAndOpen(terminalParent.value!);
   updateTerminalSize();
 });
 

@@ -12,10 +12,10 @@ use log4rs::filter::threshold::ThresholdFilter;
 
 mod encoders;
 
-pub use encoders::cbor::LogEntry;
-
-use encoders::cbor::CborEncoder;
 use encoders::console::ConsoleEncoder;
+use encoders::json::JsonEncoder;
+
+pub use encoders::json::LogEntry;
 
 pub fn init_logging(
     logfile_path: &Path,
@@ -27,7 +27,7 @@ pub fn init_logging(
         .encoder(Box::new(ConsoleEncoder::new()))
         .build();
     let file_appender = RollingFileAppender::builder()
-        .encoder(Box::new(CborEncoder::new()))
+        .encoder(Box::new(JsonEncoder::new()))
         .build(
             logfile_path,
             Box::new(CompoundPolicy::new(
@@ -43,10 +43,10 @@ pub fn init_logging(
                 .filter(Box::new(ThresholdFilter::new(console_log_level_filter)))
                 .build("console", Box::new(console_appender)),
         )
-        .appender(Appender::builder().build("monitor file", Box::new(file_appender)))
+        .appender(Appender::builder().build("logfile", Box::new(file_appender)))
         .build(
             Root::builder()
-                .appender("monitor file")
+                .appender("logfile")
                 .appender("console")
                 .build(LevelFilter::Debug),
         )

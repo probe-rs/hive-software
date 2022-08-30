@@ -3,6 +3,8 @@ import { computed, ref, type Ref } from "vue";
 import Terminal from "@/components/Terminal.vue";
 import { useQuery } from "@vue/apollo-composable";
 import gql from "graphql-tag";
+import type { BackendQuery } from "@/gql/backend";
+import c from "ansi-colors"
 
 enum LogLevel {
   ERROR = "ERROR",
@@ -18,6 +20,13 @@ const logLevels = [
   LogLevel.DEBUG,
 ];
 
+type LogEntry = {
+  timestamp: string,
+  level: string,
+  module: string,
+  message: string,
+}
+
 const selectedLogLevel: Ref<LogLevel> = ref(LogLevel.INFO);
 const selectedApplication = ref(0);
 
@@ -32,7 +41,7 @@ const selectedApplicationString = computed(() => {
   }
 });
 
-const { result } = useQuery(
+const { result } = useQuery<BackendQuery>(
   gql`
     query ($application: String!, $level: String!) {
       applicationLog(application: $application, level: $level)
@@ -49,7 +58,33 @@ const { result } = useQuery(
 
 const terminalText = computed<string>(() => {
   if (result.value) {
-    return result.value.applicationLog.join("");
+    // Explicitly enable string coloring (For whatever reason this is needed to actually get ansi sequences in the string)
+    c.enabled = true;
+
+    let text = "";
+
+    result.value.applicationLog.forEach((line) => {
+      const logEntry: LogEntry = JSON.parse(line);
+
+      const logLevelColored = (() => {
+        switch (logEntry.level) {
+          case LogLevel.ERROR:
+            return c.red(c.bold("error:"));
+          case LogLevel.WARN:
+            return c.yellow(c.bold("warn: "));
+          case LogLevel.INFO:
+            return c.blue(c.bold("info: "));
+          case LogLevel.DEBUG:
+            return c.magenta(c.bold("debug:"));
+          default:
+            return ""
+        }
+      })();
+
+      text += (`${logEntry.timestamp} ${logLevelColored} ${c.italic(logEntry.module)} ${logEntry.message}\n`);
+    });
+
+    return text;
   }
   return "Loading data...\n";
 });
@@ -91,16 +126,11 @@ function exportLog() {
     <v-spacer />
 
     <v-btn>
-      Level: {{ selectedLogLevel }}
+      Level: {{  selectedLogLevel  }}
       <v-menu activator="parent">
         <v-list>
-          <v-list-item
-            v-for="level in logLevels"
-            :key="level"
-            :value="level"
-            @click="selectedLogLevel = level"
-          >
-            <v-list-item-title>{{ level }}</v-list-item-title>
+          <v-list-item v-for="level in logLevels" :key="level" :value="level" @click="selectedLogLevel = level">
+            <v-list-item-title>{{  level  }}</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
