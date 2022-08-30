@@ -75,4 +75,4 @@
 - [ ] Hive Defines make more sense to be placed in Hive Test or Monitor crate. Currently they are placed in this crate to avoid circular dependencies (Because of usage in IPC Message enum)
 
 ## Hive Setup
-- [ ] Do proper error handling in shell setup script
+- [X] Do proper error handling in shell setup script
