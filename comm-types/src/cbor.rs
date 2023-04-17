@@ -1,11 +1,11 @@
 //! All CBOR helpers and trait implementations used for [`axum`]
 use axum::async_trait;
-use axum::extract::{FromRequest, RequestParts};
+use axum::extract::{FromRequest, FromRequestParts};
 use axum::response::{IntoResponse, Response};
 use ciborium::de::from_reader;
 use ciborium::ser::into_writer;
-use http::header;
-use http::header::HeaderValue;
+use http::header::{self, HeaderValue};
+use http::request::{Parts, Request};
 use hyper::body::Buf;
 use hyper::StatusCode;
 use serde::de::DeserializeOwned;
@@ -51,20 +51,24 @@ impl IntoResponse for ServerParseError {
 pub struct Cbor<T>(pub T);
 
 #[async_trait]
-impl<T> FromRequest<axum::body::Body> for Cbor<T>
+impl<T, S> FromRequest<S, axum::body::Body> for Cbor<T>
 where
     T: DeserializeOwned,
+    S: Send + Sync,
 {
     type Rejection = ServerParseError;
 
     async fn from_request(
-        req: &mut RequestParts<axum::body::Body>,
+        req: Request<axum::body::Body>,
+        state: &S,
     ) -> Result<Self, Self::Rejection> {
+        let (mut parts, body) = req.into_parts();
+
         // Check content type headers
-        CheckContentType::from_request(req).await?;
+        CheckContentType::from_request_parts(&mut parts, state).await?;
 
         // Check and parse body
-        let body = hyper::body::aggregate(req.take_body().unwrap())
+        let body = hyper::body::aggregate(body)
             .await
             .map_err(|_| ServerParseError::InvalidBody)?;
 
@@ -95,14 +99,11 @@ where
 struct CheckContentType;
 
 #[async_trait]
-impl<B> FromRequest<B> for CheckContentType
-where
-    B: Send,
-{
+impl<S> FromRequestParts<S> for CheckContentType {
     type Rejection = ServerParseError;
 
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let content_type = req.headers().get(header::CONTENT_TYPE);
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let content_type = parts.headers.get(header::CONTENT_TYPE);
 
         if let Some(content_type) = content_type {
             if content_type == CBOR_MIME {

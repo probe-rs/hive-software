@@ -41,8 +41,10 @@
 //! More info on this process can be found in the [`crate::tasks`] module documentation.
 use std::sync::Arc;
 
+use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post};
 use axum::{Extension, Router};
+use axum_extra::routing::RouterExt;
 use tower::ServiceBuilder;
 
 use crate::database::MonitorDb;
@@ -52,9 +54,10 @@ mod handlers;
 
 pub(super) fn test_routes(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) -> Router {
     Router::new()
-        .route("/capabilities", get(handlers::capabilities))
-        .route("/run", post(handlers::test))
-        .route("/socket", get(handlers::ws_handler))
+        .route_with_tsr("/capabilities", get(handlers::capabilities))
+        .route_with_tsr("/run", post(handlers::test))
+        .layer(DefaultBodyLimit::max(400_000_000))
+        .route_with_tsr("/socket", get(handlers::ws_handler))
         .layer(
             ServiceBuilder::new()
                 .layer(Extension(db))

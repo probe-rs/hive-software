@@ -9,7 +9,7 @@
 //! The JWT is set to expire after [`TOKEN_EXPIRE_TIME_SEC`]
 use std::sync::Arc;
 
-use axum::extract::RequestParts;
+use axum::http::request::Parts;
 use axum::response::{IntoResponse, Response};
 use axum::{async_trait, extract};
 use comm_types::auth::{DbUser, JwtClaims};
@@ -131,17 +131,14 @@ pub(super) fn logout(cookies: &Cookies) {
 pub(super) struct HiveAuth;
 
 #[async_trait]
-impl<B> extract::FromRequest<B> for HiveAuth
+impl<S> extract::FromRequestParts<S> for HiveAuth
 where
-    B: Send,
+    S: Send + Sync,
 {
     type Rejection = AuthError;
 
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let req_cookies = req
-        .extensions()
-        .get::<Cookies>()
-        .expect("Failed to get extracted cookies. This middleware can only be called after the request cookies have been extracted.");
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let req_cookies = parts.extensions.get::<Cookies>().expect("Failed to get extracted cookies. This middleware can only be called after the request cookies have been extracted.");
 
         let auth_cookie = match req_cookies.get(AUTH_COOKIE_KEY) {
             Some(cookie) => cookie,
@@ -150,7 +147,7 @@ where
 
         match check_jwt(auth_cookie.value()) {
             Ok(claims) => {
-                req.extensions_mut().insert(claims);
+                parts.extensions.insert(claims);
 
                 Ok(Self)
             }

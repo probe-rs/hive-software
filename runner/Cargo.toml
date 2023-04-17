@@ -18,7 +18,7 @@ shared-bus = "=0.2.5"
 lazy_static = "1.4"
 inventory = "0.2"
 tokio = {version  = "1.17", features = ["rt", "sync", "macros"]}
-axum = "0.5"
+axum = "0.6"
 tower = "0.4"
 hyper = {version = "0.14", features = ["client"]}
 hurdles = "1.0"

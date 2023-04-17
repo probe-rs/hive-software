@@ -12,13 +12,14 @@ use crate::tasks::TaskManager;
 use super::backend::auth::BackendAuthSchema;
 use super::backend::BackendSchema;
 
+#[axum::debug_handler]
 pub(super) async fn graphql_backend(
     Extension(db): Extension<Arc<MonitorDb>>,
     Extension(task_manager): Extension<Arc<TaskManager>>,
     Extension(cookies): Extension<Cookies>,
+    Extension(claims): Extension<JwtClaims>,
     schema: Extension<BackendSchema>,
     req: GraphQLRequest,
-    Extension(claims): Extension<JwtClaims>,
 ) -> GraphQLResponse {
     schema
         .execute(

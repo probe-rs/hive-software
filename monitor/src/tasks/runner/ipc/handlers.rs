@@ -62,8 +62,8 @@ pub async fn test_options_handler(
 
 /// Receive test results from the runner
 pub async fn test_result_handler(
-    Cbor(message): Cbor<IpcMessage>,
     Extension(test_result_sender): Extension<Sender<TestResults>>,
+    Cbor(message): Cbor<IpcMessage>,
 ) -> Result<Cbor<IpcMessage>, ServerParseError> {
     if let IpcMessage::TestResults(results) = message {
         // send the received test results to the testmanager

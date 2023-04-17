@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use axum::extract::multipart::MultipartError;
 use axum::extract::Query;
-use axum::extract::{ContentLengthLimit, Multipart, WebSocketUpgrade};
+use axum::extract::{Multipart, WebSocketUpgrade};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
@@ -84,10 +84,8 @@ pub(super) async fn capabilities(Extension(db): Extension<Arc<MonitorDb>>) -> Js
 /// Endpoint to initiate a test request
 pub(super) async fn test(
     Extension(task_manager): Extension<Arc<TaskManager>>,
-    content: ContentLengthLimit<Multipart, 400_000_000>,
+    mut multipart: Multipart,
 ) -> Result<Json<WsTicket>, TestRequestError> {
-    let mut multipart = content.0;
-
     let mut options: Option<TestOptions> = None;
     let mut runner = None;
 
