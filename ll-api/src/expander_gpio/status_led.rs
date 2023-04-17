@@ -1,5 +1,5 @@
-use embedded_hal::digital::blocking::OutputPin;
-use embedded_hal::i2c::blocking::{Write, WriteRead};
+use embedded_hal::digital::OutputPin;
+use embedded_hal::i2c::I2c;
 use pca9535::expander::SyncExpander;
 use pca9535::ExpanderError;
 use pca9535::ExpanderOutputPin;
@@ -10,7 +10,7 @@ use crate::StackShieldStatus;
 /// Abstraction struct for the status LED function
 pub(crate) struct Led<'a, I2C, T>
 where
-    I2C: Write + WriteRead,
+    I2C: I2c,
     T: SyncExpander<I2C>,
 {
     red: ExpanderOutputPin<'a, I2C, T>,
@@ -21,7 +21,7 @@ where
 impl<'a, I2C, T, E> Led<'a, I2C, T>
 where
     E: std::fmt::Debug,
-    I2C: Write<Error = E> + WriteRead<Error = E>,
+    I2C: I2c<Error = E>,
     T: SyncExpander<I2C>,
 {
     /// Creates a new instance of the struct

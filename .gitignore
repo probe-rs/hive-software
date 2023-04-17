@@ -3,3 +3,4 @@
 /ws-manager
 deploy.sh
 bubblewrap.sh
+tarpaulin-report.html

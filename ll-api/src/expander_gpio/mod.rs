@@ -7,7 +7,7 @@
 //!
 //! Each of those modules provides basic functions to interact with the hardware.
 
-use embedded_hal::i2c::blocking::{Write, WriteRead};
+use embedded_hal::i2c::I2c;
 use pca9535::{
     expander::SyncExpander,
     ExpanderError, ExpanderInputPin, ExpanderOutputPin,
@@ -28,7 +28,7 @@ use status_led::Led;
 /// This struct contains all the devices attached to the IO Expander
 pub(crate) struct ExpanderGpio<'a, I2C, T>
 where
-    I2C: Write + WriteRead,
+    I2C: I2c,
     T: SyncExpander<I2C>,
 {
     pub status_led: Led<'a, I2C, T>,
@@ -39,7 +39,7 @@ where
 impl<'a, I2C, T, E> ExpanderGpio<'a, I2C, T>
 where
     E: std::fmt::Debug,
-    I2C: Write<Error = E> + WriteRead<Error = E>,
+    I2C: I2c<Error = E>,
     T: SyncExpander<I2C>,
 {
     /// Creates a new instance of the struct. It configures the IO Expander to the required settings. All GPIO pins are initialized into the default mode (eg. All bus switches disconnected, status LED off, daughterboard detect configured as input pin)

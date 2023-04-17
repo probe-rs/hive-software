@@ -1,7 +1,7 @@
 use std::{cell::RefCell, error::Error, sync::Mutex};
 
 use comm_types::hardware::{TargetInfo, TargetState};
-use embedded_hal::i2c::blocking::WriteRead;
+use embedded_hal::i2c::I2c as HalI2c;
 use ll_api::TargetStackShield as Shield;
 use pca9535::Register;
 use rppal::i2c::I2c;

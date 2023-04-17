@@ -1,7 +1,7 @@
 use std::{convert::TryFrom, fmt::Display};
 
 use comm_types::hardware::StackShieldStatus;
-use embedded_hal::i2c::blocking::{Write, WriteRead};
+use embedded_hal::i2c::I2c;
 use expander_gpio::ExpanderGpio;
 use pca9535::{expander::SyncExpander, ExpanderError};
 use rpi_gpio::TestChannelGpio;
@@ -117,7 +117,7 @@ pub enum ApiError {
 /// Representation of a physical target stack shield of Hive
 pub struct TargetStackShield<'a, I2C, T>
 where
-    I2C: Write + WriteRead,
+    I2C: I2c,
     T: SyncExpander<I2C>,
 {
     expander: &'a T,
@@ -128,7 +128,7 @@ where
 impl<'a, I2C, T, E> TargetStackShield<'a, I2C, T>
 where
     E: std::fmt::Debug,
-    I2C: Write<Error = E> + WriteRead<Error = E>,
+    I2C: I2c<Error = E>,
     T: SyncExpander<I2C>,
 {
     /// Creates a new instance of the struct.

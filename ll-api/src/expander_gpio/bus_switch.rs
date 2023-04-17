@@ -1,5 +1,5 @@
-use embedded_hal::digital::blocking::OutputPin;
-use embedded_hal::i2c::blocking::{Write, WriteRead};
+use embedded_hal::digital::OutputPin;
+use embedded_hal::i2c::I2c;
 use pca9535::expander::SyncExpander;
 use pca9535::ExpanderError;
 use pca9535::ExpanderOutputPin;
@@ -15,7 +15,7 @@ const RETRY_LIMIT: usize = 3;
 /// Abstraction struct for the bus switch function
 pub(crate) struct BusSwitch<'a, I2C, T>
 where
-    I2C: Write + WriteRead,
+    I2C: I2c,
     T: SyncExpander<I2C>,
 {
     sw_target: [ExpanderOutputPin<'a, I2C, T>; 4],
@@ -25,7 +25,7 @@ where
 impl<'a, I2C, T, E> BusSwitch<'a, I2C, T>
 where
     E: std::fmt::Debug,
-    I2C: Write<Error = E> + WriteRead<Error = E>,
+    I2C: I2c<Error = E>,
     T: SyncExpander<I2C>,
 {
     /// Creates a new instance of the struct

@@ -1,5 +1,5 @@
-use embedded_hal::digital::blocking::InputPin;
-use embedded_hal::i2c::blocking::{Write, WriteRead};
+use embedded_hal::digital::InputPin;
+use embedded_hal::i2c::I2c;
 use pca9535::expander::SyncExpander;
 use pca9535::{ExpanderError, ExpanderInputPin};
 
@@ -8,7 +8,7 @@ use crate::StackShieldError;
 /// Abstraction struct for the daughterboard detect function
 pub(crate) struct DaughterboardDetect<'a, I2C, T>
 where
-    I2C: Write + WriteRead,
+    I2C: I2c,
     T: SyncExpander<I2C>,
 {
     input: ExpanderInputPin<'a, I2C, T>,
@@ -17,7 +17,7 @@ where
 impl<'a, I2C, T, E> DaughterboardDetect<'a, I2C, T>
 where
     E: std::fmt::Debug,
-    I2C: Write<Error = E> + WriteRead<Error = E>,
+    I2C: I2c<Error = E>,
     T: SyncExpander<I2C>,
 {
     /// Creates a new instance of the struct
