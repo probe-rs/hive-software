@@ -4,20 +4,17 @@
 //! This allows for a safer API as it can guarantee that there are no attempts to read or write invalid types on the DB.
 use std::marker::PhantomData;
 
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 
 /// A key which is used to access data in the database
-pub struct Key<'de, T>
-where
-    T: Serialize + Deserialize<'de>,
-{
+pub struct Key<T> {
     key: String,
-    phantom_data: PhantomData<&'de T>,
+    phantom_data: PhantomData<T>,
 }
 
-impl<'de, T> Key<'de, T>
+impl<'de, T> Key<T>
 where
-    T: Serialize + Deserialize<'de>,
+    T: Serialize + DeserializeOwned,
 {
     pub fn new(key: &str) -> Self {
         Self {

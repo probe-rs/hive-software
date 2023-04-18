@@ -1,7 +1,7 @@
 error[E0308]: mismatched types
   --> tests/typesafety/get.rs:13:35
    |
-13 |     let wrong_type: Option<u64> = tree.c_get(&my_key).unwrap();
+13 |     let wrong_type: Option<u64> = tree.b_get(&my_key).unwrap();
    |                     -----------   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `u64`, found `u8`
    |                     |
    |                     expected due to this

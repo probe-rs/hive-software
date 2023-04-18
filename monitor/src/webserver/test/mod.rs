@@ -76,7 +76,7 @@ mod tests {
     use comm_types::hardware::{Capabilities, ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData};
     use comm_types::test::TestOptions;
-    use hive_db::CborDb;
+    use hive_db::BincodeDb;
     use hyper::Request as HyperRequest;
     use lazy_static::lazy_static;
     use multipart::client::multipart::{Body as MultipartBody, Form};
@@ -92,8 +92,8 @@ mod tests {
         static ref DB: Arc<MonitorDb> = {
             let db = MonitorDb::open_test();
 
-            db.config_tree.c_insert(&keys::config::ASSIGNED_PROBES, &PROBE_DATA).unwrap();
-            db.config_tree.c_insert(&keys::config::ASSIGNED_TARGETS, &TARGET_DATA).unwrap();
+            db.config_tree.b_insert(&keys::config::ASSIGNED_PROBES, &PROBE_DATA).unwrap();
+            db.config_tree.b_insert(&keys::config::ASSIGNED_TARGETS, &TARGET_DATA).unwrap();
 
             Arc::new(db)
         };

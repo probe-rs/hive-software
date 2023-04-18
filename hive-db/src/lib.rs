@@ -5,8 +5,8 @@ use sled::{Config, Db, Mode, Tree};
 mod db;
 mod keys;
 
-pub use db::CborDb;
-pub use db::CborTransactional;
+pub use db::BincodeDb;
+pub use db::BincodeTransactional;
 pub use keys::Key;
 
 /// The Hive Database
@@ -84,11 +84,11 @@ mod tests {
         IVec, Tree,
     };
 
-    use crate::{CborDb, CborTransactional, HiveDb, Key};
+    use crate::{BincodeDb, BincodeTransactional, HiveDb, Key};
 
     lazy_static! {
         static ref DB: HiveDb = HiveDb::open_test(100, 256);
-        static ref KEY: Key<'static, SerDeData> = Key::new("data");
+        static ref KEY: Key<SerDeData> = Key::new("data");
         static ref DATA: SerDeData = SerDeData {
             bool: false,
             number: 1873945,
@@ -121,13 +121,13 @@ mod tests {
     fn c_get() {
         let test_tree = DB.open_tree("test");
 
-        let option = test_tree.c_get(&KEY).unwrap();
+        let option = test_tree.b_get(&KEY).unwrap();
 
         assert!(option.is_none());
 
-        test_tree.c_insert(&KEY, &DATA).unwrap();
+        test_tree.b_insert(&KEY, &DATA).unwrap();
 
-        let option = test_tree.c_get(&KEY).unwrap();
+        let option = test_tree.b_get(&KEY).unwrap();
 
         assert_eq!(option, Some(DATA.clone()));
 
@@ -139,11 +139,11 @@ mod tests {
     fn c_insert() {
         let test_tree = DB.open_tree("test");
 
-        let option = test_tree.c_insert(&KEY, &DATA).unwrap();
+        let option = test_tree.b_insert(&KEY, &DATA).unwrap();
 
         assert!(option.is_none());
 
-        let option = test_tree.c_insert(&KEY, &DATA).unwrap();
+        let option = test_tree.b_insert(&KEY, &DATA).unwrap();
 
         assert_eq!(option, Some(DATA.clone()));
 
@@ -155,13 +155,13 @@ mod tests {
     fn c_remove() {
         let test_tree = DB.open_tree("test");
 
-        let option = test_tree.c_remove(&KEY).unwrap();
+        let option = test_tree.b_remove(&KEY).unwrap();
 
         assert!(option.is_none());
 
-        test_tree.c_insert(&KEY, &DATA).unwrap();
+        test_tree.b_insert(&KEY, &DATA).unwrap();
 
-        let option = test_tree.c_remove(&KEY).unwrap();
+        let option = test_tree.b_remove(&KEY).unwrap();
 
         assert_eq!(option, Some(DATA.clone()));
 
@@ -175,13 +175,13 @@ mod tests {
 
         test_tree
             .transaction::<_, _, UnabortableTransactionError>(|transactional| {
-                let option = transactional.c_get(&KEY)?;
+                let option = transactional.b_get(&KEY)?;
 
                 assert!(option.is_none());
 
-                transactional.c_insert(&KEY, &DATA)?;
+                transactional.b_insert(&KEY, &DATA)?;
 
-                let option = transactional.c_get(&KEY)?;
+                let option = transactional.b_get(&KEY)?;
 
                 assert_eq!(option, Some(DATA.clone()));
 
@@ -198,11 +198,11 @@ mod tests {
 
         test_tree
             .transaction::<_, _, UnabortableTransactionError>(|transactional| {
-                let option = transactional.c_insert(&KEY, &DATA).unwrap();
+                let option = transactional.b_insert(&KEY, &DATA).unwrap();
 
                 assert!(option.is_none());
 
-                let option = transactional.c_insert(&KEY, &DATA).unwrap();
+                let option = transactional.b_insert(&KEY, &DATA).unwrap();
 
                 assert_eq!(option, Some(DATA.clone()));
 
@@ -219,13 +219,13 @@ mod tests {
 
         test_tree
             .transaction::<_, _, UnabortableTransactionError>(|transactional| {
-                let option = transactional.c_remove(&KEY).unwrap();
+                let option = transactional.b_remove(&KEY).unwrap();
 
                 assert!(option.is_none());
 
-                transactional.c_insert(&KEY, &DATA).unwrap();
+                transactional.b_insert(&KEY, &DATA).unwrap();
 
-                let option = transactional.c_remove(&KEY).unwrap();
+                let option = transactional.b_remove(&KEY).unwrap();
 
                 assert_eq!(option, Some(DATA.clone()));
 

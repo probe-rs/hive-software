@@ -9,15 +9,15 @@ readme = "README.md"
 
 [features]
 hardware = []
-cbor = []
-ipc = ["hardware", "test", "cbor", "defines"]
+bincode = []
+ipc = ["hardware", "test", "bincode", "defines"]
 test = []
 auth = []
 defines = []
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-ciborium = "0.2"
+bincode = { version = "2.0.0-rc.3", features = ["serde"] }
 http = "0.2"
 axum = "0.6"
 hyper = "0.14"

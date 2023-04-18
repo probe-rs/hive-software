@@ -8,7 +8,7 @@ description = "Hive monitor which handles all external communication, prepares t
 readme = "README.md"
 
 [dependencies]
-comm-types = { path = "../comm-types/", features = ["cbor", "ipc", "auth"] }
+comm-types = { path = "../comm-types/", features = ["bincode", "ipc", "auth"] }
 controller = { path = "../controller/" }
 hive-db = { path = "../hive-db/" }
 log = "0.4"
@@ -25,7 +25,6 @@ cookie = "0.16"
 async-graphql = { version = "5.0" }
 async-graphql-axum = "5.0"
 futures = "0.3"
-ciborium = "0.2"
 serde_json = "1.0"
 lazy_static = "1.4"
 shared-bus = "=0.2.5"
@@ -57,3 +56,4 @@ tower = "0.4"
 tokio = { version = "1.17", features = ["macros"] }
 multipart = { version = "0.8", package = "hyper-multipart-rfc7578" }
 mime = "0.3"
+bincode = { version = "2.0.0-rc.3", features = ["serde"] }

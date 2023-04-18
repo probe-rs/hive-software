@@ -1,4 +1,4 @@
-use hive_db::{CborTransactional, HiveDb, Key};
+use hive_db::{BincodeTransactional, HiveDb, Key};
 
 const FLUSH_INTERVAL_MS: u64 = 60_000;
 const CACHE_CAPACITY: u64 = 52_428_800;
@@ -12,7 +12,7 @@ fn main() {
 
     tree.transaction(|tree| {
         let correct_data = 2;
-        let previous: Option<bool> = tree.c_insert(&my_key, &correct_data)?;
+        let previous: Option<bool> = tree.b_insert(&my_key, &correct_data)?;
 
         Ok(())
     })

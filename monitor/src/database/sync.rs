@@ -16,7 +16,7 @@ use comm_types::{
     ipc::HiveTargetData,
 };
 use controller::hardware::HiveHardware;
-use hive_db::{CborDb, CborTransactional};
+use hive_db::{BincodeDb, BincodeTransactional};
 use sled::transaction::UnabortableTransactionError;
 
 use super::{keys, MonitorDb};
@@ -36,7 +36,7 @@ pub(crate) fn sync_tss_target_data(db: Arc<MonitorDb>, hardware: &HiveHardware) 
     }
 
     db.config_tree
-        .c_insert(&keys::config::ASSIGNED_TARGETS, &target_data)
+        .b_insert(&keys::config::ASSIGNED_TARGETS, &target_data)
         .unwrap();
 }
 
@@ -45,7 +45,7 @@ pub(crate) fn sync_tss_probe_data(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     db.config_tree
         .transaction::<_, _, UnabortableTransactionError>(|tree| {
             let mut probe_data = tree
-                .c_get(&keys::config::ASSIGNED_PROBES)?
+                .b_get(&keys::config::ASSIGNED_PROBES)?
                 .unwrap_or_default();
 
             for (idx, testchannel) in hardware.testchannels.iter().enumerate() {
@@ -68,7 +68,7 @@ pub(crate) fn sync_tss_probe_data(db: Arc<MonitorDb>, hardware: &HiveHardware) {
                 });
             }
 
-            tree.c_insert(&keys::config::ASSIGNED_PROBES, &probe_data)?;
+            tree.b_insert(&keys::config::ASSIGNED_PROBES, &probe_data)?;
 
             Ok(())
         })

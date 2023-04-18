@@ -1,4 +1,4 @@
-use hive_db::{CborDb, HiveDb, Key};
+use hive_db::{BincodeDb, HiveDb, Key};
 
 const FLUSH_INTERVAL_MS: u64 = 60_000;
 const CACHE_CAPACITY: u64 = 52_428_800;
@@ -12,5 +12,5 @@ fn main() {
 
     let wrong_type = "42";
 
-    tree.c_insert(&my_key, wrong_type).unwrap();
+    tree.b_insert(&my_key, wrong_type).unwrap();
 }

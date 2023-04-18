@@ -433,6 +433,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "bincode"
+version = "2.0.0-rc.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f11ea1a0346b94ef188834a65c068a03aec181c94896d481d7a0a40d85b0ce95"
+dependencies = [
+ "bincode_derive",
+ "serde",
+]
+
+[[package]]
+name = "bincode_derive"
+version = "2.0.0-rc.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e30759b3b99a1b802a7a3aa21c85c3ded5c28e1c83170d82d70f08bbf7f3e4c"
+dependencies = [
+ "virtue",
+]
+
+[[package]]
 name = "bitfield"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -661,33 +680,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ciborium"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0c137568cc60b904a7724001b35ce2630fd00d5d84805fbb608ab89509d788f"
-dependencies = [
- "ciborium-io",
- "ciborium-ll",
- "serde",
-]
-
-[[package]]
-name = "ciborium-io"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "346de753af073cc87b52b2083a506b38ac176a44cfb05497b622e27be899b369"
-
-[[package]]
-name = "ciborium-ll"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "213030a2b5a4e0c0892b6652260cf6ccac84827b83a85a534e178e3906c4cf1b"
-dependencies = [
- "ciborium-io",
- "half",
-]
-
-[[package]]
 name = "clap"
 version = "3.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -762,7 +754,7 @@ version = "0.1.0"
 dependencies = [
  "async-graphql",
  "axum",
- "ciborium",
+ "bincode 2.0.0-rc.3",
  "downcast-rs",
  "dyn-clone",
  "http",
@@ -1581,12 +1573,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "half"
-version = "1.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eabb4a44450da02c90444cf74558da904edde8fb4e9035a9a6a4e15445af0bd7"
-
-[[package]]
 name = "handlebars"
 version = "4.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1701,7 +1687,7 @@ dependencies = [
 name = "hive-db"
 version = "0.1.0"
 dependencies = [
- "ciborium",
+ "bincode 2.0.0-rc.3",
  "lazy_static",
  "serde",
  "serial_test",
@@ -2303,8 +2289,8 @@ dependencies = [
  "axum-extra",
  "axum-server",
  "base64 0.13.0",
+ "bincode 2.0.0-rc.3",
  "cached",
- "ciborium",
  "clap",
  "clap-verbosity-flag",
  "comm-types",
@@ -2722,7 +2708,7 @@ version = "0.3.1+8.12.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1261a014e5f5e048bf2c6f1a72fa5e4c223009dc5f296a385b95fe19b464608f"
 dependencies = [
- "bincode",
+ "bincode 1.3.3",
  "either",
  "fnv",
  "itertools 0.9.0",
@@ -2810,7 +2796,7 @@ version = "0.13.0"
 dependencies = [
  "anyhow",
  "base64 0.13.0",
- "bincode",
+ "bincode 1.3.3",
  "bitfield 0.14.0",
  "bitvec 1.0.1",
  "chrono",
@@ -2850,7 +2836,7 @@ checksum = "03a92904dbd29f6af1f7bd6d22dac82569aa4b03bcbfc54441b7c76f7114ea79"
 dependencies = [
  "anyhow",
  "base64 0.13.0",
- "bincode",
+ "bincode 1.3.3",
  "bitfield 0.14.0",
  "bitvec 1.0.1",
  "enum-primitive-derive",
@@ -3283,7 +3269,6 @@ dependencies = [
  "anyhow",
  "axum",
  "backtrace",
- "ciborium",
  "comm-types",
  "controller",
  "hive-test",
@@ -4395,6 +4380,12 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "virtue"
+version = "0.0.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9dcc60c0624df774c82a0ef104151231d37da4962957d691c011c852b2473314"
 
 [[package]]
 name = "void"

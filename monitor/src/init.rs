@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use comm_types::hardware::{Architecture, TargetState};
 use controller::hardware::{HardwareStatus, HiveHardware, TargetStackShield};
-use hive_db::{CborDb, CborTransactional};
+use hive_db::{BincodeDb, BincodeTransactional};
 use probe_rs::config;
 use sled::transaction::UnabortableTransactionError;
 
@@ -33,7 +33,7 @@ pub fn initialize_statics() {
 pub fn check_uninit(db: Arc<MonitorDb>) {
     let users = db
         .credentials_tree
-        .c_get(&keys::credentials::USERS)
+        .b_get(&keys::credentials::USERS)
         .unwrap();
 
     if users.is_some() && !users.unwrap().is_empty() {
@@ -66,7 +66,7 @@ pub fn init_testprograms(db: Arc<MonitorDb>, hardware: &HiveHardware) {
 
     db.config_tree.transaction::<_, _, UnabortableTransactionError>(|tree|{
         match tree
-        .c_get(&keys::config::TESTPROGRAMS)?
+        .b_get(&keys::config::TESTPROGRAMS)?
     {
         Some(mut programs) => {
             if programs.is_empty() {
@@ -89,7 +89,7 @@ pub fn init_testprograms(db: Arc<MonitorDb>, hardware: &HiveHardware) {
 
                     programs.remove(idx);
                     tree
-                        .c_insert(&keys::config::TESTPROGRAMS, &programs)?;
+                        .b_insert(&keys::config::TESTPROGRAMS, &programs)?;
                 } else {
                     idx += 1;
                 }
@@ -107,11 +107,11 @@ pub fn init_testprograms(db: Arc<MonitorDb>, hardware: &HiveHardware) {
                 let mut testprograms = vec![];
                 let default_testprogram = Testprogram::create_default();
 
-                tree.c_insert(&keys::config::ACTIVE_TESTPROGRAM, &default_testprogram.get_name().to_owned())?;
+                tree.b_insert(&keys::config::ACTIVE_TESTPROGRAM, &default_testprogram.get_name().to_owned())?;
 
                 testprograms.push(default_testprogram);
 
-                tree.c_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
+                tree.b_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
 
                 Ok(())
             }
@@ -130,7 +130,7 @@ fn init_tss(db: Arc<MonitorDb>) {
     let detected = detected.map(|e| e.is_some());
 
     db.config_tree
-        .c_insert(&keys::config::TSS, &detected)
+        .b_insert(&keys::config::TSS, &detected)
         .unwrap();
 }
 
@@ -141,12 +141,12 @@ fn init_tss(db: Arc<MonitorDb>) {
 fn init_hardware_from_db_data(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     let target_data = db
         .config_tree
-        .c_get(&keys::config::ASSIGNED_TARGETS)
+        .b_get(&keys::config::ASSIGNED_TARGETS)
         .unwrap()
         .unwrap_or_default();
     let probe_data = db
         .config_tree
-        .c_get(&keys::config::ASSIGNED_PROBES)
+        .b_get(&keys::config::ASSIGNED_PROBES)
         .unwrap()
         .unwrap_or_default();
 

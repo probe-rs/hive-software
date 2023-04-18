@@ -9,7 +9,7 @@ readme = "README.md"
 
 [dependencies]
 controller = {path = "../controller/", features = ["runner"]}
-comm-types = {path = "../comm-types/", features = ["cbor", "ipc"]}
+comm-types = {path = "../comm-types/", features = ["bincode", "ipc"]}
 hive-test = {path = "../hive-test/"}
 ll-api = {path = "../ll-api/"}
 log = "0.4"
@@ -23,7 +23,6 @@ tower = "0.4"
 hyper = {version = "0.14", features = ["client"]}
 hurdles = "1.0"
 antidote = "1.0"
-ciborium = "0.2"
 tokio-retry = "0.3"
 anyhow = "1.0"
 backtrace = "0.3"

@@ -6,7 +6,7 @@ use std::sync::RwLock;
 
 use comm_types::hardware::{Architecture, TargetInfo, TargetState};
 use controller::hardware::{try_attach, reset_probe_usb, CombinedTestChannel, HardwareStatus, HiveHardware};
-use hive_db::CborTransactional;
+use hive_db::BincodeTransactional;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions, Format};
 use crossbeam_utils::thread;
 use sled::transaction::UnabortableTransactionError;
@@ -32,9 +32,9 @@ pub fn flash_testbinaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     }
 
     let active_testprogram = db.config_tree.transaction::<_, _, UnabortableTransactionError>(|tree|{
-        let active = tree.c_get(&keys::config::ACTIVE_TESTPROGRAM)?.expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known");
+        let active = tree.b_get(&keys::config::ACTIVE_TESTPROGRAM)?.expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known");
 
-        let mut testprograms = tree.c_get(&keys::config::TESTPROGRAMS)?.expect("DB not initialized");
+        let mut testprograms = tree.b_get(&keys::config::TESTPROGRAMS)?.expect("DB not initialized");
 
         for idx in 0..testprograms.len() {
             if active != testprograms[idx].get_name() {

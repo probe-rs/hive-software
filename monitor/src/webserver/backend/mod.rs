@@ -27,7 +27,7 @@ mod tests {
     use comm_types::auth::{DbUser, Role};
     use comm_types::hardware::{ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData};
-    use hive_db::CborDb;
+    use hive_db::BincodeDb;
     use lazy_static::lazy_static;
 
     use crate::database::{keys, MonitorDb};
@@ -37,11 +37,11 @@ mod tests {
         static ref DB: Arc<MonitorDb> = {
             let db = MonitorDb::open_test();
 
-            db.config_tree.c_insert(&keys::config::ASSIGNED_PROBES, &PROBE_DATA).unwrap();
-            db.config_tree.c_insert(&keys::config::ASSIGNED_TARGETS, &TARGET_DATA).unwrap();
-            db.config_tree.c_insert(&keys::config::TSS, &[true, true, true, true, true, true, false, false]).unwrap();
+            db.config_tree.b_insert(&keys::config::ASSIGNED_PROBES, &PROBE_DATA).unwrap();
+            db.config_tree.b_insert(&keys::config::ASSIGNED_TARGETS, &TARGET_DATA).unwrap();
+            db.config_tree.b_insert(&keys::config::TSS, &[true, true, true, true, true, true, false, false]).unwrap();
 
-            db.credentials_tree.c_insert(&keys::credentials::USERS, &DUMMY_USERS).unwrap();
+            db.credentials_tree.b_insert(&keys::credentials::USERS, &DUMMY_USERS).unwrap();
             Arc::new(db)
         };
         static ref PROBE_DATA: HiveProbeData = [
@@ -164,20 +164,20 @@ mod tests {
         let db = DB.clone();
 
         db.config_tree
-            .c_insert(&keys::config::ASSIGNED_PROBES, &*PROBE_DATA)
+            .b_insert(&keys::config::ASSIGNED_PROBES, &*PROBE_DATA)
             .unwrap();
         db.config_tree
-            .c_insert(&keys::config::ASSIGNED_TARGETS, &*TARGET_DATA)
+            .b_insert(&keys::config::ASSIGNED_TARGETS, &*TARGET_DATA)
             .unwrap();
         db.config_tree
-            .c_insert(
+            .b_insert(
                 &keys::config::TSS,
                 &[true, true, true, true, true, true, false, false],
             )
             .unwrap();
 
         db.credentials_tree
-            .c_insert(&keys::credentials::USERS, &*DUMMY_USERS)
+            .b_insert(&keys::credentials::USERS, &*DUMMY_USERS)
             .unwrap();
     }
 
@@ -450,7 +450,7 @@ mod tests {
         use async_graphql::{value, Request};
         use comm_types::auth::{DbUser, JwtClaims, Role};
         use comm_types::hardware::ProbeState;
-        use hive_db::CborDb;
+        use hive_db::BincodeDb;
         use serial_test::serial;
         use tower_cookies::Cookies;
 
@@ -562,7 +562,7 @@ mod tests {
             assert_eq!(
                 DB.clone()
                     .config_tree
-                    .c_get(&keys::config::ASSIGNED_TARGETS)
+                    .b_get(&keys::config::ASSIGNED_TARGETS)
                     .unwrap()
                     .unwrap(),
                 expected_assigned_targets
@@ -672,7 +672,7 @@ mod tests {
             assert_eq!(
                 DB.clone()
                     .config_tree
-                    .c_get(&keys::config::ASSIGNED_PROBES)
+                    .b_get(&keys::config::ASSIGNED_PROBES)
                     .unwrap()
                     .unwrap(),
                 expected_assigned_probes
@@ -840,7 +840,7 @@ mod tests {
             assert_eq!(
                 DB.clone()
                     .credentials_tree
-                    .c_get(&keys::credentials::USERS)
+                    .b_get(&keys::credentials::USERS)
                     .unwrap()
                     .unwrap(),
                 expected_db_users
@@ -999,7 +999,7 @@ mod tests {
             let actual_db_users = DB
                 .clone()
                 .credentials_tree
-                .c_get(&keys::credentials::USERS)
+                .b_get(&keys::credentials::USERS)
                 .unwrap()
                 .unwrap();
 
@@ -1193,7 +1193,7 @@ mod tests {
             assert!(DB
                 .clone()
                 .credentials_tree
-                .c_get(&keys::credentials::USERS)
+                .b_get(&keys::credentials::USERS)
                 .unwrap()
                 .unwrap()
                 .is_empty());
@@ -1395,7 +1395,7 @@ mod tests {
             let db_users = DB
                 .clone()
                 .credentials_tree
-                .c_get(&keys::credentials::USERS)
+                .b_get(&keys::credentials::USERS)
                 .unwrap()
                 .unwrap();
 

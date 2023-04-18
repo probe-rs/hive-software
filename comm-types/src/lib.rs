@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "hardware")]
 pub mod hardware;
 
-#[cfg(feature = "cbor")]
-pub mod cbor;
+#[cfg(feature = "bincode")]
+pub mod bincode;
 
 #[cfg(feature = "ipc")]
 pub mod ipc;

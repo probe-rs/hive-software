@@ -11,9 +11,9 @@ readme = "README.md"
 test = []
 
 [dependencies]
-ciborium = "0.2"
+bincode = { version = "2.0.0-rc.3", features = ["serde"] }
 sled = "0.34"
-serde = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
 trybuild = "1.0"

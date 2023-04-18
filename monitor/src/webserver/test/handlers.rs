@@ -11,7 +11,7 @@ use axum::{Extension, Json};
 use comm_types::hardware::TargetState;
 use comm_types::hardware::{Capabilities, ProbeState};
 use comm_types::test::TestOptions;
-use hive_db::CborDb;
+use hive_db::BincodeDb;
 use serde::{Deserialize, Serialize};
 use thiserror::Error as ThisError;
 
@@ -44,13 +44,13 @@ impl IntoResponse for TestRequestError {
 pub(super) async fn capabilities(Extension(db): Extension<Arc<MonitorDb>>) -> Json<Capabilities> {
     let assigned_targets = db
         .config_tree
-        .c_get(&keys::config::ASSIGNED_TARGETS)
+        .b_get(&keys::config::ASSIGNED_TARGETS)
         .unwrap()
         .expect("DB not initialized");
 
     let assigned_probes = db
         .config_tree
-        .c_get(&keys::config::ASSIGNED_PROBES)
+        .b_get(&keys::config::ASSIGNED_PROBES)
         .unwrap()
         .expect("DB not initialized");
 

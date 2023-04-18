@@ -203,7 +203,7 @@ mod tests {
     use comm_types::auth::Role;
     use cookie::time::Duration;
     use cookie::SameSite;
-    use hive_db::CborDb;
+    use hive_db::BincodeDb;
     use hyper::header;
     use hyper::Body;
     use hyper::Method;
@@ -235,7 +235,7 @@ mod tests {
         static ref DB: Arc<MonitorDb> = {
             let db = MonitorDb::open_test();
 
-            db.credentials_tree.c_insert(&keys::credentials::USERS, &DUMMY_USERS).unwrap();
+            db.credentials_tree.b_insert(&keys::credentials::USERS, &DUMMY_USERS).unwrap();
 
             Arc::new(db)
         };

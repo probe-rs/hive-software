@@ -140,13 +140,13 @@ mod tests {
 
     use axum::body::Body;
     use axum::http::{header, Method, Request, StatusCode};
-    use ciborium::de::from_reader;
-    use ciborium::ser::into_writer;
+    use bincode::config;
+    use bincode::serde::{decode_from_slice, encode_to_vec};
     use comm_types::defines::DefineRegistry;
     use comm_types::hardware::{ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
     use comm_types::test::{Filter, TestFilter, TestOptions, TestResults, TestRunStatus};
-    use hive_db::CborDb;
+    use hive_db::BincodeDb;
     use lazy_static::lazy_static;
     use tokio::sync::mpsc::{Receiver, Sender};
     use tokio::sync::Mutex;
@@ -161,8 +161,8 @@ mod tests {
         static ref DB: Arc<MonitorDb> = {
             let db = MonitorDb::open_test();
 
-            db.config_tree.c_insert(&keys::config::ASSIGNED_PROBES, &*PROBE_DATA).unwrap();
-            db.config_tree.c_insert(&keys::config::ASSIGNED_TARGETS, &*TARGET_DATA).unwrap();
+            db.config_tree.b_insert(&keys::config::ASSIGNED_PROBES, &*PROBE_DATA).unwrap();
+            db.config_tree.b_insert(&keys::config::ASSIGNED_TARGETS, &*TARGET_DATA).unwrap();
 
             Arc::new(db)
         };
@@ -360,7 +360,7 @@ mod tests {
         assert_eq!(res.status(), StatusCode::OK);
 
         let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
-        let data: IpcMessage = from_reader(&bytes[..]).unwrap();
+        let (data, _): (IpcMessage, _) = decode_from_slice(&bytes[..], config::standard()).unwrap();
 
         if let IpcMessage::ProbeInitData(data) = data {
             assert!(data.iter().zip(PROBE_DATA.clone()).all(|(a, b)| {
@@ -406,7 +406,7 @@ mod tests {
         assert_eq!(res.status(), StatusCode::OK);
 
         let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
-        let data: IpcMessage = from_reader(&bytes[..]).unwrap();
+        let (data, _): (IpcMessage, _) = decode_from_slice(&bytes[..], config::standard()).unwrap();
 
         if let IpcMessage::TargetInitData(data) = data {
             assert!(data.iter().zip(TARGET_DATA.clone()).all(|(a, b)| {
@@ -442,10 +442,9 @@ mod tests {
             error: None,
         };
 
-        let mut bytes = vec![];
-        into_writer(
+        let bytes = encode_to_vec(
             &IpcMessage::TestResults(Box::new(dummy_test_results)),
-            &mut bytes,
+            config::standard(),
         )
         .unwrap();
 
@@ -464,7 +463,7 @@ mod tests {
         assert_eq!(res.status(), StatusCode::OK);
 
         let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
-        let data: IpcMessage = from_reader(&bytes[..]).unwrap();
+        let (data, _): (IpcMessage, _) = decode_from_slice(&bytes[..], config::standard()).unwrap();
 
         if let IpcMessage::Empty = data {
             let received = mock_test_result_manager.receive();
@@ -502,12 +501,12 @@ mod tests {
         assert_eq!(res.status(), StatusCode::OK);
 
         let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
-        let data: IpcMessage = from_reader(&bytes[..]).unwrap();
+        let (data, _): (IpcMessage, _) = decode_from_slice(&bytes[..], config::standard()).unwrap();
 
         let define_registry_message =
             IpcMessage::HiveDefineData(Box::new(DEFINE_REGISTRY.lock().await.clone()));
-        let mut define_registry_message_bytes = vec![];
-        into_writer(&define_registry_message, &mut define_registry_message_bytes).unwrap();
+        let define_registry_message_bytes =
+            encode_to_vec(&define_registry_message, config::standard()).unwrap();
 
         if let IpcMessage::HiveDefineData(data) = data {
             assert_eq!(bytes, define_registry_message_bytes);
@@ -541,7 +540,7 @@ mod tests {
         assert_eq!(res.status(), StatusCode::OK);
 
         let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
-        let data: IpcMessage = from_reader(&bytes[..]).unwrap();
+        let (data, _): (IpcMessage, _) = decode_from_slice(&bytes[..], config::standard()).unwrap();
 
         let test_options = TEST_OPTIONS.lock().await;
 

@@ -1,13 +1,15 @@
 //! Types used in IPC between runner and monitor
-use ciborium::de::from_reader;
+use axum::response::Response;
+use bincode::config;
+use bincode::serde::decode_from_std_read;
 use hyper::body::Buf;
-use hyper::{header, Body, Response};
+use hyper::{header, Body};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::test::TestOptions;
 
-use super::cbor::CBOR_MIME;
+use super::bincode::BINCODE_MIME;
 use super::defines::DefineRegistry;
 use super::hardware::{ProbeState, TargetState};
 use super::test::TestResults;
@@ -42,7 +44,7 @@ impl IpcMessage {
     /// Tries to parse an [`IpcMessage`] from the provided HTTP response
     pub async fn from_response(res: Response<Body>) -> Result<Self, ClientParseError> {
         if res.headers().get(header::CONTENT_TYPE).is_some() {
-            if res.headers().get(header::CONTENT_TYPE).unwrap() != CBOR_MIME {
+            if res.headers().get(header::CONTENT_TYPE).unwrap() != BINCODE_MIME {
                 return Err(ClientParseError::InvalidHeader);
             }
         } else {
@@ -52,7 +54,8 @@ impl IpcMessage {
         let body = hyper::body::aggregate(res)
             .await
             .map_err(|_| ClientParseError::InvalidBody)?;
-        let msg = from_reader(body.reader()).map_err(|_| ClientParseError::InvalidCbor)?;
+        let msg = decode_from_std_read(&mut body.reader(), config::standard())
+            .map_err(|_| ClientParseError::InvalidBincode)?;
 
         Ok(msg)
     }
@@ -61,13 +64,13 @@ impl IpcMessage {
 #[derive(Debug, Error)]
 pub enum ClientParseError {
     #[error(
-        "Response had an invalid header configuration, check that content-type is application/cbor"
+        "Response had an invalid header configuration, check that content-type is application/bincode"
     )]
     InvalidHeader,
     #[error(
-        "Failed to deserialize CBOR body as IpcMessage, check that the server sends the correct types"
+        "Failed to deserialize bincode body as IpcMessage, check that the server sends the correct types"
     )]
-    InvalidCbor,
+    InvalidBincode,
     #[error("Response contained invalid body format")]
     InvalidBody,
 }

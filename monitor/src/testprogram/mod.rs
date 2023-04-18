@@ -21,7 +21,7 @@ use std::sync::{Arc, Mutex};
 use async_graphql::{Enum, SimpleObject};
 use comm_types::hardware::Memory;
 use controller::hardware::HiveHardware;
-use hive_db::CborTransactional;
+use hive_db::BincodeTransactional;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use sled::transaction::UnabortableTransactionError;
@@ -400,9 +400,9 @@ impl TestprogramArchitecture {
 /// In case building or linking fails on the default testprogram.
 pub fn sync_binaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     let mut active_testprogram = db.config_tree.transaction::<_, _, UnabortableTransactionError>(|tree|{
-        let active = tree.c_get(&keys::config::ACTIVE_TESTPROGRAM)?.expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known");
+        let active = tree.b_get(&keys::config::ACTIVE_TESTPROGRAM)?.expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known");
 
-        let mut testprograms = tree.c_get(&keys::config::TESTPROGRAMS)?.expect("DB not initialized");
+        let mut testprograms = tree.b_get(&keys::config::TESTPROGRAMS)?.expect("DB not initialized");
 
         for idx in 0..testprograms.len() {
             if active != testprograms[idx].get_name() {
@@ -422,9 +422,9 @@ pub fn sync_binaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
 
     // Set active testprogram to default and retry
     let mut active_testprogram = db.config_tree.transaction::<_, _, UnabortableTransactionError>(|tree|{
-        tree.c_insert(&keys::config::ACTIVE_TESTPROGRAM, &DEFAULT_TESTPROGRAM_NAME.to_owned())?.expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known");
+        tree.b_insert(&keys::config::ACTIVE_TESTPROGRAM, &DEFAULT_TESTPROGRAM_NAME.to_owned())?.expect("Failed to get the active testprogram. Flashing the testbinaries can only be performed once the active testprogram is known");
 
-        let mut testprograms = tree.c_get(&keys::config::TESTPROGRAMS)?.expect("DB not initialized");
+        let mut testprograms = tree.b_get(&keys::config::TESTPROGRAMS)?.expect("DB not initialized");
 
         for idx in 0..testprograms.len() {
             if DEFAULT_TESTPROGRAM_NAME != testprograms[idx].get_name() {

@@ -11,7 +11,7 @@ use argon2::{
     PasswordVerifier, Version,
 };
 use comm_types::auth::DbUser;
-use hive_db::CborDb;
+use hive_db::BincodeDb;
 use lazy_static::lazy_static;
 use rand_chacha::rand_core::OsRng;
 
@@ -37,7 +37,7 @@ lazy_static! {
 pub fn check_password(db: Arc<MonitorDb>, username: &str, password: &str) -> Result<DbUser, ()> {
     let users: Vec<DbUser> = db
         .credentials_tree
-        .c_get(&keys::credentials::USERS)
+        .b_get(&keys::credentials::USERS)
         .unwrap()
         .unwrap();
 
@@ -101,7 +101,7 @@ mod tests {
     use argon2::PasswordHasher;
     use comm_types::auth::DbUser;
     use comm_types::auth::Role;
-    use hive_db::CborDb;
+    use hive_db::BincodeDb;
     use lazy_static::lazy_static;
     use rand_chacha::rand_core::OsRng;
 
@@ -134,7 +134,7 @@ mod tests {
         ];
 
         DB.credentials_tree
-            .c_insert(&keys::credentials::USERS, &dummy_users)
+            .b_insert(&keys::credentials::USERS, &dummy_users)
             .unwrap();
 
         assert!(check_password(DB.clone(), "Yarpen", "dummy password").is_err());
@@ -149,7 +149,7 @@ mod tests {
         }];
 
         DB.credentials_tree
-            .c_insert(&keys::credentials::USERS, &dummy_users)
+            .b_insert(&keys::credentials::USERS, &dummy_users)
             .unwrap();
 
         assert!(check_password(DB.clone(), "Aloy", "dummy password").is_err());
@@ -172,7 +172,7 @@ mod tests {
         }];
 
         DB.credentials_tree
-            .c_insert(&keys::credentials::USERS, &dummy_users)
+            .b_insert(&keys::credentials::USERS, &dummy_users)
             .unwrap();
 
         assert!(check_password(DB.clone(), "Arthur Morgan", "Very wrong password").is_err());
@@ -195,7 +195,7 @@ mod tests {
         }];
 
         DB.credentials_tree
-            .c_insert(&keys::credentials::USERS, &dummy_users)
+            .b_insert(&keys::credentials::USERS, &dummy_users)
             .unwrap();
 
         assert!(check_password(DB.clone(), "Arthur Morgan", "Very strong password").is_ok());

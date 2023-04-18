@@ -1,7 +1,7 @@
 error[E0308]: `?` operator has incompatible types
   --> tests/typesafety/transaction_insert.rs:15:38
    |
-15 |         let previous: Option<bool> = tree.c_insert(&my_key, &correct_data)?;
+15 |         let previous: Option<bool> = tree.b_insert(&my_key, &correct_data)?;
    |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `bool`, found `u8`
    |
    = note: `?` operator cannot convert from `Option<u8>` to `Option<bool>`

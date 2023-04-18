@@ -9,7 +9,7 @@ use anyhow::anyhow;
 use async_graphql::{Context, Object, Result as GrapqlResult};
 use comm_types::auth::Role;
 use controller::logger::LogEntry;
-use hive_db::CborDb;
+use hive_db::BincodeDb;
 use log::Level;
 use probe_rs::config::search_chips;
 use probe_rs::Probe;
@@ -35,7 +35,7 @@ impl BackendQuery {
 
         let targets = db
             .config_tree
-            .c_get(&keys::config::ASSIGNED_TARGETS)
+            .b_get(&keys::config::ASSIGNED_TARGETS)
             .unwrap()
             .expect("DB not initialized");
 
@@ -52,7 +52,7 @@ impl BackendQuery {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
         db.config_tree
-            .c_get(&keys::config::TSS)
+            .b_get(&keys::config::TSS)
             .unwrap()
             .expect("DB not initialized")
     }
@@ -66,7 +66,7 @@ impl BackendQuery {
 
         let target_data = db
             .config_tree
-            .c_get(&keys::config::ASSIGNED_TARGETS)
+            .b_get(&keys::config::ASSIGNED_TARGETS)
             .unwrap()
             .expect("DB not initialized");
 
@@ -97,7 +97,7 @@ impl BackendQuery {
 
         let res = db
             .config_tree
-            .c_get(&keys::config::ASSIGNED_PROBES)
+            .b_get(&keys::config::ASSIGNED_PROBES)
             .unwrap()
             .expect("DB not initialized")
             .into_iter()
@@ -188,7 +188,7 @@ impl BackendQuery {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
         db.credentials_tree
-            .c_get(&keys::credentials::USERS)
+            .b_get(&keys::credentials::USERS)
             .unwrap()
             .expect("DB not initialized")
             .into_iter()
@@ -201,7 +201,7 @@ impl BackendQuery {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
         db.config_tree
-            .c_get(&keys::config::TESTPROGRAMS)
+            .b_get(&keys::config::TESTPROGRAMS)
             .unwrap()
             .expect("DB not initialized")
     }
@@ -211,7 +211,7 @@ impl BackendQuery {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
         db.config_tree
-            .c_get(&keys::config::ACTIVE_TESTPROGRAM)
+            .b_get(&keys::config::ACTIVE_TESTPROGRAM)
             .unwrap()
             .expect("DB not initialized")
     }
@@ -226,7 +226,7 @@ impl BackendQuery {
 
         let testprograms = db
             .config_tree
-            .c_get(&keys::config::TESTPROGRAMS)
+            .b_get(&keys::config::TESTPROGRAMS)
             .unwrap()
             .expect("DB not initialized");
 

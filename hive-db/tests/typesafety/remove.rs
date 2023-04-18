@@ -1,4 +1,4 @@
-use hive_db::{CborDb, HiveDb, Key};
+use hive_db::{BincodeDb, HiveDb, Key};
 
 const FLUSH_INTERVAL_MS: u64 = 60_000;
 const CACHE_CAPACITY: u64 = 52_428_800;
@@ -10,5 +10,5 @@ fn main() {
 
     let my_key: Key<u8> = Key::new("NiceNumber");
 
-    let wrong_type: Option<()> = tree.c_remove(&my_key).unwrap();
+    let wrong_type: Option<()> = tree.b_remove(&my_key).unwrap();
 }

@@ -7,7 +7,7 @@ use anyhow::anyhow;
 use async_graphql::{Context, Object, Result as GraphQlResult, Upload};
 use comm_types::auth::{DbUser, JwtClaims, Role};
 use comm_types::hardware::{ProbeInfo, ProbeState, TargetState};
-use hive_db::{CborTransactional};
+use hive_db::{BincodeTransactional};
 use probe_rs::Probe;
 use sled::transaction::{abort, TransactionError};
 use tower_cookies::Cookies;
@@ -43,7 +43,7 @@ impl BackendMutation {
         db.config_tree
             .transaction(|tree| {
                 let mut assigned = tree
-                    .c_get(&keys::config::ASSIGNED_TARGETS)?
+                    .b_get(&keys::config::ASSIGNED_TARGETS)?
                     .expect("DB not initialized");
 
                 if assigned[tss_pos].is_none() {
@@ -54,7 +54,7 @@ impl BackendMutation {
 
                 assigned[tss_pos].as_mut().unwrap()[target_pos] = target_state;
 
-                tree.c_insert(&keys::config::ASSIGNED_TARGETS, &assigned)?;
+                tree.b_insert(&keys::config::ASSIGNED_TARGETS, &assigned)?;
 
                 Ok(())
             })
@@ -89,7 +89,7 @@ impl BackendMutation {
         db.config_tree
             .transaction(|tree| {
                 let mut assigned = tree
-                    .c_get(&keys::config::ASSIGNED_PROBES)?
+                    .b_get(&keys::config::ASSIGNED_PROBES)?
                     .expect("DB not initialized");
 
                 if probe_state.state == State::Known {
@@ -135,7 +135,7 @@ impl BackendMutation {
                     };
                 }
 
-                tree.c_insert(&keys::config::ASSIGNED_PROBES, &assigned)?;
+                tree.b_insert(&keys::config::ASSIGNED_PROBES, &assigned)?;
 
                 Ok(())
             })
@@ -188,7 +188,7 @@ impl BackendMutation {
             .credentials_tree
             .transaction(|tree| {
                 let mut users: Vec<DbUser> = tree
-                    .c_get(&keys::credentials::USERS)?
+                    .b_get(&keys::credentials::USERS)?
                     .expect("DB not initialized");
 
                 let user = users
@@ -199,7 +199,7 @@ impl BackendMutation {
                 if let Some((idx, _)) = user {
                     users[idx].username = username.clone();
 
-                    tree.c_insert(&keys::credentials::USERS, &users)?;
+                    tree.b_insert(&keys::credentials::USERS, &users)?;
 
                     Ok(users.remove(idx))
                 } else {
@@ -255,7 +255,7 @@ impl BackendMutation {
                 .credentials_tree
                 .transaction(|tree| {
                     let mut users: Vec<DbUser> = tree
-                        .c_get(&keys::credentials::USERS)?
+                        .b_get(&keys::credentials::USERS)?
                         .expect("DB not initialized");
 
                     let user = users
@@ -267,7 +267,7 @@ impl BackendMutation {
                         // TODO: Find a way to only hash password once, even if the transaction closure is executed multiple times.
                         users[idx].hash = hasher::hash_password(&blocking_new_password);
 
-                        tree.c_insert(&keys::credentials::USERS, &users)?;
+                        tree.b_insert(&keys::credentials::USERS, &users)?;
 
                         Ok(true)
                     } else {
@@ -313,7 +313,7 @@ impl BackendMutation {
         db.credentials_tree
             .transaction(|tree| {
                 let mut users = tree
-                    .c_get(&keys::credentials::USERS)?
+                    .b_get(&keys::credentials::USERS)?
                     .expect("DB not initialized");
 
                 if users.iter().any(|user| user.username == new_user.username) {
@@ -322,7 +322,7 @@ impl BackendMutation {
 
                 users.push(new_user.clone());
 
-                tree.c_insert(&keys::credentials::USERS, &users)?;
+                tree.b_insert(&keys::credentials::USERS, &users)?;
 
                 Ok(())
             })
@@ -358,14 +358,14 @@ impl BackendMutation {
             .credentials_tree
             .transaction(|tree| {
                 let mut users = tree
-                    .c_get(&keys::credentials::USERS)?
+                    .b_get(&keys::credentials::USERS)?
                     .expect("DB not initialized");
 
                 for idx in 0..users.len() {
                     if username == users[idx].username {
                         let deleted_user = users.remove(idx);
 
-                        tree.c_insert(&keys::credentials::USERS, &users)?;
+                        tree.b_insert(&keys::credentials::USERS, &users)?;
 
                         return Ok(deleted_user);
                     }
@@ -412,7 +412,7 @@ impl BackendMutation {
             .credentials_tree
             .transaction(|tree| {
                 let mut users: Vec<DbUser> = tree
-                    .c_get(&keys::credentials::USERS)?
+                    .b_get(&keys::credentials::USERS)?
                     .expect("DB not initialized");
 
                 for idx in 0..users.len() {
@@ -430,7 +430,7 @@ impl BackendMutation {
 
                         users.push(user.clone());
 
-                        tree.c_insert(&keys::credentials::USERS, &users)?;
+                        tree.b_insert(&keys::credentials::USERS, &users)?;
 
                         return Ok(user);
                     }
@@ -491,7 +491,7 @@ impl BackendMutation {
                 let mut is_active = false;
 
                 let mut testprograms = tree
-                    .c_get(&keys::config::TESTPROGRAMS)?
+                    .b_get(&keys::config::TESTPROGRAMS)?
                     .expect("DB not initialized");
 
                 for idx in 0..testprograms.len(){
@@ -499,7 +499,7 @@ impl BackendMutation {
                         continue;
                     }
 
-                    let active_testprogram = tree.c_get(&keys::config::ACTIVE_TESTPROGRAM)?.expect("DB not initialized");
+                    let active_testprogram = tree.b_get(&keys::config::ACTIVE_TESTPROGRAM)?.expect("DB not initialized");
                     let mut testprogram = testprograms.remove(idx);
 
                     if testprogram.get_name() == active_testprogram {
@@ -515,7 +515,7 @@ impl BackendMutation {
 
                     testprograms.insert(idx, testprogram);
 
-                    tree.c_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
+                    tree.b_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
 
                     return Ok((testprograms.remove(idx), is_active));
                 }
@@ -557,11 +557,11 @@ impl BackendMutation {
                 let mut was_active = false;
 
                 let active_testprogram = tree
-                    .c_get(&keys::config::ACTIVE_TESTPROGRAM)?
+                    .b_get(&keys::config::ACTIVE_TESTPROGRAM)?
                     .expect("DB not initialized");
 
                 let mut testprograms = tree
-                    .c_get(&keys::config::TESTPROGRAMS)?
+                    .b_get(&keys::config::TESTPROGRAMS)?
                     .expect("DB not initialized");
 
                 for idx in 0..testprograms.len() {
@@ -574,12 +574,12 @@ impl BackendMutation {
 
                         let default_testprogram = testprograms.iter().find(|program| program.get_name() == DEFAULT_TESTPROGRAM_NAME).expect("Failed to find default testprogram in DB. This should not happen as it is not allowed to delete the default testprogram.");
     
-                        tree.c_insert(&keys::config::ACTIVE_TESTPROGRAM, &default_testprogram.get_name().to_owned())?;
+                        tree.b_insert(&keys::config::ACTIVE_TESTPROGRAM, &default_testprogram.get_name().to_owned())?;
                     }
     
                     let deleted = testprograms.swap_remove(idx);
 
-                    tree.c_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
+                    tree.b_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
 
                     return Ok((deleted.get_path().to_path_buf(), was_active));
                 }
@@ -615,7 +615,7 @@ impl BackendMutation {
         }
 
         let new_testprogram = db.config_tree.transaction(|tree|{
-            let mut testprograms = tree.c_get(&keys::config::TESTPROGRAMS)?.expect("DB not initialized");
+            let mut testprograms = tree.b_get(&keys::config::TESTPROGRAMS)?.expect("DB not initialized");
 
             if testprograms.iter().any(|testprogram| testprogram.get_name() == testprogram_name) {
                 abort(anyhow!("Testprogram already exists"))?;
@@ -625,7 +625,7 @@ impl BackendMutation {
 
             testprograms.push(new_testprogram);
 
-            tree.c_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
+            tree.b_insert(&keys::config::TESTPROGRAMS, &testprograms)?;
 
             Ok(testprograms.pop().unwrap())
         }).map_err(|err| match err {
@@ -649,7 +649,7 @@ impl BackendMutation {
         db.config_tree
             .transaction(|tree| {
                 let active_testprogram = tree
-                    .c_get(&keys::config::ACTIVE_TESTPROGRAM)?
+                    .b_get(&keys::config::ACTIVE_TESTPROGRAM)?
                     .expect("DB not initialized");
 
                 if active_testprogram == testprogram_name {
@@ -657,7 +657,7 @@ impl BackendMutation {
                 }
 
                 let testprograms = tree
-                    .c_get(&keys::config::TESTPROGRAMS)?
+                    .b_get(&keys::config::TESTPROGRAMS)?
                     .expect("DB not initialized");
 
                 let testprogram = testprograms.iter().find(|testprogram| testprogram.get_name() == testprogram_name);
@@ -668,7 +668,7 @@ impl BackendMutation {
 
                 let testprogram = testprogram.unwrap();
 
-                tree.c_insert(&keys::config::ACTIVE_TESTPROGRAM, &testprogram.get_name().to_owned())?;
+                tree.b_insert(&keys::config::ACTIVE_TESTPROGRAM, &testprogram.get_name().to_owned())?;
 
                 Ok(())
             })

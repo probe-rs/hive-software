@@ -1,9 +1,9 @@
-//! All CBOR helpers and trait implementations used for [`axum`]
+//! All bincode helpers and trait implementations used for [`axum`]
 use axum::async_trait;
 use axum::extract::{FromRequest, FromRequestParts};
 use axum::response::{IntoResponse, Response};
-use ciborium::de::from_reader;
-use ciborium::ser::into_writer;
+use bincode::config;
+use bincode::serde::{decode_from_std_read, encode_to_vec};
 use http::header::{self, HeaderValue};
 use http::request::{Parts, Request};
 use hyper::body::Buf;
@@ -12,46 +12,58 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use thiserror::Error;
 
-pub const CBOR_MIME: &str = "application/cbor";
+pub const BINCODE_MIME: &str = "application/bincode";
 
 /// Error type returned by the server if it fails to parse the request body
 #[derive(Debug, Error, Serialize)]
 pub enum ServerParseError {
-    #[error("Wrong content type header provided. Expecting application/cbor")]
+    #[error("Wrong content type header provided. Expecting application/bincode")]
     InvalidHeader,
-    #[error("Missing content type header. Expecting application/cbor")]
+    #[error("Missing content type header. Expecting application/bincode")]
     MissingHeader,
-    #[error("Failed to parse cbor body. Are you sending the correct data types?")]
-    InvalidCbor,
-    #[error("Invalid cbor body")]
+    #[error("Failed to parse bincode body. Are you sending the correct data types?")]
+    InvalidBincode,
+    #[error("Invalid bincode body")]
     InvalidBody,
 }
 
 impl IntoResponse for ServerParseError {
     fn into_response(self) -> Response {
-        let mut bytes: Vec<u8> = vec![];
-        into_writer(&self, &mut bytes).expect("failed to serialize the provided response body. Please check your cbor for correctness.");
+        let bytes = encode_to_vec(&self, config::standard()).expect("failed to serialize the provided response body. Please check your bincode for correctness.");
 
         (
             StatusCode::BAD_REQUEST,
-            [(header::CONTENT_TYPE, HeaderValue::from_static(CBOR_MIME))],
+            [(header::CONTENT_TYPE, HeaderValue::from_static(BINCODE_MIME))],
             bytes,
         )
             .into_response()
     }
 }
 
-/// Struct which represents a cbor value.
+/// Struct which represents a bincode value.
 ///
 /// # Parsing
-/// The struct implements [`FromRequest`] to parse a request body as cbor into the provided generic type `T`. If parsing fails due to a bad request the server sends back a [`ServerParseError`]. As this extractor consumes the body it panics if another extractor already consumed the body before.
+/// The struct implements [`FromRequest`] to parse a request body as bincode into the provided generic type `T`. If parsing fails due to a bad request the server sends back a [`ServerParseError`].
 ///
 /// # Serializing
-/// The struct implements [`IntoResponse`] to send a type `T` as cbor value in a response. Serializing can panic, as this indicates wrong code or library limitations.
-pub struct Cbor<T>(pub T);
+/// The struct implements [`IntoResponse`] to send a type `T` as bincode value in a response. Serializing can panic. This indicates wrong code or library limitations.
+pub struct Bincode<T>(pub T);
+
+impl<T> Into<Vec<u8>> for Bincode<T>
+where
+    T: Serialize,
+{
+    /// Converts the provided type into a byte vector
+    ///
+    /// # Panics
+    /// If the provided value cannot be encoded to bincode
+    fn into(self) -> Vec<u8> {
+        encode_to_vec(&self.0, config::standard()).expect("failed to serialize the provided type into a bincode http body. Please check if the provided type can be encoded using bincode.")
+    }
+}
 
 #[async_trait]
-impl<T, S> FromRequest<S, axum::body::Body> for Cbor<T>
+impl<T, S> FromRequest<S, axum::body::Body> for Bincode<T>
 where
     T: DeserializeOwned,
     S: Send + Sync,
@@ -72,30 +84,29 @@ where
             .await
             .map_err(|_| ServerParseError::InvalidBody)?;
 
-        match from_reader::<T, _>(body.reader()) {
-            Ok(data) => Ok(Cbor(data)),
-            Err(_) => Err(ServerParseError::InvalidCbor),
+        match decode_from_std_read::<T, _, _>(&mut body.reader(), config::standard()) {
+            Ok(data) => Ok(Bincode(data)),
+            Err(_) => Err(ServerParseError::InvalidBincode),
         }
     }
 }
 
-impl<T> IntoResponse for Cbor<T>
+impl<T> IntoResponse for Bincode<T>
 where
     T: Serialize,
 {
     fn into_response(self) -> Response {
-        let mut bytes: Vec<u8> = vec![];
-        into_writer(&self.0, &mut bytes).expect("failed to serialize the provided response body. Please check your cbor for correctness.");
+        let bytes = encode_to_vec(&self.0, config::standard()).expect("failed to serialize the provided response body. Please check your bincode for correctness.");
 
         (
-            [(header::CONTENT_TYPE, HeaderValue::from_static(CBOR_MIME))],
+            [(header::CONTENT_TYPE, HeaderValue::from_static(BINCODE_MIME))],
             bytes,
         )
             .into_response()
     }
 }
 
-/// Checks if a request has the correct content type of [`CBOR_MIME`]
+/// Checks if a request has the correct content type of [`BINCODE_MIME`]
 struct CheckContentType;
 
 #[async_trait]
@@ -106,7 +117,7 @@ impl<S> FromRequestParts<S> for CheckContentType {
         let content_type = parts.headers.get(header::CONTENT_TYPE);
 
         if let Some(content_type) = content_type {
-            if content_type == CBOR_MIME {
+            if content_type == BINCODE_MIME {
                 return Ok(Self);
             }
             Err(ServerParseError::InvalidHeader)
@@ -123,13 +134,13 @@ mod tests {
     use axum::response::IntoResponse;
     use axum::routing::post;
     use axum::Router;
-    use ciborium::ser::into_writer;
+    use bincode::config;
+    use bincode::serde::encode_to_vec;
+
     use serde::{Deserialize, Serialize};
     use tower::ServiceExt;
 
-    use crate::cbor::ServerParseError;
-
-    use super::Cbor;
+    use super::{Bincode, ServerParseError, BINCODE_MIME};
 
     #[derive(Serialize, Deserialize)]
     enum Animal {
@@ -139,18 +150,20 @@ mod tests {
     }
 
     #[derive(Serialize, Deserialize)]
-    struct MockCborData {
+    struct MockBincodeData {
         username: String,
         favorite_animal: Animal,
         favorite_numbers: Vec<i64>,
     }
 
     fn app() -> Router {
-        Router::new().route("/", post(mock_cbor_request_handler))
+        Router::new().route("/", post(mock_bincode_request_handler))
     }
 
-    async fn mock_cbor_request_handler(Cbor(data): Cbor<MockCborData>) -> Cbor<MockCborData> {
-        Cbor(data)
+    async fn mock_bincode_request_handler(
+        Bincode(data): Bincode<MockBincodeData>,
+    ) -> Bincode<MockBincodeData> {
+        Bincode(data)
     }
 
     #[tokio::test]
@@ -207,7 +220,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn invalid_cbor() {
+    async fn invalid_bincode() {
         let mock_server = app();
 
         let res = mock_server
@@ -215,7 +228,7 @@ mod tests {
                 Request::builder()
                     .method(Method::POST)
                     .uri("/")
-                    .header(header::CONTENT_TYPE, "application/cbor")
+                    .header(header::CONTENT_TYPE, BINCODE_MIME)
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -227,7 +240,7 @@ mod tests {
         let res_bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
         assert_eq!(
             res_bytes,
-            hyper::body::to_bytes(ServerParseError::InvalidCbor.into_response().into_body())
+            hyper::body::to_bytes(ServerParseError::InvalidBincode.into_response().into_body())
                 .await
                 .unwrap()
         );
@@ -237,21 +250,20 @@ mod tests {
     async fn valid_request() {
         let mock_server = app();
 
-        let data = MockCborData {
+        let data = MockBincodeData {
             username: "User".to_owned(),
             favorite_animal: Animal::CRAB,
             favorite_numbers: vec![7, 42, 555],
         };
 
-        let mut data_bytes = vec![];
-        into_writer(&data, &mut data_bytes).unwrap();
+        let data_bytes = encode_to_vec(&data, config::standard()).unwrap();
 
         let res = mock_server
             .oneshot(
                 Request::builder()
                     .method(Method::POST)
                     .uri("/")
-                    .header(header::CONTENT_TYPE, "application/cbor")
+                    .header(header::CONTENT_TYPE, BINCODE_MIME)
                     .body(Body::from(data_bytes.clone()))
                     .unwrap(),
             )
