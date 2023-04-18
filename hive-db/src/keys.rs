@@ -8,7 +8,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 /// A key which is used to access data in the database
 pub struct Key<T> {
-    key: String,
+    key: &'static str,
     phantom_data: PhantomData<T>,
 }
 
@@ -16,15 +16,15 @@ impl<'de, T> Key<T>
 where
     T: Serialize + DeserializeOwned,
 {
-    pub fn new(key: &str) -> Self {
+    pub fn new(key: &'static str) -> Self {
         Self {
-            key: key.to_owned(),
+            key: key,
             phantom_data: PhantomData,
         }
     }
 
     /// Get the inner key
     pub(crate) fn get_key(&self) -> &str {
-        self.key.as_str()
+        self.key
     }
 }
