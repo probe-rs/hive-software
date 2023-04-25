@@ -14,7 +14,7 @@ runner = []
 ll-api = { path = "../ll-api/" }
 comm-types = { path = "../comm-types/", features = ["hardware", "ipc"] }
 hive-test = { path = "../hive-test/" }
-pca9535 = { version = "1.1", features = ["std"] }
+pca9535 = { version = "1.2", features = ["std"] }
 embedded-hal = "=1.0.0-alpha.9"
 rppal = { version = "0.14", features = ["hal"] }
 shared-bus = { version = "=0.2.5", features = ["std", "eh-alpha"] }
