@@ -31,8 +31,15 @@ impl IntoResponse for ServerParseError {
     fn into_response(self) -> Response {
         let bytes = encode_to_vec(&self, config::standard()).expect("failed to serialize the provided response body. Please check your bincode for correctness.");
 
+        let status_code = match self {
+            ServerParseError::InvalidHeader => StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            ServerParseError::MissingHeader => StatusCode::BAD_REQUEST,
+            ServerParseError::InvalidBincode => StatusCode::BAD_REQUEST,
+            ServerParseError::InvalidBody => StatusCode::BAD_REQUEST,
+        };
+
         (
-            StatusCode::BAD_REQUEST,
+            status_code,
             [(header::CONTENT_TYPE, HeaderValue::from_static(BINCODE_MIME))],
             bytes,
         )
@@ -72,15 +79,10 @@ where
 
     async fn from_request(
         req: Request<axum::body::Body>,
-        state: &S,
+        _state: &S,
     ) -> Result<Self, Self::Rejection> {
-        let (mut parts, body) = req.into_parts();
-
-        // Check content type headers
-        CheckContentType::from_request_parts(&mut parts, state).await?;
-
         // Check and parse body
-        let body = hyper::body::aggregate(body)
+        let body = hyper::body::aggregate(req.into_body())
             .await
             .map_err(|_| ServerParseError::InvalidBody)?;
 
@@ -107,7 +109,7 @@ where
 }
 
 /// Checks if a request has the correct content type of [`BINCODE_MIME`]
-struct CheckContentType;
+pub struct CheckContentType;
 
 #[async_trait]
 impl<S> FromRequestParts<S> for CheckContentType {

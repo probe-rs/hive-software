@@ -8,7 +8,8 @@ use std::task::Poll;
 
 use axum::extract::connect_info;
 use axum::routing::{get, post};
-use axum::{BoxError, Extension, Router, Server};
+use axum::{middleware, BoxError, Extension, Router, Server};
+use comm_types::bincode::CheckContentType;
 use comm_types::defines::DefineRegistry;
 use comm_types::test::{TestOptions, TestResults};
 use futures::ready;
@@ -17,6 +18,7 @@ use tokio::net::unix::UCred;
 use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
+use tower::ServiceBuilder;
 
 use crate::database::MonitorDb;
 use crate::testprogram::defines::DEFINE_REGISTRY;
@@ -114,7 +116,11 @@ fn app(
             "/runner/results",
             post(handlers::test_result_handler).layer(Extension(test_result_sender)),
         )
-        .layer(Extension(db))
+        .layer(
+            ServiceBuilder::new()
+                .layer(Extension(db))
+                .layer(middleware::from_extractor::<CheckContentType>()),
+        )
 }
 
 /// Creates the folders required by the path, if not existing. Removes previous socket file if existing.
@@ -142,6 +148,7 @@ mod tests {
     use axum::http::{header, Method, Request, StatusCode};
     use bincode::config;
     use bincode::serde::{decode_from_slice, encode_to_vec};
+    use comm_types::bincode::BINCODE_MIME;
     use comm_types::defines::DefineRegistry;
     use comm_types::hardware::{ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
@@ -325,7 +332,7 @@ mod tests {
                 Request::builder()
                     .method(Method::PUT)
                     .uri("/data/target")
-                    .header(header::CONTENT_TYPE, "application/cbor")
+                    .header(header::CONTENT_TYPE, BINCODE_MIME)
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -333,6 +340,31 @@ mod tests {
             .unwrap();
 
         assert_eq!(res.status(), StatusCode::METHOD_NOT_ALLOWED);
+    }
+
+    #[tokio::test]
+    async fn wrong_content_type() {
+        let mock_test_result_manager = MockTestResultManager::new();
+        let ipc_server = app(
+            DB.clone(),
+            mock_test_result_manager.get_sender(),
+            &TEST_OPTIONS,
+            &DEFINE_REGISTRY,
+        );
+
+        let res = ipc_server
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/data/probe")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
     }
 
     #[tokio::test]
@@ -350,7 +382,7 @@ mod tests {
                 Request::builder()
                     .method(Method::GET)
                     .uri("/data/probe")
-                    .header(header::CONTENT_TYPE, "application/cbor")
+                    .header(header::CONTENT_TYPE, BINCODE_MIME)
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -396,7 +428,7 @@ mod tests {
                 Request::builder()
                     .method(Method::GET)
                     .uri("/data/target")
-                    .header(header::CONTENT_TYPE, "application/cbor")
+                    .header(header::CONTENT_TYPE, BINCODE_MIME)
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -453,7 +485,7 @@ mod tests {
                 Request::builder()
                     .method(Method::POST)
                     .uri("/runner/results")
-                    .header(header::CONTENT_TYPE, "application/cbor")
+                    .header(header::CONTENT_TYPE, BINCODE_MIME)
                     .body(Body::from(bytes))
                     .unwrap(),
             )
@@ -491,7 +523,7 @@ mod tests {
                 Request::builder()
                     .method(Method::GET)
                     .uri("/data/defines")
-                    .header(header::CONTENT_TYPE, "application/cbor")
+                    .header(header::CONTENT_TYPE, BINCODE_MIME)
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -530,7 +562,7 @@ mod tests {
                 Request::builder()
                     .method(Method::GET)
                     .uri("/data/options")
-                    .header(header::CONTENT_TYPE, "application/cbor")
+                    .header(header::CONTENT_TYPE, BINCODE_MIME)
                     .body(Body::empty())
                     .unwrap(),
             )
