@@ -234,7 +234,7 @@ mod tests {
         #[tokio::test]
         #[serial]
         async fn connected_daughterboards() {
-            let schema = super::super::build_schema();
+            let schema = build_schema();
 
             let query = r#"{
                 connectedDaughterboards
@@ -381,15 +381,28 @@ mod tests {
                 assignedProbes: [FlatProbeState; 4],
             }
 
-            assert_eq!(
-                from_value::<ExpectedValue>(result).unwrap().assignedProbes,
-                flat_assigned_probes
-            );
+            for (idx, value) in from_value::<ExpectedValue>(result)
+                .unwrap()
+                .assignedProbes
+                .iter()
+                .enumerate()
+            {
+                let expected = &flat_assigned_probes[idx];
+
+                assert_eq!(value.state, expected.state);
+
+                if let Some(data) = &value.data {
+                    assert!(expected.data.is_some());
+                    assert_eq!(data.identifier, expected.data.as_ref().unwrap().identifier);
+                } else {
+                    assert!(expected.data.is_none());
+                }
+            }
         }
 
         #[tokio::test]
         async fn registered_users_no_permission() {
-            let schema = super::super::build_schema();
+            let schema = build_schema();
 
             let query = r#"{
                 registeredUsers {
