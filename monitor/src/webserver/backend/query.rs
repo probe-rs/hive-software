@@ -95,8 +95,7 @@ impl BackendQuery {
     async fn assigned_probes<'ctx>(&self, ctx: &Context<'ctx>) -> [FlatProbeState; 4] {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
-        let res = db
-            .config_tree
+        db.config_tree
             .b_get(&keys::config::ASSIGNED_PROBES)
             .unwrap()
             .expect("DB not initialized")
@@ -104,9 +103,7 @@ impl BackendQuery {
             .map(FlatProbeState::from)
             .collect::<Vec<FlatProbeState>>()
             .try_into()
-            .unwrap();
-
-        res
+            .unwrap()
     }
 
     /// Search the supported targets by Hive
@@ -259,7 +256,7 @@ impl BackendQuery {
     }
 
     /// Get information about the system on which Hive runs
-    async fn system_info<'ctx>(&self, ctx: &Context<'ctx>) -> GrapqlResult<SystemInfo> {
+    async fn system_info<'ctx>(&self, _ctx: &Context<'ctx>) -> GrapqlResult<SystemInfo> {
         tokio::task::spawn_blocking(|| {
             let device_info = DeviceInfo::new()?;
 
@@ -275,7 +272,7 @@ impl BackendQuery {
                 soc: device_info.soc().to_string(),
                 hostname,
                 cores,
-                os: os.pretty_name.unwrap_or("Unknown".to_owned()),
+                os: os.pretty_name.unwrap_or_else(|| "Unknown".to_owned()),
                 average_load: load.one,
                 memory: memory.into(),
                 disk: disk.into(),

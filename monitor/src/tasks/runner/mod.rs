@@ -308,7 +308,10 @@ impl TaskRunner {
         // Set hardware changed flag, as runner may leave hardware in unknown state
         *HARDWARE_DB_DATA_CHANGED.blocking_lock() = true;
 
-        if let None = child.wait_timeout(Duration::from_secs(RUNNER_BINARY_TIMEOUT_SEC))? {
+        if child
+            .wait_timeout(Duration::from_secs(RUNNER_BINARY_TIMEOUT_SEC))?
+            .is_none()
+        {
             // Kill runner process due to timeout
             let _ = child.kill();
             let _ = child.wait();

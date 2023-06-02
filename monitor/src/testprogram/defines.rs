@@ -22,7 +22,7 @@ lazy_static! {
 pub(super) fn generate_defines() -> String {
     let mut defines = String::new();
 
-    for (_, define) in DEFINE_REGISTRY.blocking_lock().get_active_defines() {
+    for define in DEFINE_REGISTRY.blocking_lock().get_active_defines().values_mut() {
         define.generate();
         defines.push_str(&format!("{}\n", define.to_file_line()))
     }

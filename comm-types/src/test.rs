@@ -16,14 +16,14 @@ pub struct TestOptions {
 }
 
 /// Filter used in test requests to filter probes and targets on which the tests should be executed
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct TestFilter {
     pub probes: Option<Filter>,
     pub targets: Option<Filter>,
 }
 
 /// String values to include or exclude in a filter
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum Filter {
     Include(Vec<String>),
     Exclude(Vec<String>),
@@ -59,7 +59,7 @@ pub enum TestStatus {
 }
 
 /// Status of an entire test run
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TestRunStatus {
     Ok,
     Error,

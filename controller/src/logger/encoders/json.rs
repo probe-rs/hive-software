@@ -32,7 +32,7 @@ impl Encode for JsonEncoder {
         // Add newline
         json.push(0xA);
 
-        w.write(&json)?;
+        w.write_all(&json)?;
 
         Ok(())
     }

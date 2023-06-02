@@ -168,7 +168,7 @@ pub fn generate_jwt(user: &DbUser, expires_in_secs: u64) -> String {
     jsonwebtoken::encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(&*JWT_SECRET),
+        &EncodingKey::from_secret(JWT_SECRET.as_ref()),
     )
     .unwrap()
 }
@@ -183,7 +183,7 @@ fn check_jwt(token: &str) -> Result<JwtClaims, ()> {
 
     let payload = jsonwebtoken::decode::<JwtClaims>(
         token,
-        &DecodingKey::from_secret(&*JWT_SECRET),
+        &DecodingKey::from_secret(JWT_SECRET.as_ref()),
         &validator,
     )
     .map_err(|_| ())?;

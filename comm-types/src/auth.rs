@@ -25,7 +25,7 @@ impl Guard for Role {
 }
 
 /// The representation of a user in the servers database
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct DbUser {
     pub username: String,
     pub hash: String,
@@ -47,7 +47,7 @@ pub struct AuthResponse {
 }
 
 /// Claims used in a Hive JWT
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct JwtClaims {
     pub iss: String,
     pub exp: usize,

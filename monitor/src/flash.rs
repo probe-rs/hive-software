@@ -86,7 +86,7 @@ pub fn flash_testbinaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
                                         target_info,
                                         tss_pos,
                                         &sender,
-                                        &*active_testprogram,
+                                        active_testprogram.as_ref(),
                                         &flash_results,
                                     );
                                 },

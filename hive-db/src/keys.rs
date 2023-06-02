@@ -12,13 +12,13 @@ pub struct Key<T> {
     phantom_data: PhantomData<T>,
 }
 
-impl<'de, T> Key<T>
+impl<T> Key<T>
 where
     T: Serialize + DeserializeOwned,
 {
     pub fn new(key: &'static str) -> Self {
         Self {
-            key: key,
+            key,
             phantom_data: PhantomData,
         }
     }

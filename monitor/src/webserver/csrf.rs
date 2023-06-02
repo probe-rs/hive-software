@@ -122,7 +122,7 @@ pub(super) async fn require_csrf_token<B>(
                 == cookie_csrf_token
             {
                 // Csrf tokens match
-                return Ok(next.run(req).await);
+                Ok(next.run(req).await)
             } else {
                 // Csrf tokens do not match.
                 Err(CsrfError::InvalidCsrfToken)
@@ -164,7 +164,8 @@ async fn generate_csrf_token() -> String {
 /// Signs the csrf token with HS256 in the format: `<csrf_token>.<tag>`
 fn sign_csrf_token(token: String) -> String {
     let tag = hmac::sign(&*COOKIE_SIGNING_KEY, token.as_bytes());
-    return format!("{}.{}", token, encode(tag.as_ref()));
+
+    format!("{}.{}", token, encode(tag.as_ref()))
 }
 
 /// Verifies the csrf cookie value signature and returns the csrf token, if valid

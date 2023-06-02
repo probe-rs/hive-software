@@ -32,9 +32,10 @@ impl DefineRegistry {
     /// # Panics
     /// If a define with the same key is already registered in the registry. This can be caused by registring the same Define twice or by having two Defines with the same key
     pub fn register<D: 'static + HiveDefine>(&mut self, define: Box<D>) {
-        if let Some(_) = self
+        if self
             .registered_defines
             .insert(type_name::<D>().to_owned(), define)
+            .is_some()
         {
             panic!("Failed to register define as it is already present in the registry. You might have registered it twice or you created two different defines with the same keys");
         }

@@ -51,7 +51,7 @@ impl From<String> for TargetState {
 }
 
 /// Represents the state of a single probe connected to a testchannel
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ProbeState {
     Known(ProbeInfo),
     Unknown,
@@ -84,7 +84,7 @@ impl From<TargetInfo> for HiveTargetInfo {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TargetInfo {
     pub name: String,
     pub architecture: Option<Architecture>,
@@ -92,14 +92,14 @@ pub struct TargetInfo {
     pub status: Result<(), String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Architecture {
     ARM,
     RISCV,
 }
 
 /// The used memory address range of a target
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Memory {
     pub ram: Range<u64>,
     pub nvm: Range<u64>,
@@ -115,7 +115,7 @@ pub enum StackShieldStatus {
 }
 
 /// Information on a probe attached to Hive
-#[derive(Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct ProbeInfo {
     pub identifier: String,
     pub vendor_id: u16,

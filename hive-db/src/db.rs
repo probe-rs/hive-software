@@ -33,11 +33,11 @@ pub trait BincodeTransactional {
     where
         T: Serialize + DeserializeOwned;
 
-    fn b_get<'de, T>(&self, key: &Key<T>) -> Result<Option<T>, UnabortableTransactionError>
+    fn b_get<T>(&self, key: &Key<T>) -> Result<Option<T>, UnabortableTransactionError>
     where
         T: Serialize + DeserializeOwned;
 
-    fn b_remove<'de, T>(&self, key: &Key<T>) -> Result<Option<T>, UnabortableTransactionError>
+    fn b_remove<T>(&self, key: &Key<T>) -> Result<Option<T>, UnabortableTransactionError>
     where
         T: Serialize + DeserializeOwned;
 }
@@ -58,7 +58,7 @@ impl BincodeDb for Tree {
         let prev_val = self.insert(key.get_key(), bytes)?;
 
         if let Some(val) = prev_val {
-            let (prev_val, _): (T, _) = decode_from_slice(&*val, config::standard())
+            let (prev_val, _): (T, _) = decode_from_slice(val.as_ref(), config::standard())
                 .unwrap_or_else(|err| {
                     panic!(
                         "Failed to deserialize the existing DB value to bincode: {}",
@@ -82,9 +82,10 @@ impl BincodeDb for Tree {
         let val = self.get(key.get_key())?;
 
         if let Some(val) = val {
-            let (val, _) = decode_from_slice(&*val, config::standard()).unwrap_or_else(|err| {
-                panic!("Failed to deserialize the DB value to bincode: {}", err)
-            });
+            let (val, _) =
+                decode_from_slice(val.as_ref(), config::standard()).unwrap_or_else(|err| {
+                    panic!("Failed to deserialize the DB value to bincode: {}", err)
+                });
             return Ok(Some(val));
         }
 
@@ -102,9 +103,10 @@ impl BincodeDb for Tree {
         let val = self.remove(key.get_key())?;
 
         if let Some(val) = val {
-            let (val, _) = decode_from_slice(&*val, config::standard()).unwrap_or_else(|err| {
-                panic!("Failed to deserialize the DB value to bincode: {}", err)
-            });
+            let (val, _) =
+                decode_from_slice(val.as_ref(), config::standard()).unwrap_or_else(|err| {
+                    panic!("Failed to deserialize the DB value to bincode: {}", err)
+                });
             return Ok(Some(val));
         }
 
@@ -128,7 +130,7 @@ impl BincodeTransactional for TransactionalTree {
         let prev_val = self.insert(key.get_key(), bytes)?;
 
         if let Some(val) = prev_val {
-            let (prev_val, _): (T, _) = decode_from_slice(&*val, config::standard())
+            let (prev_val, _): (T, _) = decode_from_slice(val.as_ref(), config::standard())
                 .unwrap_or_else(|err| {
                     panic!(
                         "Failed to deserialize the existing DB value to bincode: {}",
@@ -152,9 +154,10 @@ impl BincodeTransactional for TransactionalTree {
         let val = self.get(key.get_key())?;
 
         if let Some(val) = val {
-            let (val, _) = decode_from_slice(&*val, config::standard()).unwrap_or_else(|err| {
-                panic!("Failed to deserialize the DB value to bincode: {}", err)
-            });
+            let (val, _) =
+                decode_from_slice(val.as_ref(), config::standard()).unwrap_or_else(|err| {
+                    panic!("Failed to deserialize the DB value to bincode: {}", err)
+                });
             return Ok(Some(val));
         }
 
@@ -172,9 +175,10 @@ impl BincodeTransactional for TransactionalTree {
         let val = self.remove(key.get_key())?;
 
         if let Some(val) = val {
-            let (val, _) = decode_from_slice(&*val, config::standard()).unwrap_or_else(|err| {
-                panic!("Failed to deserialize the DB value to bincode: {}", err)
-            });
+            let (val, _) =
+                decode_from_slice(val.as_ref(), config::standard()).unwrap_or_else(|err| {
+                    panic!("Failed to deserialize the DB value to bincode: {}", err)
+                });
             return Ok(Some(val));
         }
 

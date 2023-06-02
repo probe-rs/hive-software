@@ -159,7 +159,7 @@ impl HiveHardware {
 }
 
 /// Global status of the [`HiveHardware`]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum HardwareStatus {
     /// Hardware is not initialized
     Uninitialized,

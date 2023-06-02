@@ -42,7 +42,7 @@ pub fn run(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     // Check top-level module name
-    if input.ident.to_string() != TOP_LEVEL_MODULE_NAME {
+    if input.ident != TOP_LEVEL_MODULE_NAME {
         abort!(
             input.ident.span(), "Top level module for Hive tests must be called {}", TOP_LEVEL_MODULE_NAME;
             help = "Rename this module to {}", TOP_LEVEL_MODULE_NAME;
@@ -152,12 +152,12 @@ fn get_module_path(depth: usize, module_name: String, path_tree: &mut Vec<String
     }
 
     let mut path = String::new();
-    for idx in 0..=depth {
+    for (idx, path_part) in path_tree.iter().enumerate().take(depth + 1) {
         if idx != 0 {
             path.push_str("::");
         }
 
-        path.push_str(path_tree[idx].as_str());
+        path.push_str(path_part);
     }
 
     syn::parse_macro_input::parse::<ItemConst>(
