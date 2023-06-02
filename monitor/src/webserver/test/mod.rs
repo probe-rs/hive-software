@@ -46,17 +46,26 @@ use axum::routing::{get, post};
 use axum::{Extension, Router};
 use axum_extra::routing::RouterExt;
 use tower::ServiceBuilder;
+use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::database::MonitorDb;
 use crate::tasks::TaskManager;
 
 mod handlers;
 
+const BODY_UPLOAD_LIMIT_BYTES: usize = 400_000_000;
+
 pub(super) fn test_routes(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) -> Router {
     Router::new()
         .route_with_tsr("/capabilities", get(handlers::capabilities))
-        .route_with_tsr("/run", post(handlers::test))
-        .layer(DefaultBodyLimit::max(400_000_000))
+        .route_with_tsr(
+            "/run",
+            post(handlers::test).layer(
+                ServiceBuilder::new()
+                    .layer(RequestBodyLimitLayer::new(BODY_UPLOAD_LIMIT_BYTES))
+                    .layer(DefaultBodyLimit::disable()),
+            ),
+        )
         .route_with_tsr("/socket", get(handlers::ws_handler))
         .layer(
             ServiceBuilder::new()
@@ -299,7 +308,7 @@ mod tests {
                     .uri("/run")
                     .header(header::CONTENT_TYPE, "multipart/form-data")
                     .header(header::CONTENT_LENGTH, "4000000000")
-                    .body(Body::empty())
+                    .body(Body::from("a".repeat(800_001_000)))
                     .unwrap(),
             )
             .await
@@ -318,10 +327,7 @@ mod tests {
 
         let req = form
             .set_body_convert::<hyper::Body, MultipartBody>(
-                HyperRequest::builder()
-                    .method(Method::POST)
-                    .uri("/run")
-                    .header(header::CONTENT_LENGTH, "0"),
+                HyperRequest::builder().method(Method::POST).uri("/run"),
             )
             .unwrap();
 
@@ -354,10 +360,7 @@ mod tests {
 
         let req = form
             .set_body_convert::<hyper::Body, MultipartBody>(
-                HyperRequest::builder()
-                    .method(Method::POST)
-                    .uri("/run")
-                    .header(header::CONTENT_LENGTH, "0"),
+                HyperRequest::builder().method(Method::POST).uri("/run"),
             )
             .unwrap();
 
@@ -389,10 +392,7 @@ mod tests {
 
         let req = form
             .set_body_convert::<hyper::Body, MultipartBody>(
-                HyperRequest::builder()
-                    .method(Method::POST)
-                    .uri("/run")
-                    .header(header::CONTENT_LENGTH, "0"),
+                HyperRequest::builder().method(Method::POST).uri("/run"),
             )
             .unwrap();
 
@@ -439,10 +439,7 @@ mod tests {
 
         let req = form
             .set_body_convert::<hyper::Body, MultipartBody>(
-                HyperRequest::builder()
-                    .method(Method::POST)
-                    .uri("/run")
-                    .header(header::CONTENT_LENGTH, "0"),
+                HyperRequest::builder().method(Method::POST).uri("/run"),
             )
             .unwrap();
 
@@ -479,10 +476,7 @@ mod tests {
 
         let req = form
             .set_body_convert::<hyper::Body, MultipartBody>(
-                HyperRequest::builder()
-                    .method(Method::POST)
-                    .uri("/run")
-                    .header(header::CONTENT_LENGTH, "0"),
+                HyperRequest::builder().method(Method::POST).uri("/run"),
             )
             .unwrap();
 
@@ -522,10 +516,7 @@ mod tests {
 
         let req = form
             .set_body_convert::<hyper::Body, MultipartBody>(
-                HyperRequest::builder()
-                    .method(Method::POST)
-                    .uri("/run")
-                    .header(header::CONTENT_LENGTH, "0"),
+                HyperRequest::builder().method(Method::POST).uri("/run"),
             )
             .unwrap();
 
