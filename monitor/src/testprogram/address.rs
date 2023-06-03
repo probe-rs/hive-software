@@ -230,7 +230,7 @@ mod tests {
         let nvm_range = get_nvm_address(target.clone()).unwrap();
         let ram_range = get_ram_address(target).unwrap();
 
-        assert_eq!(nvm_range, 0x0..0x4000000);
+        assert_eq!(nvm_range, 0x0..0x01000000);
         assert_eq!(ram_range, 0x40380000..0x403E0000);
     }
 
