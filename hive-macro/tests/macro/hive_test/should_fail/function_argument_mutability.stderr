@@ -1,8 +1,9 @@
 error: Function argument should be mutable
+
+         = help: This argument in a Hive testfunction is a mutable reference.
+         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo, defines: &DefineRegistry);
+
  --> tests/macro/hive_test/should_fail/function_argument_mutability.rs:2:32
   |
 2 | fn test_function(test_channel: &String, handle: String, info: String, define: String) {}
-  |                                ^^^^^^^
-  |
-  = help: This argument in a Hive testfunction is a mutable reference.
-  = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo, defines: &DefineRegistry);
+  |                                ^

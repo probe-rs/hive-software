@@ -1,8 +1,9 @@
 error: Function arguments should be accessed by reference
+
+         = help: All arguments in a Hive testfunction are accessed by reference and not by value.
+         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo, defines: &DefineRegistry);
+
  --> tests/macro/hive_test/should_fail/function_argument_reference.rs:2:32
   |
 2 | fn test_function(test_channel: String, handle: String, info: String, define: String) {}
   |                                ^^^^^^
-  |
-  = help: All arguments in a Hive testfunction are accessed by reference and not by value.
-  = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo, defines: &DefineRegistry);

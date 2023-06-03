@@ -16,7 +16,7 @@ quote = "1.0"
 inventory = "0.2"
 
 [dev-dependencies]
-trybuild = "1.0.80"
+trybuild = "1.0"
 hive-test = {path = "../hive-test/"}
 probe-rs-test = { workspace = true }
 
