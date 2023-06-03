@@ -15,17 +15,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v3
-        with:
-          path: hive-software
-
       - name: Setup probe-rs testcandidate
         uses: actions/checkout@v3
         with:
           repository: probe-rs/probe-rs
           ref: v0.18.0
           path: probe-rs-hive-testcandidate
+
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          path: hive-software
 
       - name: Install libusb, libudev (linux)
         run: |
@@ -70,5 +70,16 @@ jobs:
     name: Deny
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: EmbarkStudios/cargo-deny-action@v1
+      - name: Setup probe-rs testcandidate
+        uses: actions/checkout@v3
+        with:
+          repository: probe-rs/probe-rs
+          ref: v0.18.0
+          path: probe-rs-hive-testcandidate
+
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          path: hive-software
+
+      - uses: EmbarkStudios/cargo-deny-action@v1
