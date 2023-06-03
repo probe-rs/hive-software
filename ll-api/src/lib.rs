@@ -203,7 +203,7 @@ where
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```ignore
     /// //inside some impl function of TargetStackShield struct
     /// self.get_gpio_and_try(|gpio| gpio.status_led.set_status(Status::Err))
     /// ```
@@ -302,7 +302,7 @@ impl RpiTestChannel {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```ignore
     /// //inside some impl function of RpiTestChannel struct
     /// self.get_gpio_and_try(|gpio| gpio.gpio.input_is_high(TestInputPin::Pin0))
     /// ```
