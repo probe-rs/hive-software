@@ -182,7 +182,7 @@ fn check_fn_arg_type(pos: usize, input: &PatType) {
     } else {
         abort!(
             input.ty.span(), "Function arguments should be accessed by reference";
-            help = "All arguments in a Hive testfunction are accessed by reference and not by type.";
+            help = "All arguments in a Hive testfunction are accessed by reference and not by value.";
             example = "example: {}", FUNCTION_EXAMPLE
         );
     }

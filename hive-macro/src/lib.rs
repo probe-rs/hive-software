@@ -20,23 +20,39 @@ mod hive_test;
 ///
 /// # Examples
 /// Basic usage:
-/// ```rust
+/// ```
+/// # use hive_test::hive;
+/// #
+/// # #[hive]
+/// # pub mod tests {
+/// #    use hive_test::{hive_test, defines::DefineRegistry, HiveTargetInfo, TestChannelHandle};
+/// #    use probe_rs_test::{Session};
+/// #
 /// #[hive_test]
-///fn my_fancy_test(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session, _target_info: &HiveTargetInfo, _defines: &DefineRegistry) {
+/// fn my_fancy_test(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session, _target_info: &HiveTargetInfo, _defines: &DefineRegistry) {
 ///    // Doing important test
 ///    let mut i = 0;
 ///    i += 1;
 ///
 ///    assert_eq!(i, 1);
-///}
+/// }
+/// # }
 /// ```
 /// Advanced usage with attributes:
-///```rust
+/// ```
+/// # use hive_test::hive;
+/// #
+/// # #[hive]
+/// # pub mod tests {
+/// #    use hive_test::{hive_test, defines::DefineRegistry, HiveTargetInfo, TestChannelHandle};
+/// #    use probe_rs_test::{Session};
+/// #
 /// #[hive_test(order = 100, should_panic = true)]
-///fn my_fancy_test(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session, _target_info: &HiveTargetInfo, _defines: &DefineRegistry) {
-///    // Intentional panic
-///    panic!();
-///}
+/// fn my_fancy_test(_test_channel: &mut dyn TestChannelHandle, _session: &mut Session, _target_info: &HiveTargetInfo, _defines: &DefineRegistry) {
+///     // Intentional panic
+///     panic!();
+/// }
+/// # }
 /// ```
 #[proc_macro_attribute]
 #[proc_macro_error]
@@ -49,9 +65,14 @@ pub fn hive_test(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// The top level hive test module must be named `tests` and is annotated with this macro to setup all global requirements to make the `#[hive_test]` macros work properly.
 ///
 /// # Example
-/// ```rust
+/// ```
+/// use hive_test::hive;
+///
 /// #[hive]
-/// mod tests {
+/// pub mod tests {
+///     use hive_test::{hive_test, defines::DefineRegistry, HiveTargetInfo, TestChannelHandle};
+///     use probe_rs_test::{Session};
+///
 ///     // Add test functions and any child modules here...
 /// }
 /// ```

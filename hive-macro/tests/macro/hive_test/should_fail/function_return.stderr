@@ -6,4 +6,4 @@ error: Non () return type found
  --> tests/macro/hive_test/should_fail/function_return.rs:2:20
   |
 2 | fn test_function() -> u8 {}
-  |                    ^^
+  |                    ^
