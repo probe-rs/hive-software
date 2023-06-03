@@ -1,0 +1,69 @@
+# Run clippy, check and deny
+
+on:
+  push:
+    branches: [master, staging, trying]
+  pull_request:
+  merge_group:
+
+
+name: Run linter and check
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - uses: ./.github/actions/testcandidate
+        with: 
+          ref: v0.18.0
+
+      - name: Install libusb, libudev (linux)
+        run: |
+          sudo apt update
+          sudo apt install -y libusb-1.0-0-dev libudev-dev
+
+      - uses: ./.github/actions/setup
+
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2.2.1
+
+      # Check monitor separately as the build needs to happen separately due to conflict of probe-rs with probe-rs-test
+      - name: cargo check monitor
+        run: cargo check --all-features --locked -p monitor
+
+      - name: cargo check others
+        run: cargo check --workspace --all-features --locked --exclude monitor
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Install libusb
+        run: |
+          sudo apt update
+          sudo apt install -y libusb-1.0-0-dev libudev-dev
+
+      - uses: ./.github/actions/setup
+        with:
+          components: clippy
+
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2.2.1
+
+      - name: Run cargo clippy
+        run: cargo clippy --all-features --locked -- -D warnings
+
+  cargo-deny:
+    name: Deny
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: EmbarkStudios/cargo-deny-action@v1

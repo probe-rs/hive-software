@@ -1,0 +1,22 @@
+# Format code
+
+on:
+  push:
+    branches: [master, staging, trying]
+  pull_request:
+  merge_group:
+
+name: Format code
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - uses: ./.github/actions/setup
+        with:
+          components: rustfmt
+
+      - name: Run cargo fmt
+        run: cargo fmt --all -- --check
