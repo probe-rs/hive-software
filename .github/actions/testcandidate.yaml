@@ -1,0 +1,21 @@
+# Install the probe-rs testcandidate
+
+name: Install testcandidate
+description: Install testcandidate
+inputs:
+  ref:
+    description: "The ref to checkout"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Setup probe-rs testcandidate
+        uses: actions/checkout@v3
+        with:
+          repository: probe-rs/probe-rs
+          ref: ${{ inputs.ref }}
+          path: probe-rs-hive-testcandidate
+
+      # workaround as actions/checkout cannot clone outside of workspace
+      - name: Move probe-rs testcandidate
+        run: mv probe-rs-hive-testcandidate ../
