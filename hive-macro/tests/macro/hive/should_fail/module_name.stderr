@@ -1,13 +1,14 @@
 error: Top level module for Hive tests must be called tests
+
+         = help: Rename this module to tests
+         = note: example:
+
+       #[hive]
+       pub mod tests {
+           // Testfunctions etc...
+       }
+
  --> tests/macro/hive/should_fail/module_name.rs:2:9
   |
 2 | pub mod wrong {}
   |         ^^^^^
-  |
-  = help: Rename this module to tests
-  = note: example:
-
-          #[hive]
-          pub mod tests {
-          // Testfunctions etc...
-          }

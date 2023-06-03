@@ -1,8 +1,9 @@
 error: The dependency 'probe_rs' is not allowed in Hive test modules
+
+         = help: Use the alias 'probe_rs_test' instead
+         = note: example: use probe_rs_test::Session;
+
  --> tests/macro/hive/should_fail/unallowed_dependency_probe_rs.rs:5:9
   |
 5 |     use probe_rs::Session;
   |         ^^^^^^^^
-  |
-  = help: Use the alias 'probe_rs_test' instead
-  = note: example: use probe_rs_test::Session;
