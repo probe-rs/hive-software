@@ -6,15 +6,14 @@ on:
   pull_request:
   merge_group:
 
-name: Rust tests
-test:
+jobs:
+  test:
+    name: Rust tests
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
-        with:
-          path: hive-software
 
       - name: Setup probe-rs testcandidate
         uses: actions/checkout@v3
@@ -23,14 +22,14 @@ test:
           ref: v0.18.0
           path: probe-rs-hive-testcandidate
 
+      # workaround as actions/checkout cannot clone outside of workspace
+      - name: Move probe-rs testcandidate
+        run: mv probe-rs-hive-testcandidate ../
+
       - name: Install libusb (linux)
         run: |
           sudo apt update
           sudo apt install -y libusb-1.0-0-dev libudev-dev
-        # Only install on Ubuntu
-        if: matrix.os == 'ubuntu-latest'
-
-      - uses: ./.github/actions/setup
       
       - name: Cache Dependencies
         uses: Swatinem/rust-cache@v2.4.0

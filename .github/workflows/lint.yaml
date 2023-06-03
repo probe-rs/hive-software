@@ -15,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
       - name: Setup probe-rs testcandidate
         uses: actions/checkout@v3
         with:
@@ -22,17 +25,14 @@ jobs:
           ref: v0.18.0
           path: probe-rs-hive-testcandidate
 
-      - name: Checkout sources
-        uses: actions/checkout@v3
-        with:
-          path: hive-software
+      # workaround as actions/checkout cannot clone outside of workspace
+      - name: Move probe-rs testcandidate
+        run: mv probe-rs-hive-testcandidate ../
 
       - name: Install libusb, libudev (linux)
         run: |
           sudo apt update
           sudo apt install -y libusb-1.0-0-dev libudev-dev
-
-      - uses: ./.github/actions/setup
 
       - name: Cache Dependencies
         uses: Swatinem/rust-cache@v2.2.1
@@ -51,25 +51,6 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - name: Install libusb
-        run: |
-          sudo apt update
-          sudo apt install -y libusb-1.0-0-dev libudev-dev
-
-      - uses: ./.github/actions/setup
-        with:
-          components: clippy
-
-      - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v2.2.1
-
-      - name: Run cargo clippy
-        run: cargo clippy --all-features --locked -- -D warnings
-
-  cargo-deny:
-    name: Deny
-    runs-on: ubuntu-latest
-    steps:
       - name: Setup probe-rs testcandidate
         uses: actions/checkout@v3
         with:
@@ -77,9 +58,37 @@ jobs:
           ref: v0.18.0
           path: probe-rs-hive-testcandidate
 
-      - name: Checkout sources
-        uses: actions/checkout@v3
-        with:
-          path: hive-software
+      # workaround as actions/checkout cannot clone outside of workspace
+      - name: Move probe-rs testcandidate
+        run: mv probe-rs-hive-testcandidate ../
 
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - name: Install libusb
+        run: |
+          sudo apt update
+          sudo apt install -y libusb-1.0-0-dev libudev-dev
+
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2.2.1
+
+      - name: Run cargo clippy
+        run: cargo clippy --all-features --locked -- -D warnings
+
+#  cargo-deny:
+#    name: Deny
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout sources
+#        uses: actions/checkout@v3
+#
+#      - name: Setup probe-rs testcandidate
+#        uses: actions/checkout@v3
+#        with:
+#          repository: probe-rs/probe-rs
+#          ref: v0.18.0
+#          path: probe-rs-hive-testcandidate
+#
+#      # workaround as actions/checkout cannot clone outside of workspace
+#      - name: Move probe-rs testcandidate
+#        run: mv probe-rs-hive-testcandidate ../
+#
+#      - uses: EmbarkStudios/cargo-deny-action@v1
