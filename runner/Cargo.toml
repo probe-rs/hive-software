@@ -29,4 +29,4 @@ backtrace = "0.3"
 wildmatch = "2.1"
 
 # probe-rs version which is being tested
-probe-rs-test = { package = "probe-rs", path = "../probe-rs-testcandidate/probe-rs/" }
+probe-rs-test = { workspace = true }

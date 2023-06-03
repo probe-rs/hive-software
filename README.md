@@ -23,3 +23,14 @@ For a general overview on how this all plays together, please have a look at the
 ![Software Overview](./assets/software_overview.jpg)
 
 For further info please visit the [wiki](https://github.com/probe-rs/hive-software/wiki)
+
+## Development
+In order to be able to build the runner crate you need to additionally clone the probe-rs repo into a directory named `probe-rs-hive-testcandidate` adjacent to the top-level directory of this repo.
+Then make sure that the probe-rs-hive-testcandidate is at the same version as the probe-rs dependency of hive-software:
+```
+git clone https://github.com/probe-rs/hive-software.git
+```
+Then clone probe-rs and checkout the appropriate version tag
+```
+git clone https://github.com/probe-rs/probe-rs.git probe-rs-hive-testcandidate --branch v0.18.0
+```

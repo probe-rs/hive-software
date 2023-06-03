@@ -10,3 +10,8 @@ members = [
 	"hive",
 	"hive-db",
 ]
+
+[workspace.dependencies]
+probe-rs = "0.18"
+# Testcandidate used in runner crate
+probe-rs-test = { package = "probe-rs", path = "../probe-rs-hive-testcandidate/probe-rs/" }
