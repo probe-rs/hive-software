@@ -159,7 +159,7 @@ impl TargetStackShield {
     /// Detects all connected TSS by trying to read an IO-Expander register on each possible i2c address. Returns the detected i2c addresses or [`None`]
     pub fn detect_connected_tss(mut i2c: ShareableI2c) -> [Option<u8>; MAX_TSS] {
         let mut detected: [Option<u8>; MAX_TSS] = Default::default();
-        for i in 0..MAX_TSS {
+        for (i, item) in detected.iter_mut().enumerate() {
             match i2c.write_read(
                 PCA9535_BASE_ADDR + i as u8,
                 &[Register::ConfigurationPort0 as u8],
@@ -172,9 +172,9 @@ impl TargetStackShield {
                         err
                     );
 
-                    detected[i as usize] = None;
+                    *item = None;
                 }
-                Ok(_) => detected[i as usize] = Some(PCA9535_BASE_ADDR + i as u8),
+                Ok(_) => *item = Some(PCA9535_BASE_ADDR + i as u8),
             }
         }
 

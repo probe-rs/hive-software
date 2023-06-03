@@ -196,26 +196,14 @@ pub(super) enum LogLevel {
     Trace,
 }
 
-impl From<Level> for LogLevel {
-    fn from(level: Level) -> Self {
+impl From<LogLevel> for Level {
+    fn from(level: LogLevel) -> Self {
         match level {
-            Level::Error => Self::Error,
-            Level::Warn => Self::Warn,
-            Level::Info => Self::Info,
-            Level::Debug => Self::Debug,
-            Level::Trace => Self::Trace,
-        }
-    }
-}
-
-impl Into<Level> for LogLevel {
-    fn into(self) -> Level {
-        match self {
-            LogLevel::Error => Level::Error,
-            LogLevel::Warn => Level::Warn,
-            LogLevel::Info => Level::Info,
-            LogLevel::Debug => Level::Debug,
-            LogLevel::Trace => Level::Trace,
+            LogLevel::Error => Self::Error,
+            LogLevel::Warn => Self::Warn,
+            LogLevel::Info => Self::Info,
+            LogLevel::Debug => Self::Debug,
+            LogLevel::Trace => Self::Trace,
         }
     }
 }

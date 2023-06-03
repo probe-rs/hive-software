@@ -56,7 +56,7 @@ impl IntoResponse for ServerParseError {
 /// The struct implements [`IntoResponse`] to send a type `T` as bincode value in a response. Serializing can panic. This indicates wrong code or library limitations.
 pub struct Bincode<T>(pub T);
 
-impl<T> Into<Vec<u8>> for Bincode<T>
+impl<T> From<Bincode<T>> for Vec<u8>
 where
     T: Serialize,
 {
@@ -64,8 +64,8 @@ where
     ///
     /// # Panics
     /// If the provided value cannot be encoded to bincode
-    fn into(self) -> Vec<u8> {
-        encode_to_vec(&self.0, config::standard()).expect("failed to serialize the provided type into a bincode http body. Please check if the provided type can be encoded using bincode.")
+    fn from(value: Bincode<T>) -> Self {
+        encode_to_vec(&value.0, config::standard()).expect("failed to serialize the provided type into a bincode http body. Please check if the provided type can be encoded using bincode.")
     }
 }
 

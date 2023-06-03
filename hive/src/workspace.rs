@@ -66,7 +66,7 @@ pub fn prepare_workspace(probe_rs_project: &Path) -> Result<()> {
 
     modify_testcandidate_probe_rs_cargofile(&project_path)?;
 
-    copy_hive_test_dir(&project_path, &workspace_path)?;
+    copy_hive_test_dir(&project_path, workspace_path)?;
 
     Ok(())
 }
@@ -120,13 +120,13 @@ fn copy_testcandidate_source_to_workspace(
 ) -> Result<()> {
     let mut copy_paths = vec![];
 
-    for result in WalkBuilder::new(&probe_rs_project)
+    for result in WalkBuilder::new(probe_rs_project)
         .require_git(false)
         .build()
     {
         match result {
             Ok(entry) => {
-                let relative_path = pathdiff::diff_paths(entry.path(), &probe_rs_project).unwrap();
+                let relative_path = pathdiff::diff_paths(entry.path(), probe_rs_project).unwrap();
 
                 if relative_path == Path::new("") {
                     // Ignore basepath as it does not add anything to the archive
@@ -179,10 +179,11 @@ fn modify_testcandidate_probe_rs_cargofile(project_path: &Path) -> Result<()> {
     let mut manifest = Manifest::from_path(&cargofile_path)?;
 
     if let Some(hive_test) = manifest.dev_dependencies.get_mut("hive-test") {
-        let mut hive_test_dependency = DependencyDetail::default();
-
-        hive_test_dependency.package = Some("hive-test".to_owned());
-        hive_test_dependency.path = Some("../../hive-test/".to_owned());
+        let hive_test_dependency = DependencyDetail {
+            package: Some("hive-test".to_owned()),
+            path: Some("../../hive-test/".to_owned()),
+            ..Default::default()
+        };
 
         *hive_test = Dependency::Detailed(hive_test_dependency);
 

@@ -6,6 +6,8 @@ on:
   pull_request:
   merge_group:
 
+name: Check formatting
+
 jobs:
   rustfmt:
     name: Rustfmt

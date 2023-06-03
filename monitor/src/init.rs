@@ -85,7 +85,7 @@ pub fn init_testprograms(db: Arc<MonitorDb>, hardware: &HiveHardware) {
                     log::warn!("Found testprogram '{}' in DB but failed to locate the complete program files on the disk. Removing corrupted testprogram...", programs[idx].get_name());
 
                     // try to remove the program folder (in case only parts of the testprogram folder structure were missing)
-                    let _ = fs::remove_dir_all(&programs[idx].get_path());
+                    let _ = fs::remove_dir_all(programs[idx].get_path());
 
                     programs.remove(idx);
                     tree

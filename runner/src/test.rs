@@ -102,12 +102,12 @@ pub fn run_tests(
             match panic::catch_unwind(|| {
                 (test.test_fn)(
                     &mut *testchannel.get_rpi().lock() as &mut dyn TestChannelHandle,
-                    &mut *session.lock(),
+                    &mut session.lock(),
                     &target_info.clone().into(),
                     &define_registry,
                 );
 
-                return Backtrace::new();
+                Backtrace::new()
             }) {
                 Ok(backtrace) => {
                     let status = match test.should_panic {

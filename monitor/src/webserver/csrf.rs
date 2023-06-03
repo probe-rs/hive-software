@@ -163,7 +163,7 @@ async fn generate_csrf_token() -> String {
 
 /// Signs the csrf token with HS256 in the format: `<csrf_token>.<tag>`
 fn sign_csrf_token(token: String) -> String {
-    let tag = hmac::sign(&*COOKIE_SIGNING_KEY, token.as_bytes());
+    let tag = hmac::sign(&COOKIE_SIGNING_KEY, token.as_bytes());
 
     format!("{}.{}", token, encode(tag.as_ref()))
 }
