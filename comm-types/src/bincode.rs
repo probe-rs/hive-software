@@ -133,6 +133,7 @@ impl<S> FromRequestParts<S> for CheckContentType {
 mod tests {
     use axum::body::Body;
     use axum::http::{header, Method, Request, StatusCode};
+    use axum::middleware::from_extractor;
     use axum::response::IntoResponse;
     use axum::routing::post;
     use axum::Router;
@@ -142,7 +143,7 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use tower::ServiceExt;
 
-    use super::{Bincode, ServerParseError, BINCODE_MIME};
+    use super::{Bincode, CheckContentType, ServerParseError, BINCODE_MIME};
 
     #[derive(Serialize, Deserialize)]
     enum Animal {
@@ -159,7 +160,9 @@ mod tests {
     }
 
     fn app() -> Router {
-        Router::new().route("/", post(mock_bincode_request_handler))
+        Router::new()
+            .route("/", post(mock_bincode_request_handler))
+            .layer(from_extractor::<CheckContentType>())
     }
 
     async fn mock_bincode_request_handler(
@@ -210,7 +213,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(res.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
 
         let res_bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
         assert_eq!(
