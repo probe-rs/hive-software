@@ -1,12 +1,12 @@
 //! The connect subcommand
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
 
 use crate::config::HiveConfig;
 use crate::models::Host;
-use crate::{CliArgs, Commands};
 use crate::validate;
+use crate::{CliArgs, Commands};
 
 /// Connect subcommand handler
 pub fn connect(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
@@ -22,7 +22,7 @@ pub fn connect(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
             if cli_args.no_human {
                 bail!("No testserver address specified as argument");
             }
-    
+
             let testserver_address_input = Input::with_theme(&ColorfulTheme::default())
                 .with_prompt("Testserver address")
                 .validate_with(|input: &String| -> Result<(), &str> {
@@ -33,11 +33,11 @@ pub fn connect(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
                 })
                 .interact_text()
                 .unwrap();
-    
+
             validate::ip_or_url(&testserver_address_input)
                 .unwrap()
                 .into()
-        },
+        }
     };
 
     // We check if the provided host sends a response and is a testserver

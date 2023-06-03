@@ -5,10 +5,12 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 use comm_types::hardware::{Architecture, TargetInfo, TargetState};
-use controller::hardware::{try_attach, reset_probe_usb, CombinedTestChannel, HardwareStatus, HiveHardware};
+use controller::hardware::{
+    reset_probe_usb, try_attach, CombinedTestChannel, HardwareStatus, HiveHardware,
+};
+use crossbeam_utils::thread;
 use hive_db::BincodeTransactional;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions, Format};
-use crossbeam_utils::thread;
 use sled::transaction::UnabortableTransactionError;
 
 use crate::database::{self, keys, MonitorDb};
@@ -24,7 +26,7 @@ struct FlashStatus {
 }
 
 /// Tries to flash the testbinaries onto all available targets.
-/// 
+///
 /// This function does nothing in case the [`static@crate::HARDWARE`] static is not [`HardwareStatus::Ready`]
 pub fn flash_testbinaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     if hardware.hardware_status != HardwareStatus::Ready {
@@ -59,25 +61,25 @@ pub fn flash_testbinaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
     let tss = &hardware.tss;
 
     // Spawn scoped threads which can access tss reference. It gurantees that the hardware Mutexguard lives longer than the threads spawned within this scope
-    thread::scope(|s|{
+    thread::scope(|s| {
         let mut flashing_threads = vec![];
 
         for (idx, test_channel) in hardware.testchannels.iter().enumerate() {
             let channel = test_channel.lock().unwrap();
-    
+
             if channel.is_ready() {
                 drop(channel);
                 let result_sender = result_sender.clone();
                 let active_testprogram = active_testprogram.clone();
                 let flash_results = flash_results.clone();
-                
+
                 flashing_threads.push(
                     s.builder()
                         .name(format!("flashing thread {}", idx).to_owned())
                         .spawn(move |_| {
                             let mut channel = test_channel.lock().unwrap();
                             let sender = result_sender;
-    
+
                             channel.connect_all_available_and_execute(
                                 tss,
                                 |test_channel, target_info, tss_pos| {
@@ -96,19 +98,20 @@ pub fn flash_testbinaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
                 );
             }
         }
-    
+
         // Drop local owned sender, so the while loop exits once all senders in the flashing thread have been dropped
         drop(result_sender);
-    
+
         while let Ok(received) = result_receiver.recv() {
             let mut flash_results = flash_results.write().unwrap();
             flash_results.push(received);
         }
-    
+
         for thread in flashing_threads {
             thread.join().unwrap();
         }
-    }).unwrap();
+    })
+    .unwrap();
 
     // Update tss targets with the flash results
     for tss in hardware.tss.iter().filter_map(|tss| tss.as_ref()) {
@@ -128,25 +131,18 @@ pub fn flash_testbinaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
             if let TargetState::Known(target_info) = target {
                 let flash_results = flash_results.read().unwrap();
 
-                if !flash_results
-                    .iter()
-                    .any(|result| {
-                        result.tss_pos == tss_pos
-                            && result.target_name == target_info.name
-                    })
-                {
+                if !flash_results.iter().any(|result| {
+                    result.tss_pos == tss_pos && result.target_name == target_info.name
+                }) {
                     // Target is not included in the flash_results due to previous init errors
                     continue;
                 }
 
-                if flash_results
-                    .iter()
-                    .any(|result| {
-                        result.tss_pos == tss_pos
-                            && result.target_name == target_info.name
-                            && result.result.is_ok()
-                    })
-                {
+                if flash_results.iter().any(|result| {
+                    result.tss_pos == tss_pos
+                        && result.target_name == target_info.name
+                        && result.result.is_ok()
+                }) {
                     target_info.status = Ok(());
                 } else {
                     target_info.status =
@@ -184,14 +180,9 @@ fn flash_target(
 
     // Check if this target was already flashed successfully
     let flash_results = flash_results.read().unwrap();
-    if flash_results
-        .iter()
-        .any(|result| {
-            result.tss_pos == tss_pos
-                && result.target_name == target_info.name
-                && result.result.is_ok()
-        })
-    {
+    if flash_results.iter().any(|result| {
+        result.tss_pos == tss_pos && result.target_name == target_info.name && result.result.is_ok()
+    }) {
         return;
     }
     drop(flash_results); // Return lock
@@ -209,12 +200,12 @@ fn flash_target(
         download_options.do_chip_erase = true;
 
         let path = match target_info.architecture.as_ref().unwrap() {
-            Architecture::ARM => {
-                testprogram.get_arm().get_elf_path(target_info.memory_address.as_ref().unwrap())
-            }
-            Architecture::RISCV => {
-                testprogram.get_riscv().get_elf_path(target_info.memory_address.as_ref().unwrap())
-            }
+            Architecture::ARM => testprogram
+                .get_arm()
+                .get_elf_path(target_info.memory_address.as_ref().unwrap()),
+            Architecture::RISCV => testprogram
+                .get_riscv()
+                .get_elf_path(target_info.memory_address.as_ref().unwrap()),
         };
 
         download_file_with_options(&mut session, path, Format::Elf, download_options)?;
@@ -242,8 +233,8 @@ fn flash_target(
                 probe_info.identifier,
                 err,
                 source
-            ); 
-            
+            );
+
             result_sender.send(FlashStatus {
                 probe_identifier: probe_info.identifier.clone(),
                 probe_serial_number: probe_info.serial_number.clone(),
