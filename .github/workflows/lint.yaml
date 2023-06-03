@@ -17,10 +17,15 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
+        with:
+          path: hive-software
 
-      - uses: ./.github/actions/testcandidate
-        with: 
+      - name: Setup probe-rs testcandidate
+        uses: actions/checkout@v3
+        with:
+          repository: probe-rs/probe-rs
           ref: v0.18.0
+          path: probe-rs-hive-testcandidate
 
       - name: Install libusb, libudev (linux)
         run: |
