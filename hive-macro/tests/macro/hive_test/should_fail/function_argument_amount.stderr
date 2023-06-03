@@ -1,9 +1,8 @@
 error: Incorrect amount of function arguments
-
-         = help: Hive testfunctions should have 4 arguments but 2 were supplied.
-         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo, defines: &DefineRegistry);
-
  --> tests/macro/hive_test/should_fail/function_argument_amount.rs:2:9
   |
 2 | fn test(arg1: u8, arg2: u8) {}
-  |         ^^^^
+  |         ^^^^^^^^^^^^^^^^^^
+  |
+  = help: Hive testfunctions should have 4 arguments but 2 were supplied.
+  = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo, defines: &DefineRegistry);

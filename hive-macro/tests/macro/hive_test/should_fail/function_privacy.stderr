@@ -1,9 +1,8 @@
 error: Wrong testfunction visibility
-
-         = help: Hive testfunctions should be private and not have any special visibility parameters.
-         = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo, defines: &DefineRegistry);
-
  --> tests/macro/hive_test/should_fail/function_privacy.rs:2:1
   |
 2 | pub fn test_function() {}
-  | ^^^
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: Hive testfunctions should be private and not have any special visibility parameters.
+  = note: example: fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo, defines: &DefineRegistry);
