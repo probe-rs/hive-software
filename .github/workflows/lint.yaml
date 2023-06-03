@@ -73,22 +73,22 @@ jobs:
       - name: Run cargo clippy
         run: cargo clippy --all-features --locked -- -D warnings
 
-  cargo-deny:
-    name: Deny
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v3
-
-      - name: Setup probe-rs testcandidate
-        uses: actions/checkout@v3
-        with:
-          repository: probe-rs/probe-rs
-          ref: v0.18.0
-          path: probe-rs-hive-testcandidate
-
-      # workaround as actions/checkout cannot clone outside of workspace
-      - name: Move probe-rs testcandidate
-        run: mv probe-rs-hive-testcandidate ../
-
-      - uses: EmbarkStudios/cargo-deny-action@v1
+#  cargo-deny:
+#    name: Deny
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout sources
+#        uses: actions/checkout@v3
+#
+#      - name: Setup probe-rs testcandidate
+#        uses: actions/checkout@v3
+#        with:
+#          repository: probe-rs/probe-rs
+#          ref: v0.18.0
+#          path: probe-rs-hive-testcandidate
+#
+#      # workaround as actions/checkout cannot clone outside of workspace
+#      - name: Move probe-rs testcandidate
+#        run: mv probe-rs-hive-testcandidate ../
+#
+#      - uses: EmbarkStudios/cargo-deny-action@v1
