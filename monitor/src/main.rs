@@ -57,7 +57,7 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use clap::{ArgEnum, Parser};
+use clap::{Parser, ValueEnum};
 use controller::hardware::{self, HiveHardware, HiveIoExpander, MAX_TSS};
 use controller::logger;
 use lazy_static::lazy_static;
@@ -103,8 +103,8 @@ lazy_static! {
 }
 
 /// The different modes the monitor can be run in. For more information please take a look at the [`mode`] module.
-#[derive(Clone, Debug, ArgEnum)]
-enum ApplicationMode {
+#[derive(Clone, Debug, ValueEnum)]
+pub enum ApplicationMode {
     Init,
     Standalone,
     ClusterSlave,
@@ -113,16 +113,23 @@ enum ApplicationMode {
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
-struct Args {
+pub struct Args {
     /// Which mode the monitor runs in
-    #[clap(arg_enum, default_value_t = ApplicationMode::Standalone)]
-    mode: ApplicationMode,
+    #[clap(value_enum, default_value_t = ApplicationMode::Standalone)]
+    pub mode: ApplicationMode,
     #[clap(flatten)]
-    verbose: clap_verbosity_flag::Verbosity,
+    pub verbose: clap_verbosity_flag::Verbosity,
+    /// The port used for http connections
+    #[arg(long, default_value_t = 80)]
+    pub http_port: u16,
+    /// The port used for https connections
+    #[arg(long, default_value_t = 443)]
+    pub https_port: u16,
 }
 
 fn main() {
-    let cli_args = Args::parse();
+    let cli_args = Arc::new(Args::parse());
+
     logger::init_logging(
         Path::new(LOGFILE_PATH),
         MAX_LOGFILE_SIZE,
@@ -138,7 +145,7 @@ fn main() {
     match cli_args.mode {
         ApplicationMode::Init => mode::init::run_init_mode(db),
         ApplicationMode::Standalone => {
-            mode::standalone::run_standalone_mode(db, task_manager, task_runner)
+            mode::standalone::run_standalone_mode(db, task_manager, task_runner, cli_args)
         }
         ApplicationMode::ClusterSlave => todo!(),
         ApplicationMode::ClusterMaster => todo!(),

@@ -18,18 +18,21 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::error_handling::HandleErrorLayer;
+use axum::extract::Host;
+use axum::handler::HandlerWithoutStateExt;
 use axum::middleware::from_extractor;
+use axum::response::Redirect;
 use axum::routing::{self, post};
-use axum::{middleware, BoxError, Extension, Router};
+use axum::{middleware, BoxError, Extension, Router, Server};
 use axum_server::tls_rustls::RustlsConfig;
-use hyper::StatusCode;
+use hyper::{StatusCode, Uri};
 use tower::ServiceBuilder;
 use tower_cookies::CookieManagerLayer;
 use tower_http::services::{ServeDir, ServeFile};
 
 use crate::database::MonitorDb;
 use crate::tasks::TaskManager;
-use crate::SHUTDOWN_SIGNAL;
+use crate::{Args, SHUTDOWN_SIGNAL};
 
 mod auth;
 mod backend;
@@ -45,16 +48,19 @@ const GLOBAL_RATE_LIMIT_REQUEST_AMOUNT: u64 = 20;
 const GLOBAL_RATE_LIMIT_DURATION_SECS: u64 = 1;
 const GLOBAL_REQUEST_BUFFER_SIZE: usize = 40;
 
-pub async fn web_server(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) {
+pub async fn web_server(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>, cli_args: Arc<Args>) {
     let app = app(db, task_manager);
-    let addr = SocketAddr::from(([0, 0, 0, 0], 4356));
+    let http_addr = SocketAddr::from(([0, 0, 0, 0], cli_args.http_port));
+    let https_addr = SocketAddr::from(([0, 0, 0, 0], cli_args.https_port));
     let tls_config = RustlsConfig::from_pem_file(PEM_CERT, PEM_KEY).await.unwrap_or_else(|_| panic!("Failed to find the PEM certificate file. It should be stored in the application data folder: Cert: {} Key: {}", PEM_CERT, PEM_KEY));
 
-    let server = axum_server::bind_rustls(addr, tls_config).serve(app.into_make_service());
+    let server = axum_server::bind_rustls(https_addr, tls_config).serve(app.into_make_service());
+    let http_server = redirect_http_to_https_server(cli_args, http_addr);
     let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
 
     tokio::select! {
         result = server => {result.expect("Unhandled webserver error encountered")}
+        result = http_server => {result.expect("Unhandled http server error encountered")}
         result = shutdown_signal.recv() => {result.expect("Failed to receive global shutdown signal")}
     }
 }
@@ -127,4 +133,44 @@ async fn handle_loadshed_error(err: BoxError) -> (StatusCode, String) {
         StatusCode::SERVICE_UNAVAILABLE,
         format!("Too many requests: {}", err),
     )
+}
+
+/// Creates a http server which redirects all http traffic to https
+async fn redirect_http_to_https_server(
+    cli_args: Arc<Args>,
+    addr: SocketAddr,
+) -> Result<(), hyper::Error> {
+    let http_port: u16 = cli_args.http_port;
+    let https_port: u16 = cli_args.https_port;
+
+    fn make_https(
+        host: String,
+        uri: Uri,
+        http_port: u16,
+        https_port: u16,
+    ) -> Result<Uri, BoxError> {
+        let mut parts = uri.into_parts();
+
+        parts.scheme = Some(axum::http::uri::Scheme::HTTPS);
+
+        if parts.path_and_query.is_none() {
+            parts.path_and_query = Some("/".parse().unwrap());
+        }
+
+        let https_host = host.replace(&http_port.to_string(), &https_port.to_string());
+        parts.authority = Some(https_host.parse()?);
+
+        Ok(Uri::from_parts(parts)?)
+    }
+
+    let redirect = move |Host(host): Host, uri: Uri| async move {
+        match make_https(host, uri, http_port, https_port) {
+            Ok(uri) => Ok(Redirect::permanent(&uri.to_string())),
+            Err(err) => Err((StatusCode::BAD_REQUEST, err.to_string())),
+        }
+    };
+
+    Server::bind(&addr)
+        .serve(redirect.into_make_service())
+        .await
 }

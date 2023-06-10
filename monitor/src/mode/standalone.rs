@@ -7,12 +7,13 @@ use tokio::runtime::Builder;
 use crate::database::MonitorDb;
 use crate::tasks::runner::TaskRunner;
 use crate::tasks::TaskManager;
-use crate::{flash, init, webserver, HARDWARE};
+use crate::{flash, init, webserver, Args, HARDWARE};
 
 pub fn run_standalone_mode(
     db: Arc<MonitorDb>,
     task_manager: Arc<TaskManager>,
     task_runner: TaskRunner,
+    cli_args: Arc<Args>,
 ) {
     init::check_uninit(db.clone());
 
@@ -45,7 +46,7 @@ pub fn run_standalone_mode(
                 crate::shutdown_application();
             });
 
-            webserver::web_server(db, task_manager_async).await;
+            webserver::web_server(db, task_manager_async, cli_args).await;
         });
     });
 
