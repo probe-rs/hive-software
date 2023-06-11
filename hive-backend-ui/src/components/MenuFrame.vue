@@ -57,10 +57,7 @@ function resizeEvent() {
       <hiveIcon />
     </v-btn>
 
-    <p
-      style="font-family: Poppins; font-size: 27pt; color: white"
-      class="font-weight-bold pl-2"
-    >
+    <p style="font-family: Poppins; font-size: 27pt; color: white" class="font-weight-bold pl-2">
       Hive
     </p>
 
@@ -74,31 +71,20 @@ function resizeEvent() {
       <AppSettings />
     </v-menu>
     <v-btn icon rounded="0" @click="logout">
-      <v-tooltip location="bottom end" origin="top center" activator="parent"
-        >Log out</v-tooltip
-      >
+      <v-tooltip location="bottom end" origin="top center" activator="parent">Log out</v-tooltip>
       <v-icon> mdi-logout </v-icon>
     </v-btn>
   </v-app-bar>
 
-  <v-navigation-drawer
-    clipped
-    :model-value="showNavigation"
-    app
-    @transitionend="resizeEvent"
-  >
+  <v-navigation-drawer clipped :model-value="showNavigation" app @transitionend="resizeEvent">
     <Navigation />
   </v-navigation-drawer>
 
   <v-main>
-    <v-container fluid class="fill-height">
+    <v-container fluid>
       <slot />
     </v-container>
   </v-main>
 
-  <ErrorSnackbar
-    :is-error="showError"
-    :message="errorMessage"
-    @close-event="showError = false"
-  />
+  <ErrorSnackbar :is-error="showError" :message="errorMessage" @close-event="showError = false" />
 </template>

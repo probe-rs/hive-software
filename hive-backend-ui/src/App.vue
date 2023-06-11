@@ -18,17 +18,16 @@ const currentRoute = computed(() => {
 
 <template>
   <v-app :theme="appConfig.theme">
-    <template v-if="currentRoute === 'login'">
-      <RouterView />
-    </template>
-    <template v-else-if="currentRoute === 'notFound'">
-      <RouterView />
-    </template>
-    <template v-else>
-      <MenuFrame>
+    <v-layout>
+      <template v-if="currentRoute === 'login' || currentRoute === 'notFound'">
         <RouterView />
-      </MenuFrame>
-    </template>
+      </template>
+      <template v-else>
+        <MenuFrame>
+          <RouterView />
+        </MenuFrame>
+      </template>
+    </v-layout>
   </v-app>
 </template>
 

@@ -2,7 +2,7 @@ import { fileURLToPath, URL } from "url";
 
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
-import vuetify from "@vuetify/vite-plugin";
+import vuetify from "vite-plugin-vuetify";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -20,15 +20,18 @@ export default defineConfig({
   server: {
     proxy: {
       "/graphql/backend": {
-        target: "https://192.168.1.85:4356",
+        target: "https://192.168.1.85:4445",
         changeOrigin: true,
         secure: false,
       },
       "/auth/backend": {
-        target: "https://192.168.1.85:4356",
+        target: "https://192.168.1.85:4445",
         changeOrigin: true,
         secure: false,
       },
     },
   },
+  build: {
+    //minify: false
+  }
 });

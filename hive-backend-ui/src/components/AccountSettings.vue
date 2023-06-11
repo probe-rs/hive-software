@@ -110,15 +110,7 @@ watch(localUsername, () => {
   usernameChanged.value = true;
 });
 
-watch(oldPassword, () => {
-  passwordChanged.value = true;
-});
-
-watch(newPassword, () => {
-  passwordChanged.value = true;
-});
-
-watch(newPasswordConfirm, () => {
+watch([newPassword, newPasswordConfirm, oldPassword], () => {
   passwordChanged.value = true;
 });
 
@@ -182,56 +174,21 @@ onPasswordChangeDone(() => {
 
     <v-card-text>
       <v-form>
-        <v-text-field
-          v-model="localUsername"
-          label="Username"
-          :error="isUsernameError"
-          variant="underlined"
-          density="compact"
-          :error-messages="isUsernameError ? usernameErrorMessage : undefined"
-        />
-        <v-text-field
-          label="Role"
-          v-model="userStore.role"
-          disabled
-          variant="underlined"
-          density="compact"
-        />
+        <v-text-field v-model="localUsername" label="Username" :error="isUsernameError" variant="underlined"
+          density="compact" :error-messages="isUsernameError ? usernameErrorMessage : undefined" />
+        <v-text-field label="Role" v-model="userStore.role" disabled variant="underlined" density="compact" />
         <template v-if="showChangePassword">
-          <v-text-field
-            v-model="oldPassword"
-            variant="underlined"
-            density="compact"
-            :type="showPassword ? 'text' : 'password'"
-            label="Old Password"
-            :error="isPasswordError"
-          />
-          <v-text-field
-            v-model="newPassword"
-            variant="underlined"
-            density="compact"
-            :type="showPassword ? 'text' : 'password'"
-            label="New Password"
-            :error="isPasswordError"
-          />
-          <v-text-field
-            v-model="newPasswordConfirm"
-            variant="underlined"
-            density="compact"
-            :append-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-            :type="showPassword ? 'text' : 'password'"
-            label="New Password Confirm"
-            :error="isPasswordError"
-            :error-messages="isPasswordError ? passwordErrorMessage : undefined"
-            :loading="passwordLoading"
-            @click:append="showPassword = !showPassword"
-          />
+          <v-text-field v-model="oldPassword" variant="underlined" density="compact"
+            :type="showPassword ? 'text' : 'password'" label="Old Password" :error="isPasswordError" />
+          <v-text-field v-model="newPassword" variant="underlined" density="compact"
+            :type="showPassword ? 'text' : 'password'" label="New Password" :error="isPasswordError" />
+          <v-text-field v-model="newPasswordConfirm" variant="underlined" density="compact"
+            :append-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'" :type="showPassword ? 'text' : 'password'"
+            label="New Password Confirm" :error="isPasswordError"
+            :error-messages="isPasswordError ? passwordErrorMessage : undefined" :loading="passwordLoading"
+            @click:append="showPassword = !showPassword" />
         </template>
-        <v-btn
-          v-if="!showChangePassword"
-          color="info"
-          @click="showChangePassword = true"
-        >
+        <v-btn v-if="!showChangePassword" color="info" @click="showChangePassword = true">
           Change Password
         </v-btn>
         <v-btn v-if="showChangePassword" color="info" @click="submitPassword">
@@ -243,9 +200,9 @@ onPasswordChangeDone(() => {
     <v-divider></v-divider>
 
     <v-card-actions>
-      <v-btn color="error" text @click="$emit('closeEvent')"> Cancel </v-btn>
+      <v-btn color="error" variant="text" @click="$emit('closeEvent')"> Cancel </v-btn>
       <v-spacer></v-spacer>
-      <v-btn color="success" text @click="submitData"> Save and Exit </v-btn>
+      <v-btn color="success" variant="text" @click="submitData"> Save and Exit </v-btn>
     </v-card-actions>
 
     <!--Replace with loading save and exit button once available in vuetify-->
@@ -254,9 +211,6 @@ onPasswordChangeDone(() => {
     </v-overlay>
   </v-card>
 
-  <SuccessSnackbar
-    :isSuccess="isPasswordSuccess"
-    @closeEvent="isPasswordSuccess = false"
-    message="Successfully changed the password"
-  />
+  <SuccessSnackbar :isSuccess="isPasswordSuccess" @closeEvent="isPasswordSuccess = false"
+    message="Successfully changed the password" />
 </template>

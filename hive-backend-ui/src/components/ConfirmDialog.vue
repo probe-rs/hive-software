@@ -32,8 +32,8 @@ function cancel() {
       <v-card-text>{{ text }}</v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn color="error" text @click="cancel"> Cancel </v-btn>
-        <v-btn color="success" text @click="confirm"> Confirm </v-btn>
+        <v-btn color="error" variant="text" @click="cancel"> Cancel </v-btn>
+        <v-btn color="success" variant="text" @click="confirm"> Confirm </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

@@ -225,33 +225,13 @@ const showTssIndexes = computed(() => {
 </script>
 
 <template>
-  <v-col
-    id="konvaStage"
-    ref="konvaStage"
-    style="border-radius: 8px"
-    cols="lg-10"
-  >
+  <v-col id="konvaStage" ref="konvaStage" style="border-radius: 8px" cols="lg-10">
     <v-stage :config="stageConfig" ref="stage">
       <v-layer ref="layer">
-        <RackPartComponent
-          :config="rpiConfig"
-          :location="0"
-          :isSelected="isSelected[0]"
-          @mouseClick="handlePartClick"
-        />
-        <RackPartComponent
-          :config="pssConfig"
-          :location="1"
-          :isSelected="isSelected[1]"
-          @mouseClick="handlePartClick"
-        />
-        <RackPartComponent
-          v-for="idx in showTssIndexes"
-          :config="tssConfig(idx, assignedTargets[idx])"
-          :location="idx + 2"
-          :isSelected="isSelected[idx + 2]"
-          @mouseClick="handlePartClick"
-        />
+        <RackPartComponent :config="rpiConfig" :location="0" :isSelected="isSelected[0]" @mouseClick="handlePartClick" />
+        <RackPartComponent :config="pssConfig" :location="1" :isSelected="isSelected[1]" @mouseClick="handlePartClick" />
+        <RackPartComponent v-for="idx in showTssIndexes" :config="tssConfig(idx, assignedTargets[idx])"
+          :location="idx + 2" :isSelected="isSelected[idx + 2]" @mouseClick="handlePartClick" />
       </v-layer>
     </v-stage>
   </v-col>

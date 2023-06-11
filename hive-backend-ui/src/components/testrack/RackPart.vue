@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { type PropType, ref, onMounted, watch, toRefs } from "vue";
-import type { PartType } from "./types";
 import { defaultRackScale } from "./constants";
 import Konva from "konva";
 
@@ -108,17 +107,12 @@ function handleMouseLeave() {
 </script>
 
 <template>
-  <v-image
-    @click="$emit('mouseClick', location)"
-    @mouseenter="handleMouseEnter"
-    @mouseleave="handleMouseLeave"
-    ref="part"
+  <v-image @click="$emit('mouseClick', location)" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave" ref="part"
     :config="{
       ...config,
       scale: {
         x: scale,
         y: scale,
       },
-    }"
-  />
+    }" />
 </template>
