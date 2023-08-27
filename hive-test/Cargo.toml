@@ -11,4 +11,4 @@ readme = "README.md"
 hive-macro = {path = "../hive-macro/"}
 comm-types = {path = "../comm-types/", features = ["hardware", "defines"]}
 ll-api = { path = "../ll-api/" }
-inventory = "0.2"
+inventory = { workspace = true }

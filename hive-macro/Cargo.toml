@@ -13,10 +13,10 @@ syn = "1.0"
 proc-macro-error = "1.0"
 darling = "0.13"
 quote = "1.0"
-inventory = "0.2"
+inventory = { workspace = true }
 
 [dev-dependencies]
-trybuild = "1.0"
+trybuild = { workspace = true }
 hive-test = {path = "../hive-test/"}
 probe-rs-test = { workspace = true }
 

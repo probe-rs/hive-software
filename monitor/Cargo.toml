@@ -11,34 +11,34 @@ readme = "README.md"
 comm-types = { path = "../comm-types/", features = ["bincode", "ipc", "auth"] }
 controller = { path = "../controller/" }
 hive-db = { path = "../hive-db/" }
-log = "0.4"
-tokio = { version = "1.17", features = ["rt", "sync", "fs", "signal"] }
-axum = { version = "0.6", features = ["multipart", "ws", "macros"] }
+log = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync", "fs", "signal"] }
+axum = { workspace = true, features = ["multipart", "ws", "macros"] }
 axum-server = { version = "0.4", features = ["tls-rustls"] }
 axum-extra = "0.7"
-hyper = "0.14"
-tower = { version = "0.4", features = ["limit", "load-shed", "buffer"] }
+hyper = { workspace = true }
+tower = { workspace = true, features = ["limit", "load-shed", "buffer"] }
 tower-http = { version = "0.3", features = ["fs", "limit"] }
 http-body = "0.4"
 tower-cookies = { version = "0.6", features = ["signed"] }
 cookie = "0.16"
-async-graphql = { version = "5.0" }
+async-graphql = { workspace = true }
 async-graphql-axum = "5.0"
 futures = "0.3"
-serde_json = "1.0"
-lazy_static = "1.4"
-shared-bus = "=0.2.5"
-rppal = { version = "0.14", features = ["hal"] }
-sled = "0.34"
-serde = "1.0"
+serde_json = { workspace = true }
+lazy_static = { workspace = true }
+shared-bus = { workspace = true }
+rppal = { workspace = true, features = ["hal"] }
+sled = { workspace = true }
+serde = { workspace = true }
 probe-rs = { workspace = true }
-thiserror = "1.0"
+thiserror = { workspace = true }
 argon2 = "0.4"
 jsonwebtoken = "8.1"
-anyhow = "1.0"
-clap = { version = "4.3", features = ["derive", "color", "suggestions"] }
-clap-verbosity-flag = "2.0"
-dialoguer = "0.10"
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive", "color", "suggestions"] }
+clap-verbosity-flag = { workspace = true }
+dialoguer = { workspace = true }
 rand_chacha = "0.3"
 base64 = "0.13"
 ring = "0.16"
@@ -51,8 +51,8 @@ sys-info = "0.9"
 
 [dev-dependencies]
 hive-db = { path = "../hive-db/", features = ["test"] }
-serial_test = "0.7"
-tokio = { version = "1.17", features = ["macros"] }
+serial_test = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
 multipart = { version = "0.8", package = "hyper-multipart-rfc7578" }
 mime = "0.3"
-bincode = { version = "2.0.0-rc.3", features = ["serde"] }
+bincode = { workspace = true, features = ["serde"] }

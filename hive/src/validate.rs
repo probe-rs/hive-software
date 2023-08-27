@@ -2,7 +2,7 @@
 use validators::models::Host;
 use validators::prelude::{validators_prelude, ValidateString, Validator};
 
-#[derive(Debug, Validator)]
+#[derive(Debug, Validator, Clone)]
 #[validator(host(local(Allow), port(Allow), at_least_two_labels(Must)))]
 pub struct ValidHost {
     pub host: Host,

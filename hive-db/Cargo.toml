@@ -11,11 +11,11 @@ readme = "README.md"
 test = []
 
 [dependencies]
-bincode = { version = "2.0.0-rc.3", features = ["serde"] }
-sled = "0.34"
-serde = { version = "1.0", features = ["derive"] }
+bincode = { workspace = true, features = ["serde"] }
+sled = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
-trybuild = "1.0"
-lazy_static = "1.4"
-serial_test = "0.7"
+trybuild = { workspace = true }
+lazy_static = { workspace = true }
+serial_test = { workspace = true }

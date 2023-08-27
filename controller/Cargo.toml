@@ -14,26 +14,26 @@ runner = []
 ll-api = { path = "../ll-api/" }
 comm-types = { path = "../comm-types/", features = ["hardware", "ipc"] }
 hive-test = { path = "../hive-test/" }
-pca9535 = { version = "1.2", features = ["std"] }
-embedded-hal = "=1.0.0-alpha.9"
-rppal = { version = "0.14", features = ["hal"] }
-shared-bus = { version = "=0.2.5", features = ["std", "eh-alpha"] }
+pca9535 = { workspace = true, features = ["std"] }
+embedded-hal = { workspace = true }
+rppal = { workspace = true, features = ["hal"] }
+shared-bus = { workspace = true, features = ["std", "eh-alpha"] }
 probe-rs = { workspace = true }
-log = "0.4"
-retry = "1.3"
-antidote = "1.0"
-thiserror = "1.0"
+log = { workspace = true }
+retry = { workspace = true }
+antidote = { workspace = true }
+thiserror = { workspace = true }
 log4rs = { version = "1.1", features = [
     "console_appender",
     "rolling_file_appender",
     "threshold_filter",
 ] }
 chrono = "0.4"
-colored = "2.0"
-anyhow = "1.0"
+colored = { workspace = true }
+anyhow = { workspace = true }
 rusb = "0.9"
 nix = "0.24"
-serde_json = "1.0"
-serde = "1.0"
+serde_json = { workspace = true }
+serde = { workspace = true }
 
 probe-rs-test = { workspace = true }
