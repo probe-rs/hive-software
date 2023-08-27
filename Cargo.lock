@@ -823,7 +823,6 @@ dependencies = [
  "colored",
  "comm-types",
  "embedded-hal 1.0.0-alpha.9",
- "hive-test",
  "ll-api",
  "log",
  "log4rs",

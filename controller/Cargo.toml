@@ -13,7 +13,6 @@ runner = []
 [dependencies]
 ll-api = { path = "../ll-api/" }
 comm-types = { path = "../comm-types/", features = ["hardware", "ipc"] }
-hive-test = { path = "../hive-test/" }
 pca9535 = { workspace = true, features = ["std"] }
 embedded-hal = { workspace = true }
 rppal = { workspace = true, features = ["hal"] }
