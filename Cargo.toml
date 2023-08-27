@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.dependencies]
-probe-rs = "0.18"
+probe-rs = "0.20"
 log = "0.4"
 lazy_static = "1.4"
 axum = "0.6"
