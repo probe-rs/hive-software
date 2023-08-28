@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: probe-rs/probe-rs
-          ref: v0.18.0
+          ref: v0.20.0
           path: probe-rs-hive-testcandidate
 
       # workaround as actions/checkout cannot clone outside of workspace
