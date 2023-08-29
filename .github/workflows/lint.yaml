@@ -24,6 +24,9 @@ jobs:
       - name: cargo check monitor
         run: cargo check --all-features --locked -p monitor
 
+      - name: debug
+        run: cat Cargo.lock
+
       - name: cargo check others
         run: cargo check --workspace --all-features --locked --exclude monitor
 
