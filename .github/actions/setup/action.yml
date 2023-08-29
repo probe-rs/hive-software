@@ -25,9 +25,11 @@ runs:
 
     # workaround as actions/checkout cannot clone outside of workspace
     - name: Move probe-rs testcandidate
+      shell: bash
       run: mv probe-rs-hive-testcandidate ../
 
     - name: Install libusb, libudev (linux)
+      shell: bash
       run: |
         sudo apt update
         sudo apt install -y libusb-1.0-0-dev libudev-dev
