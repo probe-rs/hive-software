@@ -22,13 +22,10 @@ jobs:
 
       # Check monitor separately as the build needs to happen separately due to conflict of probe-rs with probe-rs-test
       - name: cargo check monitor
-        run: cargo check --all-features --locked -p monitor
-
-      - name: debug
-        run: cat Cargo.lock
+        run: cargo check --all-features -p monitor
 
       - name: cargo check others
-        run: cargo check --workspace --all-features --locked --exclude monitor
+        run: cargo check --workspace --all-features --exclude monitor
 
   clippy:
     name: Clippy
@@ -42,7 +39,7 @@ jobs:
           components: clippy
 
       - name: Run cargo clippy
-        run: cargo clippy --all-features --locked -- -D warnings
+        run: cargo clippy --all-features -- -D warnings
 
 #  cargo-deny:
 #    name: Deny

@@ -21,10 +21,10 @@ jobs:
 
       # Test monitor separately as the build needs to happen separately due to conflict of probe-rs with probe-rs-test
       - name: cargo test monitor
-        run: cargo test --all-features --locked -p monitor
+        run: cargo test --all-features -p monitor
 
       - name: cargo test others
-        run: cargo test --workspace --all-features --locked --exclude monitor --exclude hive --no-fail-fast
+        run: cargo test --workspace --all-features --exclude monitor --exclude hive --no-fail-fast
 
   # Special test-case hive CLI, which needs to build/run on win, linux and mac
   test-hive-cli:
@@ -43,4 +43,4 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: cargo test hive
-        run: cargo test --all-features --locked -p hive
+        run: cargo test --all-features -p hive
