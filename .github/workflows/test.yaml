@@ -24,4 +24,23 @@ jobs:
         run: cargo test --all-features --locked -p monitor
 
       - name: cargo test others
-        run: cargo test --workspace --all-features --locked --exclude monitor --no-fail-fast
+        run: cargo test --workspace --all-features --locked --exclude monitor --exclude hive --no-fail-fast
+
+  # Special test-case hive CLI, which needs to build/run on win, linux and mac
+  test-hive-cli:
+    name: Rust (hive CLI)
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - uses: ./.github/actions/setup
+
+      - name: cargo test hive
+        run: cargo test --all-features --locked -p hive

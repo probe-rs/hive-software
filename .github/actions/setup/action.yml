@@ -11,7 +11,7 @@ runs:
   using: "composite"
   steps:
     - name: Install toolchain
-      uses: dtolnay/rust-toolchain@1.70.0
+      uses: dtolnay/rust-toolchain@1.72.0
       with:
         targets: ${{ inputs.targets }}
         components: ${{ inputs.components }}
@@ -33,6 +33,7 @@ runs:
       run: |
         sudo apt update
         sudo apt install -y libusb-1.0-0-dev libudev-dev
+      if: runner.os == 'Linux'
 
     - name: Cache Dependencies
       uses: Swatinem/rust-cache@v2.2.1
