@@ -1,0 +1,36 @@
+name: Setup CI environment
+description: Setup CI environment
+inputs:
+  targets:
+    description: "The rust targets to install"
+    required: false
+  components:
+    description: "The rust toolchain components to install"
+    required: false
+runs:
+  using: "composite"
+  steps:
+    - name: Install toolchain
+      uses: dtolnay/rust-toolchain@1.70.0
+      with:
+        targets: ${{ inputs.targets }}
+        components: ${{ inputs.components }}
+
+    - name: Setup probe-rs testcandidate
+      uses: actions/checkout@v3
+      with:
+        repository: probe-rs/probe-rs
+        ref: v0.20.0
+        path: probe-rs-hive-testcandidate
+
+    # workaround as actions/checkout cannot clone outside of workspace
+    - name: Move probe-rs testcandidate
+      run: mv probe-rs-hive-testcandidate ../
+
+    - name: Install libusb, libudev (linux)
+      run: |
+        sudo apt update
+        sudo apt install -y libusb-1.0-0-dev libudev-dev
+
+    - name: Cache Dependencies
+      uses: Swatinem/rust-cache@v2.2.1
