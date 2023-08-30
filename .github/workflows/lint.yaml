@@ -25,7 +25,28 @@ jobs:
         run: cargo check --all-features -p monitor
 
       - name: cargo check others
-        run: cargo check --workspace --all-features --exclude monitor
+        run: cargo check --workspace --all-features --exclude monitor --exclude hive
+
+  # Special test-case hive CLI, which needs to build/run on win, linux and mac
+  check-hive-cli:
+    name: Check (hive CLI)
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - uses: ./.github/actions/setup
+
+      - name: cargo check hive
+        run: cargo check --workspace --all-features -p hive
 
   clippy:
     name: Clippy
