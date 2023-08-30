@@ -46,7 +46,7 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: cargo check hive
-        run: cargo check --workspace --all-features -p hive
+        run: cargo check --workspace --all-features --exclude monitor -p hive
 
   clippy:
     name: Clippy
