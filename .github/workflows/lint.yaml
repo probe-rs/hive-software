@@ -18,31 +18,35 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - name: Setup probe-rs testcandidate
-        uses: actions/checkout@v3
-        with:
-          repository: probe-rs/probe-rs
-          ref: v0.20.0
-          path: probe-rs-hive-testcandidate
-
-      # workaround as actions/checkout cannot clone outside of workspace
-      - name: Move probe-rs testcandidate
-        run: mv probe-rs-hive-testcandidate ../
-
-      - name: Install libusb, libudev (linux)
-        run: |
-          sudo apt update
-          sudo apt install -y libusb-1.0-0-dev libudev-dev
-
-      - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v2.2.1
+      - uses: ./.github/actions/setup
 
       # Check monitor separately as the build needs to happen separately due to conflict of probe-rs with probe-rs-test
       - name: cargo check monitor
-        run: cargo check --all-features --locked -p monitor
+        run: cargo check --all-features -p monitor
 
       - name: cargo check others
-        run: cargo check --workspace --all-features --locked --exclude monitor
+        run: cargo check --workspace --all-features --exclude monitor --exclude hive
+
+  # Special test-case hive CLI, which needs to build/run on win, linux and mac
+  check-hive-cli:
+    name: Check (hive CLI)
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - uses: ./.github/actions/setup
+
+      - name: cargo check hive
+        run: cargo check --all-features -p hive
 
   clippy:
     name: Clippy
@@ -51,27 +55,12 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - name: Setup probe-rs testcandidate
-        uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
         with:
-          repository: probe-rs/probe-rs
-          ref: v0.20.0
-          path: probe-rs-hive-testcandidate
-
-      # workaround as actions/checkout cannot clone outside of workspace
-      - name: Move probe-rs testcandidate
-        run: mv probe-rs-hive-testcandidate ../
-
-      - name: Install libusb
-        run: |
-          sudo apt update
-          sudo apt install -y libusb-1.0-0-dev libudev-dev
-
-      - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v2.2.1
+          components: clippy
 
       - name: Run cargo clippy
-        run: cargo clippy --all-features --locked -- -D warnings
+        run: cargo clippy --all-features -- -D warnings
 
 #  cargo-deny:
 #    name: Deny

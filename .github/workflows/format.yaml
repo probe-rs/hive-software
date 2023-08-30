@@ -16,16 +16,9 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - name: Setup probe-rs testcandidate
-        uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
         with:
-          repository: probe-rs/probe-rs
-          ref: v0.20.0
-          path: probe-rs-hive-testcandidate
-
-      # workaround as actions/checkout cannot clone outside of workspace
-      - name: Move probe-rs testcandidate
-        run: mv probe-rs-hive-testcandidate ../
+          components: rustfmt
 
       - name: Run cargo fmt
-        run: cargo fmt --all -- --check
+        run: cargo fmt --check
