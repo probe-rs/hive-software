@@ -1,6 +1,5 @@
 //! The websocket server manager which handles all ws connections during testing
-#[cfg(doc)]
-use super::runner::TaskRunner;
+use super::TaskRunnerMessage;
 use axum::extract::ws::{Message, WebSocket};
 use axum::Error as AxumError;
 use rand_chacha::{
@@ -8,13 +7,14 @@ use rand_chacha::{
     ChaChaRng,
 };
 use serde::Serialize;
-#[cfg(doc)]
-use tokio::sync::mpsc;
 use tokio::sync::mpsc::Receiver as MpscReceiver;
 
-use super::TaskRunnerMessage;
 #[cfg(doc)]
-use super::TestTask;
+use super::scheduler::TaskScheduler;
+#[cfg(doc)]
+use super::test_task::TestTask;
+#[cfg(doc)]
+use tokio::sync::mpsc;
 
 use crate::SHUTDOWN_SIGNAL;
 
@@ -46,7 +46,7 @@ impl From<String> for WsTicket {
 /// Handles a single websocket connection.
 ///
 /// It only forwards the received [`TaskRunnerMessage`]'s to the websocket.
-/// In case the websocket closes but no test results have been received this function closes the [`mpsc`] channel to the [`TaskRunner`] which indicates
+/// In case the websocket closes but no test results have been received this function closes the [`mpsc`] channel to the [`TaskScheduler`] which indicates
 /// the task runner to fail the current task as the test results can never be received by the requesting user.
 pub async fn socket_handler(mut socket: WebSocket, mut receiver: MpscReceiver<TaskRunnerMessage>) {
     tokio::spawn(async move {

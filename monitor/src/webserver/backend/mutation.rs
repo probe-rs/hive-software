@@ -17,7 +17,7 @@ use crate::testprogram::{Testprogram, DEFAULT_TESTPROGRAM_NAME};
 use crate::ACTIVE_TESTPROGRAM_CHANGED;
 use crate::{
     database::{hasher, keys, MonitorDb},
-    tasks::ReinitializationTask,
+    tasks::reinit_task::ReinitializationTask,
     webserver::auth,
     HARDWARE_DB_DATA_CHANGED,
 };

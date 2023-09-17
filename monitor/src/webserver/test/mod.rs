@@ -89,6 +89,7 @@ mod tests {
     use hyper::Request as HyperRequest;
     use lazy_static::lazy_static;
     use multipart::client::multipart::{Body as MultipartBody, Form};
+    use tokio::runtime::Runtime;
     use tower::ServiceExt;
 
     use crate::database::{keys, MonitorDb};
@@ -216,328 +217,397 @@ mod tests {
         ];
     }
 
-    #[tokio::test]
-    async fn capabilities_endpoint() {
-        let task_manager = Arc::new(TaskManager::new());
-        let test_routes = test_routes(DB.clone(), task_manager);
-
-        let res = test_routes
-            .oneshot(
-                Request::builder()
-                    .method(Method::GET)
-                    .uri("/capabilities")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
+    fn with_async_runtime<Fn: FnOnce(Arc<Runtime>) -> ()>(function: Fn) {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
             .unwrap();
 
-        assert_eq!(res.status(), StatusCode::OK);
-
-        let capabilities = serde_json::from_slice::<Capabilities>(
-            &hyper::body::to_bytes(res.into_body()).await.unwrap(),
-        )
-        .unwrap();
-
-        let expected_targets = [
-            "ATSAMD10C13A-SS",
-            "ATSAMD09D14A-M",
-            "ATSAMD51J18A-A",
-            "ATSAMD21E16L-AFT",
-            "LPC1114FDH28_102_5",
-            "LPC1313FBD48_01,15",
-            "nRF5340",
-            "nRF52832-QFAB-T",
-            "nRF52840",
-            "NRF51822-QFAC-R7",
-            "STM32G031F4P6",
-            "STM32L151C8TxA",
-        ];
-        let expected_probes = ["Curious Probe", "Overpriced Probe"];
-
-        assert_eq!(expected_targets.len(), capabilities.available_targets.len());
-        assert_eq!(expected_probes.len(), capabilities.available_probes.len());
-
-        if capabilities
-            .available_targets
-            .iter()
-            .any(|target| !expected_targets.contains(&target.as_str()))
-        {
-            panic!("Received targets do not match with expected targets:\nReceived:\n{:#?}\nExpected:\n{:#?}", capabilities.available_targets, expected_targets);
-        }
-
-        if capabilities
-            .available_probes
-            .iter()
-            .any(|probe| !expected_probes.contains(&probe.as_str()))
-        {
-            panic!("Received probes do not match with expected probes:\nReceived:\n{:#?}\nExpected:\n{:#?}", capabilities.available_probes, expected_probes);
-        }
+        function(Arc::new(rt));
     }
 
-    #[tokio::test]
-    async fn test_endpoint_wrong_content_type() {
-        let task_manager = Arc::new(TaskManager::new());
-        let test_routes = test_routes(DB.clone(), task_manager);
+    #[test]
+    fn capabilities_endpoint() {
+        with_async_runtime(|rt| {
+            let runtime = rt.clone();
 
-        let res = test_routes
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri("/run")
-                    .header(header::CONTENT_TYPE, "application/json")
-                    .header(header::CONTENT_LENGTH, "0")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+            rt.block_on(async {
+                let (task_manager, _) = TaskManager::new(DB.clone(), runtime);
+                let test_routes = test_routes(DB.clone(), task_manager);
 
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-    }
-
-    #[tokio::test]
-    async fn test_endpoint_content_length() {
-        let task_manager = Arc::new(TaskManager::new());
-        let test_routes = test_routes(DB.clone(), task_manager);
-
-        let res = test_routes
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri("/run")
-                    .header(header::CONTENT_TYPE, "multipart/form-data")
-                    .header(header::CONTENT_LENGTH, "4000000000")
-                    .body(Body::from("a".repeat(800_001_000)))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(res.status(), StatusCode::PAYLOAD_TOO_LARGE);
-    }
-
-    #[tokio::test]
-    async fn test_endpoint_unknown_field_name() {
-        let task_manager = Arc::new(TaskManager::new());
-        let test_routes = test_routes(DB.clone(), task_manager);
-
-        let mut form = Form::default();
-        form.add_text("unknown", "some text");
-
-        let req = form
-            .set_body_convert::<hyper::Body, MultipartBody>(
-                HyperRequest::builder().method(Method::POST).uri("/run"),
-            )
-            .unwrap();
-
-        let res = test_routes.oneshot(req).await.unwrap();
-
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-
-        assert_eq!(
-            "Found unexpected field name: 'unknown'",
-            String::from_utf8_lossy(
-                hyper::body::to_bytes(res.into_body())
+                let res = test_routes
+                    .oneshot(
+                        Request::builder()
+                            .method(Method::GET)
+                            .uri("/capabilities")
+                            .body(Body::empty())
+                            .unwrap(),
+                    )
                     .await
-                    .unwrap()
-                    .as_ref()
-            )
-        );
+                    .unwrap();
+
+                assert_eq!(res.status(), StatusCode::OK);
+
+                let capabilities = serde_json::from_slice::<Capabilities>(
+                    &hyper::body::to_bytes(res.into_body()).await.unwrap(),
+                )
+                .unwrap();
+
+                let expected_targets = [
+                    "ATSAMD10C13A-SS",
+                    "ATSAMD09D14A-M",
+                    "ATSAMD51J18A-A",
+                    "ATSAMD21E16L-AFT",
+                    "LPC1114FDH28_102_5",
+                    "LPC1313FBD48_01,15",
+                    "nRF5340",
+                    "nRF52832-QFAB-T",
+                    "nRF52840",
+                    "NRF51822-QFAC-R7",
+                    "STM32G031F4P6",
+                    "STM32L151C8TxA",
+                ];
+                let expected_probes = ["Curious Probe", "Overpriced Probe"];
+
+                assert_eq!(expected_targets.len(), capabilities.available_targets.len());
+                assert_eq!(expected_probes.len(), capabilities.available_probes.len());
+
+                if capabilities
+                    .available_targets
+                    .iter()
+                    .any(|target| !expected_targets.contains(&target.as_str()))
+                {
+                    panic!("Received targets do not match with expected targets:\nReceived:\n{:#?}\nExpected:\n{:#?}", capabilities.available_targets, expected_targets);
+                }
+
+                if capabilities
+                    .available_probes
+                    .iter()
+                    .any(|probe| !expected_probes.contains(&probe.as_str()))
+                {
+                    panic!("Received probes do not match with expected probes:\nReceived:\n{:#?}\nExpected:\n{:#?}", capabilities.available_probes, expected_probes);
+                }
+            });
+        });
     }
 
-    #[tokio::test]
-    async fn test_endpoint_missing_runner_field() {
-        let task_manager = Arc::new(TaskManager::new());
-        let test_routes = test_routes(DB.clone(), task_manager);
+    #[test]
+    fn test_endpoint_wrong_content_type() {
+        with_async_runtime(|rt| {
+            let runtime = rt.clone();
 
-        let options = TestOptions { filter: None };
+            rt.block_on(async {
+                let (task_manager, _) = TaskManager::new(DB.clone(), runtime);
+                let test_routes = test_routes(DB.clone(), task_manager);
 
-        let mut form = Form::default();
-
-        let json = Cursor::new(serde_json::to_vec(&options).unwrap());
-        form.add_reader_file_with_mime("options", json, "options.json", mime::APPLICATION_JSON);
-
-        let req = form
-            .set_body_convert::<hyper::Body, MultipartBody>(
-                HyperRequest::builder().method(Method::POST).uri("/run"),
-            )
-            .unwrap();
-
-        let res = test_routes.oneshot(req).await.unwrap();
-
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-
-        assert_eq!(
-            "No runner binary provided to perform the tests on. The field 'runner' is missing.",
-            String::from_utf8_lossy(
-                hyper::body::to_bytes(res.into_body())
+                let res = test_routes
+                    .oneshot(
+                        Request::builder()
+                            .method(Method::POST)
+                            .uri("/run")
+                            .header(header::CONTENT_TYPE, "application/json")
+                            .header(header::CONTENT_LENGTH, "0")
+                            .body(Body::empty())
+                            .unwrap(),
+                    )
                     .await
-                    .unwrap()
-                    .as_ref()
-            )
-        );
+                    .unwrap();
+
+                assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+            });
+        });
     }
 
-    #[tokio::test]
-    async fn test_endpoint_wrong_runner_field_data_type() {
-        let task_manager = Arc::new(TaskManager::new());
-        let test_routes = test_routes(DB.clone(), task_manager);
+    #[test]
+    fn test_endpoint_content_length() {
+        with_async_runtime(|rt| {
+            let runtime = rt.clone();
 
-        let mut form = Form::default();
+            rt.block_on(async {
+                let (task_manager, _) = TaskManager::new(DB.clone(), runtime);
+                let test_routes = test_routes(DB.clone(), task_manager);
 
-        let data = Cursor::new("Some data");
-
-        form.add_reader_file_with_mime("runner", data, "some_runner_file", mime::APPLICATION_JSON);
-
-        let req = form
-            .set_body_convert::<hyper::Body, MultipartBody>(
-                HyperRequest::builder().method(Method::POST).uri("/run"),
-            )
-            .unwrap();
-
-        let res = test_routes.oneshot(req).await.unwrap();
-
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
-
-        assert_eq!(
-            "Invalid file format provided for field 'runner'. Expecting binary executable.",
-            String::from_utf8_lossy(
-                hyper::body::to_bytes(res.into_body())
+                let res = test_routes
+                    .oneshot(
+                        Request::builder()
+                            .method(Method::POST)
+                            .uri("/run")
+                            .header(header::CONTENT_TYPE, "multipart/form-data")
+                            .header(header::CONTENT_LENGTH, "4000000000")
+                            .body(Body::from("a".repeat(800_001_000)))
+                            .unwrap(),
+                    )
                     .await
-                    .unwrap()
-                    .as_ref()
-            )
-        );
+                    .unwrap();
+
+                assert_eq!(res.status(), StatusCode::PAYLOAD_TOO_LARGE);
+            });
+        });
     }
 
-    #[tokio::test]
-    async fn test_endpoint_wrong_options_field_data_type() {
-        let task_manager = Arc::new(TaskManager::new());
-        let test_routes = test_routes(DB.clone(), task_manager);
+    #[test]
+    fn test_endpoint_unknown_field_name() {
+        with_async_runtime(|rt| {
+            let runtime = rt.clone();
 
-        let options = TestOptions { filter: None };
+            rt.block_on(async {
+                let (task_manager, _) = TaskManager::new(DB.clone(), runtime);
+                let test_routes = test_routes(DB.clone(), task_manager);
 
-        let mut form = Form::default();
+                let mut form = Form::default();
+                form.add_text("unknown", "some text");
 
-        let json = Cursor::new(serde_json::to_vec(&options).unwrap());
-        form.add_reader_file_with_mime(
-            "options",
-            json,
-            "options.json",
-            mime::APPLICATION_JAVASCRIPT,
-        );
+                let req = form
+                    .set_body_convert::<hyper::Body, MultipartBody>(
+                        HyperRequest::builder().method(Method::POST).uri("/run"),
+                    )
+                    .unwrap();
 
-        let data = Cursor::new("Some data");
+                let res = test_routes.oneshot(req).await.unwrap();
 
-        form.add_reader_file_with_mime(
-            "runner",
-            data,
-            "some_runner_file",
-            mime::APPLICATION_OCTET_STREAM,
-        );
+                assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
-        let req = form
-            .set_body_convert::<hyper::Body, MultipartBody>(
-                HyperRequest::builder().method(Method::POST).uri("/run"),
-            )
-            .unwrap();
+                assert_eq!(
+                    "Found unexpected field name: 'unknown'",
+                    String::from_utf8_lossy(
+                        hyper::body::to_bytes(res.into_body())
+                            .await
+                            .unwrap()
+                            .as_ref()
+                    )
+                );
+            });
+        });
+    }
 
-        let res = test_routes.oneshot(req).await.unwrap();
+    #[test]
+    fn test_endpoint_missing_runner_field() {
+        with_async_runtime(|rt| {
+            let runtime = rt.clone();
 
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+            rt.block_on(async {
+                let (task_manager, _) = TaskManager::new(DB.clone(), runtime);
+                let test_routes = test_routes(DB.clone(), task_manager);
 
-        assert_eq!(
-            "Invalid file format provided for field 'options'. Expecting json data.",
-            String::from_utf8_lossy(
-                hyper::body::to_bytes(res.into_body())
+                let options = TestOptions { filter: None };
+
+                let mut form = Form::default();
+
+                let json = Cursor::new(serde_json::to_vec(&options).unwrap());
+                form.add_reader_file_with_mime("options", json, "options.json", mime::APPLICATION_JSON);
+
+                let req = form
+                    .set_body_convert::<hyper::Body, MultipartBody>(
+                        HyperRequest::builder().method(Method::POST).uri("/run"),
+                    )
+                    .unwrap();
+
+                let res = test_routes.oneshot(req).await.unwrap();
+
+                assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+
+                assert_eq!(
+                    "No runner binary provided to perform the tests on. The field 'runner' is missing.",
+                    String::from_utf8_lossy(
+                        hyper::body::to_bytes(res.into_body())
+                            .await
+                            .unwrap()
+                            .as_ref()
+                    )
+                );
+            });
+        });
+    }
+
+    #[test]
+    fn test_endpoint_wrong_runner_field_data_type() {
+        with_async_runtime(|rt| {
+            let runtime = rt.clone();
+
+            rt.block_on(async {
+                let (task_manager, _) = TaskManager::new(DB.clone(), runtime);
+                let test_routes = test_routes(DB.clone(), task_manager);
+
+                let mut form = Form::default();
+
+                let data = Cursor::new("Some data");
+
+                form.add_reader_file_with_mime(
+                    "runner",
+                    data,
+                    "some_runner_file",
+                    mime::APPLICATION_JSON,
+                );
+
+                let req = form
+                    .set_body_convert::<hyper::Body, MultipartBody>(
+                        HyperRequest::builder().method(Method::POST).uri("/run"),
+                    )
+                    .unwrap();
+
+                let res = test_routes.oneshot(req).await.unwrap();
+
+                assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+
+                assert_eq!(
+                    "Invalid file format provided for field 'runner'. Expecting binary executable.",
+                    String::from_utf8_lossy(
+                        hyper::body::to_bytes(res.into_body())
+                            .await
+                            .unwrap()
+                            .as_ref()
+                    )
+                );
+            });
+        });
+    }
+
+    #[test]
+    fn test_endpoint_wrong_options_field_data_type() {
+        with_async_runtime(|rt| {
+            let runtime = rt.clone();
+
+            rt.block_on(async {
+                let (task_manager, _) = TaskManager::new(DB.clone(), runtime);
+                let test_routes = test_routes(DB.clone(), task_manager);
+
+                let options = TestOptions { filter: None };
+
+                let mut form = Form::default();
+
+                let json = Cursor::new(serde_json::to_vec(&options).unwrap());
+                form.add_reader_file_with_mime(
+                    "options",
+                    json,
+                    "options.json",
+                    mime::APPLICATION_JAVASCRIPT,
+                );
+
+                let data = Cursor::new("Some data");
+
+                form.add_reader_file_with_mime(
+                    "runner",
+                    data,
+                    "some_runner_file",
+                    mime::APPLICATION_OCTET_STREAM,
+                );
+
+                let req = form
+                    .set_body_convert::<hyper::Body, MultipartBody>(
+                        HyperRequest::builder().method(Method::POST).uri("/run"),
+                    )
+                    .unwrap();
+
+                let res = test_routes.oneshot(req).await.unwrap();
+
+                assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+
+                assert_eq!(
+                    "Invalid file format provided for field 'options'. Expecting json data.",
+                    String::from_utf8_lossy(
+                        hyper::body::to_bytes(res.into_body())
+                            .await
+                            .unwrap()
+                            .as_ref()
+                    )
+                );
+            });
+        });
+    }
+
+    #[test]
+    #[allow(dead_code)]
+    fn test_endpoint_correct() {
+        with_async_runtime(|rt| {
+            let runtime = rt.clone();
+
+            rt.block_on(async {
+                let (task_manager, task_scheduler) = TaskManager::new(DB.clone(), runtime);
+                let test_routes = test_routes(DB.clone(), task_manager.clone());
+
+                let mut form = Form::default();
+
+                let data = Cursor::new("Some data");
+
+                form.add_reader_file_with_mime(
+                    "runner",
+                    data,
+                    "some_runner_file",
+                    mime::APPLICATION_OCTET_STREAM,
+                );
+
+                let req = form
+                    .set_body_convert::<hyper::Body, MultipartBody>(
+                        HyperRequest::builder().method(Method::POST).uri("/run"),
+                    )
+                    .unwrap();
+
+                let res = test_routes.oneshot(req).await.unwrap();
+
+                assert_eq!(res.status(), StatusCode::OK);
+
+                let ws_ticket: String = serde_json::from_reader(
+                    hyper::body::to_bytes(res.into_body())
+                        .await
+                        .unwrap()
+                        .as_ref(),
+                )
+                .unwrap();
+
+                assert!(task_manager
+                    .validate_test_task_ticket(ws_ticket.into())
                     .await
-                    .unwrap()
-                    .as_ref()
-            )
-        );
+                    .is_ok());
+            });
+        });
     }
 
-    #[tokio::test]
-    async fn test_endpoint_correct() {
-        let task_manager = Arc::new(TaskManager::new());
-        let test_routes = test_routes(DB.clone(), task_manager.clone());
+    #[test]
+    fn test_endpoint_timed_out_ticket() {
+        with_async_runtime(|rt| {
+            let runtime = rt.clone();
 
-        let mut form = Form::default();
+            rt.block_on(async {
+                let (task_manager, _) = TaskManager::new(DB.clone(), runtime);
+                let test_routes = test_routes(DB.clone(), task_manager.clone());
 
-        let data = Cursor::new("Some data");
+                let mut form = Form::default();
 
-        form.add_reader_file_with_mime(
-            "runner",
-            data,
-            "some_runner_file",
-            mime::APPLICATION_OCTET_STREAM,
-        );
+                let data = Cursor::new("Some data");
 
-        let req = form
-            .set_body_convert::<hyper::Body, MultipartBody>(
-                HyperRequest::builder().method(Method::POST).uri("/run"),
-            )
-            .unwrap();
+                form.add_reader_file_with_mime(
+                    "runner",
+                    data,
+                    "some_runner_file",
+                    mime::APPLICATION_OCTET_STREAM,
+                );
 
-        let res = test_routes.oneshot(req).await.unwrap();
+                let req = form
+                    .set_body_convert::<hyper::Body, MultipartBody>(
+                        HyperRequest::builder().method(Method::POST).uri("/run"),
+                    )
+                    .unwrap();
 
-        assert_eq!(res.status(), StatusCode::OK);
+                let res = test_routes.oneshot(req).await.unwrap();
 
-        let ws_ticket: String = serde_json::from_reader(
-            hyper::body::to_bytes(res.into_body())
-                .await
-                .unwrap()
-                .as_ref(),
-        )
-        .unwrap();
+                assert_eq!(res.status(), StatusCode::OK);
 
-        assert!(task_manager
-            .validate_test_task_ticket(ws_ticket.into())
-            .await
-            .is_ok());
-    }
+                let ws_ticket: String = serde_json::from_reader(
+                    hyper::body::to_bytes(res.into_body())
+                        .await
+                        .unwrap()
+                        .as_ref(),
+                )
+                .unwrap();
 
-    #[tokio::test]
-    async fn test_endpoint_timed_out_ticket() {
-        let task_manager = Arc::new(TaskManager::new());
-        let test_routes = test_routes(DB.clone(), task_manager.clone());
+                // sleep until ws ticket should be invalid
+                tokio::time::sleep(Duration::from_secs(WS_CONNECT_TIMEOUT_SECS + 5)).await;
 
-        let mut form = Form::default();
-
-        let data = Cursor::new("Some data");
-
-        form.add_reader_file_with_mime(
-            "runner",
-            data,
-            "some_runner_file",
-            mime::APPLICATION_OCTET_STREAM,
-        );
-
-        let req = form
-            .set_body_convert::<hyper::Body, MultipartBody>(
-                HyperRequest::builder().method(Method::POST).uri("/run"),
-            )
-            .unwrap();
-
-        let res = test_routes.oneshot(req).await.unwrap();
-
-        assert_eq!(res.status(), StatusCode::OK);
-
-        let ws_ticket: String = serde_json::from_reader(
-            hyper::body::to_bytes(res.into_body())
-                .await
-                .unwrap()
-                .as_ref(),
-        )
-        .unwrap();
-
-        // sleep until ws ticket should be invalid
-        tokio::time::sleep(Duration::from_secs(WS_CONNECT_TIMEOUT_SECS + 5)).await;
-
-        assert!(task_manager
-            .validate_test_task_ticket(ws_ticket.into())
-            .await
-            .is_err());
+                assert!(task_manager
+                    .validate_test_task_ticket(ws_ticket.into())
+                    .await
+                    .is_err());
+            });
+        });
     }
 }

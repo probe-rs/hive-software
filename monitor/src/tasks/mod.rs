@@ -58,92 +58,49 @@
 //!
 //! The initial `test_cache` also has a limit of tasks which it can store which is defined by the [`TASK_CACHE_LIMIT`]. In case any test requests are done while this cache is full they are rejected.
 //!
-//! # [`TaskManager`] vs [`TaskRunner`]
-//! It is important to note that the [`TaskManager`] does not run any tasks. It only manages and queues them for the [`TaskRunner`] which executes the tasks and reports the results.
-use axum::body::Bytes;
+//! # [`TaskManager`] vs [`TaskScheduler`]
+//! It is important to note that the [`TaskManager`] does not run any tasks. It only manages and queues them for the [`TaskScheduler`] which executes the tasks and reports the results.
+use std::sync::Arc;
+
 use axum::response::IntoResponse;
 use cached::stores::TimedCache;
 use cached::Cached;
-use comm_types::test::{TaskRunnerMessage, TestOptions};
+use comm_types::test::TaskRunnerMessage;
 use hyper::StatusCode;
 use thiserror::Error;
+use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver, Sender as MpscSender};
-use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotSender};
-use tokio::sync::{Mutex as AsyncMutex, MutexGuard};
+use tokio::sync::Mutex as AsyncMutex;
 
+use crate::database::MonitorDb;
+
+use self::reinit_task::ReinitializationTask;
+use self::scheduler::TaskScheduler;
+use self::test_task::TestTask;
 use self::ws::WsTicket;
 
-pub mod runner;
+pub mod reinit_task;
+pub mod scheduler;
+pub mod test_task;
+mod util;
 pub mod ws;
-
-#[cfg(doc)]
-use runner::TaskRunner;
 
 /// How many tasks can wait for a WS connection simultaneously
 const TASK_CACHE_LIMIT: usize = 10;
 /// Duration until a cached test request is invalidated if no websocket for the corresponding [`TestTask`] has been created
 pub const WS_CONNECT_TIMEOUT_SECS: u64 = 30;
 
+/// Task trait
+pub trait Task {
+    /// Runs the task
+    fn run(self, runner: &mut TaskScheduler);
+}
+
 /// The possible task types the [`TaskManager`] can handle
 pub enum TaskType {
     TestTask(TestTask),
     ReinitTask(ReinitializationTask),
     Shutdown,
-}
-
-/// A test task which can be sent to a [`TaskManager`]
-#[derive(Debug)]
-pub struct TestTask {
-    /// This is a channel which is directly connected to the specific websocket handler of this task.
-    /// Therefore, anything which is sent into this channel is sent over the websocket to the requesting user
-    status_and_result_sender: Option<MpscSender<TaskRunnerMessage>>,
-    /// The WS ticket associated with this task
-    ws_ticket: Option<WsTicket>,
-    pub runner_binary: Bytes,
-    pub options: TestOptions,
-}
-
-impl TestTask {
-    pub fn new(runner_binary: Bytes, options: TestOptions) -> Self {
-        Self {
-            status_and_result_sender: None,
-            ws_ticket: None,
-            runner_binary,
-            options,
-        }
-    }
-
-    /// Generates a random websocket ticket and appends it to the struct and returns its value
-    pub fn generate_ws_ticket(&mut self) -> WsTicket {
-        let ticket = WsTicket::new();
-
-        self.ws_ticket = Some(ticket.clone());
-
-        ticket
-    }
-
-    /// Insert the provided sender as status and result sender for the [`TaskRunner`]
-    pub fn insert_status_and_result_sender(&mut self, sender: MpscSender<TaskRunnerMessage>) {
-        self.status_and_result_sender = Some(sender);
-    }
-}
-
-/// A hardware reinitialization task which can be sent to a [`TaskManager`]
-pub struct ReinitializationTask {
-    pub task_complete_sender: OneshotSender<Result<(), TaskManagerError>>,
-}
-
-impl ReinitializationTask {
-    pub fn new() -> (Self, OneshotReceiver<Result<(), TaskManagerError>>) {
-        let (task_complete_sender, task_complete_receiver) = oneshot::channel();
-
-        (
-            Self {
-                task_complete_sender,
-            },
-            task_complete_receiver,
-        )
-    }
 }
 
 #[derive(Debug, Error)]
@@ -177,29 +134,29 @@ impl IntoResponse for TaskManagerError {
 /// Manages all incoming tasks. For more info take a look at the module documentation.
 pub struct TaskManager {
     reinit_task_sender: MpscSender<ReinitializationTask>,
-    reinit_task_receiver: AsyncMutex<MpscReceiver<ReinitializationTask>>,
     /// The initial cache which contains all valid test requests which do not yet have a websocket connection
     test_cache: AsyncMutex<TimedCache<WsTicket, TestTask>>,
     // Test queue which contains all test that do have a valid websocket connection and are ready for testing
     valid_test_task_sender: MpscSender<TestTask>,
-    valid_test_task_receiver: AsyncMutex<MpscReceiver<TestTask>>,
 }
 
 impl TaskManager {
-    pub fn new() -> Self {
+    /// Creates a [`TaskManager`] and returns its corresponding [`TaskScheduler`] which can then be started by the application
+    pub fn new(db: Arc<MonitorDb>, runtime: Arc<Runtime>) -> (Arc<Self>, TaskScheduler) {
         let (valid_test_task_sender, valid_test_task_receiver) = mpsc::channel(TASK_CACHE_LIMIT);
         let (reinit_task_sender, reinit_task_receiver) = mpsc::channel(1);
 
-        Self {
-            reinit_task_sender,
-            reinit_task_receiver: AsyncMutex::new(reinit_task_receiver),
-            test_cache: AsyncMutex::new(TimedCache::with_lifespan_and_capacity(
-                WS_CONNECT_TIMEOUT_SECS,
-                TASK_CACHE_LIMIT,
-            )),
-            valid_test_task_sender,
-            valid_test_task_receiver: AsyncMutex::new(valid_test_task_receiver),
-        }
+        (
+            Arc::new(Self {
+                reinit_task_sender,
+                test_cache: AsyncMutex::new(TimedCache::with_lifespan_and_capacity(
+                    WS_CONNECT_TIMEOUT_SECS,
+                    TASK_CACHE_LIMIT,
+                )),
+                valid_test_task_sender,
+            }),
+            TaskScheduler::new(valid_test_task_receiver, reinit_task_receiver, runtime, db),
+        )
     }
 
     /// Attempts to register a new [`TestTask`] scheduled for execution. If successful, a [`WsTicket`] is returned, which should be sent back to the client
@@ -223,8 +180,8 @@ impl TaskManager {
         Ok(ticket)
     }
 
-    /// Attempts to validate the provided [`WsTicket`]. If validation succeeds the corresponding [`TestTask`] is moved from the `test_cache` into the end of the `valid_test_queue` where it will be processed by the [`TaskRunner`].
-    /// During processing the [`TaskRunner`] will send status messages and ultimately the test result to the Receiver which is returned by this function.
+    /// Attempts to validate the provided [`WsTicket`]. If validation succeeds the corresponding [`TestTask`] is moved from the `test_cache` into the end of the `valid_test_queue` where it will be processed by the [`TaskScheduler`].
+    /// During processing the [`TaskScheduler`] will send status messages and ultimately the test result to the Receiver which is returned by this function.
     ///
     /// This function can fail in case the client took longer than [`WS_CONNECT_TIMEOUT_SECS`] to connect the websocket after the test run request has been received.
     pub async fn validate_test_task_ticket(
@@ -267,17 +224,5 @@ impl TaskManager {
                 mpsc::error::TrySendError::Closed(_) => unreachable!(),
             }
         }
-    }
-
-    /// Get the test task receiver to asynchronously receive new test tasks
-    pub async fn get_test_task_receiver(&self) -> MutexGuard<'_, MpscReceiver<TestTask>> {
-        self.valid_test_task_receiver.lock().await
-    }
-
-    /// Get the reinit task receiver to asynchronously receive new reinit tasks
-    pub async fn get_reinit_task_receiver(
-        &self,
-    ) -> MutexGuard<'_, MpscReceiver<ReinitializationTask>> {
-        self.reinit_task_receiver.lock().await
     }
 }

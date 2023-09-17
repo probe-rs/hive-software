@@ -5,16 +5,10 @@ use std::thread;
 use tokio::runtime::Builder;
 
 use crate::database::MonitorDb;
-use crate::tasks::runner::TaskRunner;
 use crate::tasks::TaskManager;
 use crate::{flash, init, webserver, Args, HARDWARE};
 
-pub fn run_standalone_mode(
-    db: Arc<MonitorDb>,
-    task_manager: Arc<TaskManager>,
-    task_runner: TaskRunner,
-    cli_args: Arc<Args>,
-) {
+pub fn run_standalone_mode(db: Arc<MonitorDb>, cli_args: Arc<Args>) {
     init::check_uninit(db.clone());
 
     init::initialize_statics();
@@ -27,6 +21,7 @@ pub fn run_standalone_mode(
     flash::flash_testbinaries(db.clone(), &hardware);
     drop(hardware);
 
+    // Create async runtime
     let rt = Arc::new(
         Builder::new_current_thread()
             .enable_io()
@@ -35,10 +30,10 @@ pub fn run_standalone_mode(
             .unwrap(),
     );
 
-    let rt_async = rt.clone();
-    let task_manager_async = task_manager.clone();
+    let (task_manager, task_scheduler) = TaskManager::new(db.clone(), rt.clone());
+
     let async_tread = thread::spawn(move || {
-        rt_async.block_on(async {
+        rt.block_on(async {
             tokio::spawn(async {
                 tokio::signal::ctrl_c()
                     .await
@@ -46,11 +41,11 @@ pub fn run_standalone_mode(
                 crate::shutdown_application();
             });
 
-            webserver::web_server(db, task_manager_async, cli_args).await;
+            webserver::web_server(db, task_manager, cli_args).await;
         });
     });
 
-    task_runner.run(rt, &task_manager);
+    task_scheduler.run();
 
     // Wait for async thread to shutdown
     async_tread.join().unwrap();

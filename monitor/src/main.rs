@@ -138,15 +138,9 @@ fn main() {
 
     let db = Arc::new(MonitorDb::open());
 
-    let task_manager = Arc::new(tasks::TaskManager::new());
-
-    let task_runner = tasks::runner::TaskRunner::new(db.clone());
-
     match cli_args.mode {
         ApplicationMode::Init => mode::init::run_init_mode(db),
-        ApplicationMode::Standalone => {
-            mode::standalone::run_standalone_mode(db, task_manager, task_runner, cli_args)
-        }
+        ApplicationMode::Standalone => mode::standalone::run_standalone_mode(db, cli_args),
         ApplicationMode::ClusterSlave => todo!(),
         ApplicationMode::ClusterMaster => todo!(),
     }

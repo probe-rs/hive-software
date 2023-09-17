@@ -21,10 +21,9 @@ use tokio::sync::Mutex;
 use tower::ServiceBuilder;
 
 use crate::database::MonitorDb;
+use crate::tasks::scheduler::CURRENT_TEST_TASK_OPTIONS;
 use crate::testprogram::defines::DEFINE_REGISTRY;
 use crate::SHUTDOWN_SIGNAL;
-
-use super::CURRENT_TEST_TASK_OPTIONS;
 
 mod handlers;
 
@@ -65,7 +64,7 @@ impl connect_info::Connected<&UnixStream> for IpcConnectionInfo {
 }
 
 /// Starts the IPC server and listens for incoming connections
-pub(super) async fn ipc_server(db: Arc<MonitorDb>, test_result_sender: Sender<TestResults>) {
+pub async fn ipc_server(db: Arc<MonitorDb>, test_result_sender: Sender<TestResults>) {
     let socket_path = Path::new(SOCKET_PATH);
 
     init_socket_file(socket_path).await;
@@ -540,7 +539,7 @@ mod tests {
         let define_registry_message_bytes =
             encode_to_vec(&define_registry_message, config::standard()).unwrap();
 
-        if let IpcMessage::HiveDefineData(data) = data {
+        if let IpcMessage::HiveDefineData(_) = data {
             assert_eq!(bytes, define_registry_message_bytes);
         } else {
             panic!("Expected IpcMessage::HiveDefineData, but found {:?}", data);

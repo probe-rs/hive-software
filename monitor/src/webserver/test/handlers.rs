@@ -15,12 +15,10 @@ use hive_db::BincodeDb;
 use serde::{Deserialize, Serialize};
 use thiserror::Error as ThisError;
 
+use crate::database::{keys, MonitorDb};
+use crate::tasks::test_task::TestTask;
 use crate::tasks::ws::WsTicket;
 use crate::tasks::{ws, TaskManager, TaskManagerError};
-use crate::{
-    database::{keys, MonitorDb},
-    tasks::TestTask,
-};
 
 #[derive(Debug, ThisError)]
 pub(super) enum TestRequestError {
