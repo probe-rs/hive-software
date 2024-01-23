@@ -27,7 +27,7 @@ async-graphql-axum = "5.0"
 futures = "0.3"
 serde_json = { workspace = true }
 lazy_static = { workspace = true }
-shared-bus = { workspace = true }
+embedded-hal-bus = { workspace = true }
 rppal = { workspace = true, features = ["hal"] }
 sled = { workspace = true }
 serde = { workspace = true }

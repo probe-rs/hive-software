@@ -42,7 +42,6 @@ use hurdles::Barrier;
 use lazy_static::lazy_static;
 use log::Level;
 use rppal::i2c::I2c;
-use shared_bus::BusManager;
 use test::TEST_FUNCTIONS;
 use tokio::runtime::Builder;
 use tokio::sync::broadcast::{self, Sender as BroadcastSender};
@@ -64,13 +63,13 @@ const LOGFILE_PATH: &str = "./data/logs/runner.log";
 const MAX_LOGFILE_SIZE: u64 = 50_000_000; // 50MB
 
 lazy_static! {
-    static ref SHARED_I2C: &'static BusManager<Mutex<I2c>> = {
+    static ref I2C_BUS: Mutex<I2c> = {
         let i2c = I2c::new()
             .expect("Failed to acquire I2C bus. It might still be blocked by another process");
-        shared_bus::new_std!(I2c = i2c).unwrap()
+        Mutex::new(i2c)
     };
-    static ref EXPANDERS: [HiveIoExpander; MAX_TSS] = hardware::create_expanders(&SHARED_I2C);
-    static ref HARDWARE: HiveHardware = HiveHardware::new(&SHARED_I2C, &EXPANDERS);
+    static ref EXPANDERS: [HiveIoExpander; MAX_TSS] = hardware::create_expanders(&I2C_BUS);
+    static ref HARDWARE: HiveHardware = HiveHardware::new(&I2C_BUS, &EXPANDERS);
     /// Crate global shutdown signal to signal async threads to shutdown
     static ref SHUTDOWN_SIGNAL: BroadcastSender<()> = {
         let (sender, _) = broadcast::channel::<()>(1);

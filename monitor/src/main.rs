@@ -63,7 +63,6 @@ use controller::logger;
 use lazy_static::lazy_static;
 use log::Level;
 use rppal::i2c::I2c;
-use shared_bus::BusManager;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::sync::Mutex as AsyncMutex;
 
@@ -83,15 +82,15 @@ const LOGFILE_PATH: &str = "./data/logs/monitor.log";
 const MAX_LOGFILE_SIZE: u64 = 50_000_000; // 50MB
 
 lazy_static! {
-    static ref SHARED_I2C: &'static BusManager<Mutex<I2c>> = {
+    static ref I2C_BUS: Mutex<I2c> = {
         let i2c = I2c::new()
             .expect("Failed to acquire I2C bus. It might still be blocked by another process");
-        shared_bus::new_std!(I2c = i2c).unwrap()
+        Mutex::new(i2c)
     };
-    static ref EXPANDERS: [HiveIoExpander; MAX_TSS] = hardware::create_expanders(&SHARED_I2C);
+    static ref EXPANDERS: [HiveIoExpander; MAX_TSS] = hardware::create_expanders(&I2C_BUS);
     // HiveHardware is wrapped in a mutex in order to ensure that no hardware modifications are done concurrently (For example to avoid that the hardware is reinitialized in the monitor while the runner is running tests)
     static ref HARDWARE: Mutex<HiveHardware> =
-        Mutex::new(HiveHardware::new(&SHARED_I2C, &EXPANDERS));
+        Mutex::new(HiveHardware::new(&I2C_BUS, &EXPANDERS));
     /// Flag which is set to true if any data related to the testrack hardware has changed in the database
     static ref HARDWARE_DB_DATA_CHANGED: AsyncMutex<bool> = AsyncMutex::new(false);
     /// Flag which is set to true if the active testprogram has been changed

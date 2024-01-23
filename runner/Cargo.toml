@@ -8,19 +8,19 @@ description = "Hive test runner"
 readme = "README.md"
 
 [dependencies]
-controller = {path = "../controller/", features = ["runner"]}
-comm-types = {path = "../comm-types/", features = ["bincode", "ipc"]}
-hive-test = {path = "../hive-test/"}
-ll-api = {path = "../ll-api/"}
+controller = { path = "../controller/", features = ["runner"] }
+comm-types = { path = "../comm-types/", features = ["bincode", "ipc"] }
+hive-test = { path = "../hive-test/" }
+ll-api = { path = "../ll-api/" }
 log = { workspace = true }
 rppal = { workspace = true, features = ["hal"] }
-shared-bus = { workspace = true }
+embedded-hal-bus = { workspace = true }
 lazy_static = { workspace = true }
 inventory = { workspace = true }
-tokio = {workspace = true, features = ["rt", "sync", "macros"]}
+tokio = { workspace = true, features = ["rt", "sync", "macros"] }
 axum = { workspace = true }
 tower = { workspace = true }
-hyper = {workspace = true, features = ["client"]}
+hyper = { workspace = true, features = ["client"] }
 hurdles = "1.0"
 antidote = { workspace = true }
 tokio-retry = "0.3"

@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use comm_types::hardware::{Architecture, TargetState};
 use controller::hardware::{HardwareStatus, HiveHardware, TargetStackShield};
+use embedded_hal_bus::i2c::MutexDevice;
 use hive_db::{BincodeDb, BincodeTransactional};
 use probe_rs::config;
 use sled::transaction::UnabortableTransactionError;
@@ -13,13 +14,13 @@ use sled::transaction::UnabortableTransactionError;
 use crate::database::{keys, MonitorDb};
 use crate::testprogram::{Testprogram, DEFAULT_TESTPROGRAM_NAME, TESTPROGRAM_PATH};
 use crate::{database, testprogram};
-use crate::{EXPANDERS, HARDWARE, SHARED_I2C};
+use crate::{EXPANDERS, HARDWARE, I2C_BUS};
 
 #[cfg(doc)]
 use comm_types::hardware::TargetInfo;
 
 pub fn initialize_statics() {
-    lazy_static::initialize(&SHARED_I2C);
+    lazy_static::initialize(&I2C_BUS);
     lazy_static::initialize(&EXPANDERS);
     lazy_static::initialize(&HARDWARE);
 }
@@ -125,7 +126,7 @@ pub fn init_testprograms(db: Arc<MonitorDb>, hardware: &HiveHardware) {
 
 /// Detect all connected TSS and update DB data
 fn init_tss(db: Arc<MonitorDb>) {
-    let detected = TargetStackShield::detect_connected_tss(SHARED_I2C.acquire_i2c());
+    let detected = TargetStackShield::detect_connected_tss(MutexDevice::new(&I2C_BUS));
 
     let detected = detected.map(|e| e.is_some());
 

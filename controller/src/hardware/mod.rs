@@ -5,10 +5,10 @@ use comm_types::{
     hardware::ProbeState,
     ipc::{HiveProbeData, HiveTargetData},
 };
+use embedded_hal_bus::i2c::MutexDevice;
 use pca9535::{IoExpander, Pca9535Immediate};
 use rppal::i2c::I2c;
-use shared_bus::BusManager;
-use shared_bus::I2cProxy;
+
 use thiserror::Error;
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
@@ -35,7 +35,7 @@ pub const MAX_TSS: usize = 8;
 /// The max amount of targets a single daughterboard can contain
 pub const MAX_DAUGHTERBOARD_TARGETS: usize = 4;
 
-pub type ShareableI2c = I2cProxy<'static, Mutex<I2c>>;
+pub type ShareableI2c = MutexDevice<'static, I2c>;
 pub type HiveIoExpander =
     IoExpander<ShareableI2c, Pca9535Immediate<ShareableI2c>, Mutex<Pca9535Immediate<ShareableI2c>>>;
 
@@ -56,7 +56,7 @@ pub struct HiveHardware {
 
 impl HiveHardware {
     pub fn new(
-        i2c_bus: &'static BusManager<Mutex<I2c>>,
+        i2c_bus: &'static Mutex<I2c>,
         io_expander: &'static [HiveIoExpander; MAX_TSS],
     ) -> Self {
         Self {

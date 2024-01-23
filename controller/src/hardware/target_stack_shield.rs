@@ -2,10 +2,10 @@ use std::{cell::RefCell, error::Error, sync::Mutex};
 
 use comm_types::hardware::{TargetInfo, TargetState};
 use embedded_hal::i2c::I2c as HalI2c;
+use embedded_hal_bus::i2c::MutexDevice;
 use ll_api::TargetStackShield as Shield;
 use pca9535::Register;
 use rppal::i2c::I2c;
-use shared_bus::BusManagerStd;
 
 use super::{HiveIoExpander, ShareableI2c, MAX_DAUGHTERBOARD_TARGETS, MAX_TSS, PCA9535_BASE_ADDR};
 
@@ -18,10 +18,10 @@ pub struct TargetStackShield {
 impl TargetStackShield {
     /// Creates and returns all tss, and initializes the connected tss
     pub fn new(
-        i2c_bus: &'static BusManagerStd<I2c>,
+        i2c_bus: &'static Mutex<I2c>,
         io_expander: &'static [HiveIoExpander; MAX_TSS],
     ) -> [Option<Mutex<Self>>; MAX_TSS] {
-        let i2c: ShareableI2c = i2c_bus.acquire_i2c();
+        let i2c: ShareableI2c = MutexDevice::new(i2c_bus);
         let detected_tss = Self::detect_connected_tss(i2c);
 
         let mut created = [None, None, None, None, None, None, None, None];
