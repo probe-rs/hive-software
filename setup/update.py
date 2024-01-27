@@ -1,11 +1,10 @@
 import subprocess
-from turtle import color
 from semver import VersionInfo
 import requests
 from lxml import html
 from yaspin import yaspin
 
-HIVE_SOFTWARE_GITHUB_URL = "https://github.com/probe-rs/probe-rs/releases/latest"
+HIVE_SOFTWARE_GITHUB_URL = "https://github.com/probe-rs/hive-software/releases/latest"
 
 def check_version():
     """Check if the currently installed version is older than the newest version. If not this function terminates the program."""

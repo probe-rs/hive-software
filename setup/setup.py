@@ -1,10 +1,9 @@
-from re import sub
 import requests
 from yaspin import yaspin
 import subprocess
-import configparser
 import os
 import tarfile
+import grp
 
 import update
 
@@ -30,7 +29,7 @@ def setup_user(username: str, groupname: str, create: bool):
     if create:
         try:
             res = subprocess.run(
-                ["adduser",  "--system", username], check=True, capture_output=True)
+                ["adduser",  "--system", "--home", f"/home/{username}", username], check=True, capture_output=True)
             print(f"Successfully created Hive user '{username}'")
         except subprocess.CalledProcessError:
             reason = res.stderr.decode("utf-8", "ignore")
@@ -40,20 +39,20 @@ def setup_user(username: str, groupname: str, create: bool):
             print(f"Failed to create Hive user:  {e}")
             exit(1)
 
-    try:
-        res = subprocess.run(
-            ["usermod", "-G", f"{groupname},plugdev,i2c", username], check=True, capture_output=True)
-        print(f"Added groups to Hive user '{username}'")
-    except subprocess.CalledProcessError as e:
-        reason = res.stderr.decode("utf-8", "ignore")
-        print(f"Failed to add groups to Hive user '{username}': {reason}")
-        exit(1)
-    except Exception as e:
-        print(f"Failed to add groups to Hive user '{username}': {e}")
-        exit(1)
+        try:
+            res = subprocess.run(
+                ["usermod", "-G", f"{groupname},plugdev,i2c", username], check=True, capture_output=True)
+            print(f"Added groups to Hive user '{username}'")
+        except subprocess.CalledProcessError as e:
+            reason = res.stderr.decode("utf-8", "ignore")
+            print(f"Failed to add groups to Hive user '{username}': {reason}")
+            exit(1)
+        except Exception as e:
+            print(f"Failed to add groups to Hive user '{username}': {e}")
+            exit(1)
 
 
-HIVE_CONFIG_TOP_SEPARATOR = "# ==============Hive Configuration=============="
+HIVE_CONFIG_TOP_SEPARATOR =    "# ==================Hive Configuration================="
 HIVE_CONFIG_BOTTOM_SEPARATOR = "# ==============End of Hive Configuration=============="
 
 
@@ -63,7 +62,7 @@ def setup_hardware():
     try:
         res = subprocess.run(
             ["raspi-config", "nonint", "do_serial", "2"], check=True, capture_output=True)
-        print("Disabled Login shell via serial port, enabled serial port")
+        print("Disabled Login shell via serial port, enabled serial port") # TODO this line breaks the code and never returns as the script does run in interactive mode see this pr for a fix: (https://github.com/RPi-Distro/raspi-config/pull/224)
     except subprocess.CalledProcessError:
         reason = res.stderr.decode("utf-8", "ignore")
         print(
@@ -89,42 +88,46 @@ def setup_hardware():
 
     # Set I2C bus speed, disable bluetooth and enable UART interfaces
     try:
-        config_file = open("/boot/config.txt", "Wrt")
+        with open("./config.txt", "r+") as config_file:
+            file_lines = config_file.readlines()
 
-        file_lines = config_file.readlines()
+            try:
+                hive_config_top_separator_idx = file_lines.index(
+                    HIVE_CONFIG_TOP_SEPARATOR + "\n")
+                hive_config_bottom_separator_idx = file_lines.index(
+                    HIVE_CONFIG_BOTTOM_SEPARATOR + "\n")
+                print(
+                    "Found existing Hive configuration in '/boot/config.txt'. Overwriting...")
 
-        try:
-            hive_config_top_separator_idx = file_lines.index(
-                HIVE_CONFIG_TOP_SEPARATOR)
-            hive_config_bottom_separator_idx = file_lines.index(
-                HIVE_CONFIG_BOTTOM_SEPARATOR)
-            print(
-                "Found existing Hive configuration in '/boot/config.txt'. Overwriting...")
+                del_lines = hive_config_bottom_separator_idx - hive_config_top_separator_idx
+                file_lines = file_lines[:max(hive_config_bottom_separator_idx - del_lines - 1, 0)] + file_lines[hive_config_bottom_separator_idx + 1:]
+            except:
+                pass
 
-            file_lines = file_lines[:hive_config_top_separator_idx].extend(
-                file_lines[hive_config_bottom_separator_idx:])
-        except:
-            pass
+            # Add actual configuration file lines
+            hive_config = "\n".join([
+                "",
+                HIVE_CONFIG_TOP_SEPARATOR,
+                "[all]",
+                "dtparam=i2c_baudrate=400000",
+                "dtparam=disable-bt",
+                "dtoverlay=uart3",
+                "dtoverlay=uart0",
+                "dtoverlay=uart4",
+                "dtoverlay=uart5",
+                HIVE_CONFIG_BOTTOM_SEPARATOR,
+                ""
+            ])
 
-        # Add actual configuration file lines
-        file_lines.extend([
-            HIVE_CONFIG_TOP_SEPARATOR,
-            "[all]",
-            "dtparam=i2c_baudrate=400000",
-            "dtparam=disable-bt",
-            "dtoverlay=uart3",
-            "dtoverlay=uart0",
-            "dtoverlay=uart4",
-            "dtoverlay=uart5",
-            HIVE_CONFIG_BOTTOM_SEPARATOR
-        ])
+            file_string = "".join(file_lines) + hive_config
 
-        if len(file_lines) > 98:
-            print("WARNING: Config file '/boot/config.txt' contains more than 98 lines.\nIt is very likely that some hardware configuration beyond the 98th line is entirely ignored.\nPlease manually clean up your config file to avoid any misconfiguration.\nConsult https://www.raspberrypi.com/documentation/computers/config_txt.html#file-format for more info.")
+            if len(file_string.splitlines()) > 98:
+                print("WARNING: Config file '/boot/config.txt' contains more than 98 lines.\nIt is very likely that some hardware configuration beyond the 98th line is entirely ignored.\nPlease manually clean up your config file to avoid any misconfiguration.\nConsult https://www.raspberrypi.com/documentation/computers/config_txt.html#file-format for more info.")
 
-        config_file.write(file_lines)
+            config_file.seek(0)
+            config_file.write(file_string)
 
-        print("Disabled Bluetooth, enabled all required UART interfaces and set I2C speed to 400kHz")
+            print("Disabled Bluetooth, enabled all required UART interfaces and set I2C speed to 400kHz")
     except Exception as e:
         print(
             f"Failed to edit Raspberry Pi hardware configuration in '/boot/config.txt': {e}")
@@ -136,42 +139,48 @@ HIVE_RUNNER_BINARY = "./data/runner"
 ASSEMBLER_WORKSPACE = "./data/assembler_workspace"
 
 
-def setup_storage():
+def setup_storage(groupname: str):
     # Create all required tempfs RAM-Disks
     try:
-        fstab_file = open("/etc/fstab", "Wrt")
+        with open("/etc/fstab", "r+") as fstab_file:
+            file_lines = fstab_file.readlines()
 
-        file_lines = fstab_file.readlines()
+            try:
+                hive_config_top_separator_idx = file_lines.index(
+                    HIVE_CONFIG_TOP_SEPARATOR + "\n")
+                hive_config_bottom_separator_idx = file_lines.index(
+                    HIVE_CONFIG_BOTTOM_SEPARATOR + "\n")
+                print("Found existing Hive configuration in '/etc/fstab'. Overwriting...")
 
-        try:
-            hive_config_top_separator_idx = file_lines.index(
-                HIVE_CONFIG_TOP_SEPARATOR)
-            hive_config_bottom_separator_idx = file_lines.index(
-                HIVE_CONFIG_BOTTOM_SEPARATOR)
-            print("Found existing Hive configuration in '/etc/fstab'. Overwriting...")
+                del_lines = hive_config_bottom_separator_idx - hive_config_top_separator_idx
+                file_lines = file_lines[:max(hive_config_bottom_separator_idx - del_lines - 1, 0)] + file_lines[hive_config_bottom_separator_idx + 1:]
+            except:
+                pass
 
-            file_lines = file_lines[:hive_config_top_separator_idx].extend(
-                file_lines[hive_config_bottom_separator_idx:])
-        except:
-            pass
+            log_path = os.path.abspath("./data/logs")
+            runner_binary_path = os.path.abspath("./data/runner")
+            assembler_workspace_path = os.path.abspath(
+                "./data/assembler_workspace")
+            
+            hive_group_gid = grp.getgrnam(groupname).gr_gid
+            
+            # Add actual configuration file lines
+            hive_config = "\n".join([
+                "",
+                HIVE_CONFIG_TOP_SEPARATOR,
+                f"tmpfs {log_path} tmpfs nodev,nouser,gid={hive_group_gid},mode=775,noexec,noatime,rw,size=100M 0 0",
+                f"tmpfs {runner_binary_path} tmpfs nodev,nouser,gid={hive_group_gid},mode=774,exec,noatime,rw,size=400M 0 0",
+                f"tmpfs {assembler_workspace_path} tmpfs nodev,nouser,gid={hive_group_gid},mode=774,noexec,noatime,rw,size=10M 0 0",
+                HIVE_CONFIG_BOTTOM_SEPARATOR,
+                ""
+            ])
 
-        log_path = os.path.abspath("./data/logs")
-        runner_binary_path = os.path.abspath("./data/runner")
-        assembler_workspace_path = os.path.abspath(
-            "./data/assembler_workspace")
+            file_string = "".join(file_lines) + hive_config
 
-        # Add actual configuration file lines
-        file_lines.extend([
-            HIVE_CONFIG_TOP_SEPARATOR,
-            f"tmpfs {log_path} tmpfs nodev,nouser,gid=$hive_gid,mode=775,noexec,noatime,rw,size=100M 0 0",
-            f"tmpfs {runner_binary_path} tmpfs nodev,nouser,gid=$hive_gid,mode=774,exec,noatime,rw,size=400M 0 0",
-            f"tmpfs {assembler_workspace_path} tmpfs nodev,nouser,gid=$hive_gid,mode=774,noexec,noatime,rw,size=10M 0 0",
-            HIVE_CONFIG_BOTTOM_SEPARATOR
-        ])
+            fstab_file.seek(0)
+            fstab_file.write(file_string)
 
-        fstab_file.write(file_lines)
-
-        print("Created all RAM-Disks used for Hive")
+            print("Created all RAM-Disks used for Hive")
     except Exception as e:
         print(f"Failed to edit fstab configuration in '/etc/fstab': {e}")
         exit(1)
@@ -181,7 +190,7 @@ def setup_os():
     """Configures the OS for use as Hive Testrack. Overwrites any existing settings."""
     # Disable journal logging to flash. Instead log to tempfs
     try:
-        journal_config = open("/etc/systemd/journald.conf", "Wrt")
+        journal_config = open("/etc/systemd/journald.conf", "r+")
 
         lines = journal_config.readlines()
 
@@ -189,7 +198,8 @@ def setup_os():
             if line.startswith("#Storage=") or line.startswith("Storage="):
                 line = "Storage=volatile"
 
-        journal_config.write(lines)
+        journal_config.seek(0)
+        journal_config.write("".join(lines))
         print("Disabled journal logging to Flash. The journal is now located at tempfs '/run/log'")
     except Exception as e:
         print(f"Failed to configure journal logging: {e}")
@@ -242,7 +252,7 @@ def setup_monitor(create: bool):
 def setup_autostart(username: str, arm_toolchain_path: str, riscv_toolchain_path: str):
     """Sets up autostart functionality of Hive using systemd"""
     try:
-        hive_service_file = open("/etc/systemd/system/hive.service", "Wrt")
+        hive_service_file = open("/etc/systemd/system/hive.service", "w+")
 
         hive_service_file.write((
             "[Unit]\n"
@@ -250,7 +260,7 @@ def setup_autostart(username: str, arm_toolchain_path: str, riscv_toolchain_path
             "[Service]\n"
             "Type=simple\n"
             f"Environment=\"PATH={arm_toolchain_path}:{riscv_toolchain_path}:/usr/bin\"\n"
-            f"WorkingDirectory=/home/hive/\nExecStart=runuser -u {username} /home/hive/monitor\n"
+            f"WorkingDirectory=/home/hive/\nExecStart=runuser -u {username} /home/{username}/monitor\n"
             "Restart=on-failure\n"
             "RestartSec=30\n"
             "KillMode=mixed\n\n"

@@ -1,6 +1,5 @@
 import click
 import os
-from pathlib import Path
 
 # Submodules
 import update as update_routines
@@ -80,18 +79,21 @@ def update():
 
 def setup_hive(hive_user: str, hive_group: str, create: bool):
     """Run the whole setup process. If create is True attempts to create a new Hive install. If False attempts to update an existing install."""
-    setup_routines.setup_monitor(create=False)
-
-    setup_routines.setup_group(groupname=hive_group, create=False)
+    setup_routines.setup_group(groupname=hive_group, create=create)
 
     setup_routines.setup_user(
-        username=hive_user, groupname=hive_group, create=False)
+        username=hive_user, groupname=hive_group, create=create)
+    
+    # Set working dir to hive user base dir
+    os.chdir(f"/home/{hive_user}/")
+    
+    setup_routines.setup_monitor(create=create)
 
     setup_routines.setup_hardware()
 
     setup_routines.setup_os()
 
-    setup_routines.setup_storage()
+    setup_routines.setup_storage(groupname=hive_group)
 
     reboot_promt()
 

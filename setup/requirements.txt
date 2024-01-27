@@ -1,0 +1,5 @@
+click==8.0.3
+lxml==5.1.0
+Requests==2.31.0
+semver==3.0.2
+yaspin==3.0.1
