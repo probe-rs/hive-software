@@ -87,7 +87,7 @@ def setup_hive(hive_user: str, hive_group: str, create: bool):
     # Set working dir to hive user base dir
     os.chdir(f"/home/{hive_user}/")
     
-    setup_routines.setup_monitor(create=create)
+    setup_routines.setup_monitor(create=create, username=hive_user, groupname=hive_group)
 
     setup_routines.setup_hardware()
 

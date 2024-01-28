@@ -88,7 +88,7 @@ def setup_hardware():
 
     # Set I2C bus speed, disable bluetooth and enable UART interfaces
     try:
-        with open("./config.txt", "r+") as config_file:
+        with open("/boot/config.txt", "r+") as config_file:
             file_lines = config_file.readlines()
 
             try:
@@ -206,7 +206,7 @@ def setup_os():
         exit(1)
 
 
-def setup_monitor(create: bool):
+def setup_monitor(create: bool, username: str, groupname: str):
     """Downloads the Testserver data and installs it on the home directory of the Hive user"""
     # TODO: probably download tar archive to have filesystem already in place, need a different function for update runs then
 
@@ -233,6 +233,8 @@ def setup_monitor(create: bool):
 
                     tar.extract("./data/webserver/static/")
 
+                # Change ownership to hive user/group
+                subprocess.run(["chown", "-R", f"{username}:{groupname}"], check=True, capture_output=True)
                 os.remove("./data.tar.xz")
             except Exception as e:
                 print(f"Failed to extract downloaded tar archive: {e}")
