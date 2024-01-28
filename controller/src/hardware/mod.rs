@@ -13,9 +13,9 @@ use thiserror::Error;
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
 #[cfg(not(feature = "runner"))]
-use probe_rs::Probe;
+use probe_rs::Lister;
 #[cfg(feature = "runner")]
-use probe_rs_test::Probe;
+use probe_rs_test::Lister;
 
 mod expanders;
 mod probe;
@@ -103,7 +103,9 @@ impl HiveHardware {
             testchannel.remove_probe();
         }
 
-        let mut found_probes = Probe::list_all();
+        let probe_lister = Lister::new();
+
+        let mut found_probes = probe_lister.list_all();
         let mut data_desync = false;
 
         log::debug!(
@@ -131,7 +133,9 @@ impl HiveHardware {
                     let tss = self.testchannels[channel_idx].lock().unwrap();
 
                     let probe_info = found_probes.remove(found_probes_idx);
-                    let probe = probe_info.open().expect("TODO either skip probe or panic");
+                    let probe = probe_info
+                        .open(&probe_lister)
+                        .expect("TODO either skip probe or panic");
 
                     tss.bind_probe(probe, probe_info);
                     found_probe = true;

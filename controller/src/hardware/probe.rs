@@ -9,9 +9,9 @@ use thiserror::Error;
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
 #[cfg(not(feature = "runner"))]
-use probe_rs::{DebugProbeInfo, Permissions, Session};
+use probe_rs::{DebugProbeInfo, Lister, Permissions, Session};
 #[cfg(feature = "runner")]
-use probe_rs_test::{DebugProbeInfo, Permissions, Session};
+use probe_rs_test::{DebugProbeInfo, Lister, Permissions, Session};
 
 use super::CombinedTestChannel;
 
@@ -53,7 +53,8 @@ where
     }
 
     // Retry with attach under reset
-    let mut probe = probe_info.open()?;
+    let probe_lister = Lister::new();
+    let mut probe = probe_info.open(&probe_lister)?;
     let _ = probe.set_speed(DEBUG_PROBE_SPEED_HZ);
 
     match probe.attach_under_reset(&target_info.name, Permissions::new()) {

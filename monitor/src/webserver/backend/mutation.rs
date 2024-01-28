@@ -8,7 +8,7 @@ use async_graphql::{Context, Object, Result as GraphQlResult, Upload};
 use comm_types::auth::{DbUser, JwtClaims, Role};
 use comm_types::hardware::{ProbeInfo, ProbeState, TargetState};
 use hive_db::BincodeTransactional;
-use probe_rs::Probe;
+use probe_rs::Lister;
 use sled::transaction::{abort, TransactionError};
 use tower_cookies::Cookies;
 
@@ -107,7 +107,7 @@ impl BackendMutation {
                         ))?;
                     }
 
-                    let probes = Probe::list_all();
+                    let probes = Lister::new().list_all();
 
                     let mut probe_found = false;
 

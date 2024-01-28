@@ -173,6 +173,7 @@ fn init_target_info_from_registry(hardware: &HiveHardware) {
                                 let architecture = match probe_rs_target.architecture() {
                                     probe_rs::Architecture::Arm => Architecture::ARM,
                                     probe_rs::Architecture::Riscv => Architecture::RISCV,
+                                    probe_rs::Architecture::Xtensa => unreachable!("Hive does currently not support Xtensa targets. This is a bug, users should not be able to set Xtensa targets in the backend UI.")
                                 };
                                 target_info.architecture = Some(architecture);
 

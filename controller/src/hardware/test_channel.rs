@@ -8,9 +8,9 @@ use retry::{delay::Fixed, retry};
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
 #[cfg(not(feature = "runner"))]
-use probe_rs::{DebugProbeError, DebugProbeInfo, Probe};
+use probe_rs::{DebugProbeError, DebugProbeInfo, Lister, Probe};
 #[cfg(feature = "runner")]
-use probe_rs_test::{DebugProbeError, DebugProbeInfo, Probe};
+use probe_rs_test::{DebugProbeError, DebugProbeInfo, Lister, Probe};
 
 use super::{TargetStackShield, MAX_DAUGHTERBOARD_TARGETS};
 
@@ -81,7 +81,9 @@ impl CombinedTestChannel {
         let probe_info = self.probe_info.lock();
 
         if let Some(probe_info) = probe_info.as_ref() {
-            *self.probe.lock() = Some(probe_info.open()?);
+            let probe_lister = Lister::new();
+
+            *self.probe.lock() = Some(probe_info.open(&probe_lister)?);
         }
 
         Ok(())

@@ -11,8 +11,8 @@ use comm_types::auth::Role;
 use controller::logger::LogEntry;
 use hive_db::BincodeDb;
 use log::Level;
-use probe_rs::config::search_chips;
-use probe_rs::Probe;
+use probe_rs::config::{get_target_by_name, search_chips};
+use probe_rs::{Architecture, Lister};
 use rppal::system::DeviceInfo;
 
 use crate::database::{keys, MonitorDb};
@@ -112,7 +112,15 @@ impl BackendQuery {
             // We limit the max amount of returned targets to 30 in order to not send monster responses which could hang the frontend
             let mut chips = search_chips(search).unwrap();
             chips.truncate(30);
+
             chips
+                .into_iter()
+                .filter(|chip_name| match get_target_by_name(chip_name) {
+                    // TODO: Currently Hive does not support Xtensa architecture so we just filter those results out for now
+                    Ok(target) => target.architecture() != Architecture::Xtensa,
+                    Err(_) => false,
+                })
+                .collect()
         })
         .await
         .unwrap()
@@ -121,7 +129,8 @@ impl BackendQuery {
     /// The currently connected debug probes
     async fn connected_probes(&self) -> Vec<ProbeInfo> {
         tokio::task::spawn_blocking(|| {
-            Probe::list_all()
+            Lister::new()
+                .list_all()
                 .into_iter()
                 .map(|probe| probe.into())
                 .collect()
