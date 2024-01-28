@@ -41,11 +41,11 @@ pub(super) fn assemble_binary_arm(program_path: &Path) -> Result<(), BuildError>
 
 /// Try to assemble the provided testprogram for RISCV cores
 pub(super) fn assemble_binary_riscv(program_path: &Path) -> Result<(), BuildError> {
-    let assemble = Command::new("riscv-none-embed-as")
+    let assemble = Command::new("riscv-none-elf-as")
         .args(["main.S", "-o", "main.o"])
         .current_dir(program_path)
         .output()
-        .expect("Failed to run the RISCV assembly process, is the riscv-none-embed-as command accessible to the application?");
+        .expect("Failed to run the RISCV assembly process, is the riscv-none-elf-as command accessible to the application?");
 
     if !assemble.status.success() {
         let cause = if !assemble.stderr.is_empty() {
@@ -119,7 +119,7 @@ pub(super) fn link_binary_riscv(
         return Err(BuildError::ObjectFileNotFound);
     }
 
-    let link = Command::new("riscv-none-embed-ld")
+    let link = Command::new("riscv-none-elf-ld")
         .args([
             "main.o",
             "-o",
@@ -133,7 +133,7 @@ pub(super) fn link_binary_riscv(
         ])
         .current_dir(program_path)
         .output()
-        .expect("Failed to run the RISCV linking process, is the riscv-none-embed-ld command accessible to the application?");
+        .expect("Failed to run the RISCV linking process, is the riscv-none-elf-ld command accessible to the application?");
 
     if !link.status.success() {
         let cause = if !link.stderr.is_empty() {

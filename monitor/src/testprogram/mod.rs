@@ -300,10 +300,10 @@ impl TestprogramArchitecture {
                 .args(["-mthumb"])
                 .spawn()
                 .expect("Failed to run the ARM assembly process, is the arm-none-eabi-as command accessible to the application?"),
-            Architecture::Riscv => Command::new("riscv-none-embed-as").stdin(Stdio::piped())
+            Architecture::Riscv => Command::new("riscv-none-elf-as").stdin(Stdio::piped())
                 .current_dir(ASSEMBLER_TEMP_WORKSPACE_PATH)
                 .spawn()
-                .expect("Failed to run the RISCV assembly process, is the riscv-none-embed-as command accessible to the application?"),
+                .expect("Failed to run the RISCV assembly process, is the riscv-none-elf-as command accessible to the application?"),
         };
 
         assembler
