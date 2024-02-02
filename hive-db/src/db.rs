@@ -4,6 +4,7 @@ use bincode::serde::{decode_from_slice, encode_to_vec};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sled::transaction::{TransactionalTree, UnabortableTransactionError};
+use sled::{Error as SledError, Iter};
 use sled::{Result as SledResult, Tree};
 
 use crate::keys::Key;
@@ -40,6 +41,33 @@ pub trait BincodeTransactional {
     fn b_remove<T>(&self, key: &Key<T>) -> Result<Option<T>, UnabortableTransactionError>
     where
         T: Serialize + DeserializeOwned;
+}
+
+/// Functions which allow the DB to operate on bincode values (Serializing/Deserializing) on each DB iteration.
+pub trait BincodeIter {
+    fn b_values<T>(self) -> impl DoubleEndedIterator<Item = Result<T, SledError>> + Send + Sync
+    where
+        T: Serialize + DeserializeOwned;
+}
+
+impl BincodeIter for Iter {
+    fn b_values<T>(self) -> impl DoubleEndedIterator<Item = Result<T, SledError>> + Send + Sync
+    where
+        T: Serialize + DeserializeOwned,
+    {
+        self.values().map(|val| {
+            val.map(|val| {
+                let (val, _): (T, _) = decode_from_slice(val.as_ref(), config::standard())
+                    .unwrap_or_else(|err| {
+                        panic!(
+                            "Failed to deserialize the existing DB value to bincode: {}",
+                            err
+                        )
+                    });
+                val
+            })
+        })
+    }
 }
 
 impl BincodeDb for Tree {

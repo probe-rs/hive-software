@@ -84,7 +84,7 @@ mod tests {
         IVec, Tree,
     };
 
-    use crate::{BincodeDb, BincodeTransactional, HiveDb, Key};
+    use crate::{db::BincodeIter, BincodeDb, BincodeTransactional, HiveDb, Key};
 
     lazy_static! {
         static ref DB: HiveDb = HiveDb::open_test(100, 256);
@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn c_get() {
+    fn b_get() {
         let test_tree = DB.open_tree("test");
 
         let option = test_tree.b_get(&KEY).unwrap();
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn c_insert() {
+    fn b_insert() {
         let test_tree = DB.open_tree("test");
 
         let option = test_tree.b_insert(&KEY, &DATA).unwrap();
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn c_remove() {
+    fn b_remove() {
         let test_tree = DB.open_tree("test");
 
         let option = test_tree.b_remove(&KEY).unwrap();
@@ -166,6 +166,47 @@ mod tests {
         assert_eq!(option, Some(DATA.clone()));
 
         reset_test_tree(test_tree);
+    }
+
+    #[test]
+    #[serial]
+    fn b_values() {
+        let test_tree = DB.open_tree("test");
+
+        let key_1 = Key::<SerDeData>::new("key1");
+        let key_2 = Key::<SerDeData>::new("key2");
+        let key_3 = Key::<SerDeData>::new("key3");
+
+        let data_1 = SerDeData {
+            bool: true,
+            number: 1,
+            string: "key1".to_owned(),
+        };
+        let data_2 = SerDeData {
+            bool: true,
+            number: 2,
+            string: "key2".to_owned(),
+        };
+        let data_3 = SerDeData {
+            bool: true,
+            number: 3,
+            string: "key3".to_owned(),
+        };
+
+        test_tree.b_insert(&key_1, &data_1).unwrap();
+        test_tree.b_insert(&key_2, &data_2).unwrap();
+        test_tree.b_insert(&key_3, &data_3).unwrap();
+
+        let mut iterator = test_tree.iter().b_values::<SerDeData>();
+
+        assert_eq!(iterator.next().unwrap(), Ok(data_1));
+        assert_eq!(iterator.next().unwrap(), Ok(data_2));
+        assert_eq!(iterator.next().unwrap(), Ok(data_3));
+        assert_eq!(iterator.next(), None);
+
+        test_tree.b_remove(&key_1).unwrap();
+        test_tree.b_remove(&key_2).unwrap();
+        test_tree.b_remove(&key_3).unwrap();
     }
 
     #[test]

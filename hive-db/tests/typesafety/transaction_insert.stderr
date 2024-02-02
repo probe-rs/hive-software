@@ -7,3 +7,8 @@ error[E0308]: `?` operator has incompatible types
    = note: `?` operator cannot convert from `Option<u8>` to `Option<bool>`
    = note: expected enum `Option<bool>`
               found enum `Option<u8>`
+note: return type inferred to be `Option<bool>` here
+  --> tests/typesafety/transaction_insert.rs:15:38
+   |
+15 |         let previous: Option<bool> = tree.b_insert(&my_key, &correct_data)?;
+   |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
