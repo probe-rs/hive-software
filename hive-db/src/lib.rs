@@ -89,10 +89,10 @@ mod tests {
 
     lazy_static! {
         static ref DB: HiveDb = HiveDb::open_test(100, 256);
-        static ref KEY: Key<SerDeData> = Key::new("data");
-        static ref KEY_1: Key<SerDeData> = Key::new("key1");
-        static ref KEY_2: Key<SerDeData> = Key::new("key2");
-        static ref KEY_3: Key<SerDeData> = Key::new("key3");
+        static ref KEY: Key<'static, SerDeData> = Key::new("data");
+        static ref KEY_1: Key<'static, SerDeData> = Key::new("key1");
+        static ref KEY_2: Key<'static, SerDeData> = Key::new("key2");
+        static ref KEY_3: Key<'static, SerDeData> = Key::new("key3");
         static ref DATA: SerDeData = SerDeData {
             bool: false,
             number: 1873945,
