@@ -6,6 +6,7 @@ mod db;
 mod keys;
 
 pub use db::BincodeDb;
+pub use db::BincodeIter;
 pub use db::BincodeTransactional;
 pub use keys::Key;
 
