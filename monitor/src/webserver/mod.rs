@@ -34,6 +34,7 @@ use crate::database::MonitorDb;
 use crate::tasks::TaskManager;
 use crate::{Args, SHUTDOWN_SIGNAL};
 
+mod api_token;
 mod auth;
 mod backend;
 mod csrf;

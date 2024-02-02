@@ -75,6 +75,7 @@ impl TargetStackShield {
     /// # Data desync
     /// This function internally checks if a daughterboard is actually connected or not. In case the user input differs from the actually detected state on the hardware
     /// (For example if the user provides [`None`] but there is a daughterboard connected) this function fails with an [`Err`] and resets the targets field of the struct to the appropriate default value.
+    #[allow(clippy::result_unit_err)]
     pub fn set_targets(
         &mut self,
         targets: Option<[TargetState; MAX_DAUGHTERBOARD_TARGETS]>,

@@ -42,6 +42,7 @@
 use std::sync::Arc;
 
 use axum::extract::DefaultBodyLimit;
+use axum::middleware::{self};
 use axum::routing::{get, post};
 use axum::{Extension, Router};
 use axum_extra::routing::RouterExt;
@@ -50,6 +51,8 @@ use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::database::MonitorDb;
 use crate::tasks::TaskManager;
+
+use super::api_token::require_api_token;
 
 mod handlers;
 
@@ -70,7 +73,8 @@ pub(super) fn test_routes(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) ->
         .layer(
             ServiceBuilder::new()
                 .layer(Extension(db))
-                .layer(Extension(task_manager)),
+                .layer(Extension(task_manager))
+                .layer(middleware::from_fn(require_api_token)),
         )
 }
 
@@ -85,7 +89,8 @@ mod tests {
     use comm_types::hardware::{Capabilities, ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData};
     use comm_types::test::TestOptions;
-    use hive_db::BincodeDb;
+    use comm_types::token::{DbToken, TokenLifetime};
+    use hive_db::{BincodeDb, Key};
     use hyper::Request as HyperRequest;
     use lazy_static::lazy_static;
     use multipart::client::multipart::{Body as MultipartBody, Form};
@@ -94,6 +99,7 @@ mod tests {
 
     use crate::database::{keys, MonitorDb};
     use crate::tasks::{TaskManager, WS_CONNECT_TIMEOUT_SECS};
+    use crate::webserver::api_token::API_TOKEN_HEADER;
 
     use super::test_routes;
 
@@ -104,6 +110,8 @@ mod tests {
 
             db.config_tree.b_insert(&keys::config::ASSIGNED_PROBES, &PROBE_DATA).unwrap();
             db.config_tree.b_insert(&keys::config::ASSIGNED_TARGETS, &TARGET_DATA).unwrap();
+
+            db.token_tree.b_insert(&Key::<DbToken>::new(&API_TOKEN), &API_TOKEN_DATA).unwrap();
 
             Arc::new(db)
         };
@@ -215,6 +223,8 @@ mod tests {
             None,
             None,
         ];
+        static ref API_TOKEN: &'static str = "myValidApiToken";
+        static ref API_TOKEN_DATA: DbToken = DbToken { name: "Nice Token".to_owned(), description: "Nicer description".to_owned(), lifetime: TokenLifetime::Permanent };
     }
 
     fn with_async_runtime<Fn: FnOnce(Arc<Runtime>) -> ()>(function: Fn) {
@@ -239,6 +249,7 @@ mod tests {
                     .oneshot(
                         Request::builder()
                             .method(Method::GET)
+                            .header(API_TOKEN_HEADER, &API_TOKEN as &str)
                             .uri("/capabilities")
                             .body(Body::empty())
                             .unwrap(),
@@ -304,6 +315,7 @@ mod tests {
                     .oneshot(
                         Request::builder()
                             .method(Method::POST)
+                            .header(API_TOKEN_HEADER, &API_TOKEN as &str)
                             .uri("/run")
                             .header(header::CONTENT_TYPE, "application/json")
                             .header(header::CONTENT_LENGTH, "0")
@@ -331,6 +343,7 @@ mod tests {
                     .oneshot(
                         Request::builder()
                             .method(Method::POST)
+                            .header(API_TOKEN_HEADER, &API_TOKEN as &str)
                             .uri("/run")
                             .header(header::CONTENT_TYPE, "multipart/form-data")
                             .header(header::CONTENT_LENGTH, "4000000000")
@@ -359,7 +372,10 @@ mod tests {
 
                 let req = form
                     .set_body_convert::<hyper::Body, MultipartBody>(
-                        HyperRequest::builder().method(Method::POST).uri("/run"),
+                        HyperRequest::builder()
+                            .method(Method::POST)
+                            .header(API_TOKEN_HEADER, &API_TOKEN as &str)
+                            .uri("/run"),
                     )
                     .unwrap();
 
@@ -398,7 +414,7 @@ mod tests {
 
                 let req = form
                     .set_body_convert::<hyper::Body, MultipartBody>(
-                        HyperRequest::builder().method(Method::POST).uri("/run"),
+                        HyperRequest::builder().method(Method::POST).header(API_TOKEN_HEADER, &API_TOKEN as &str).uri("/run"),
                     )
                     .unwrap();
 
@@ -441,7 +457,10 @@ mod tests {
 
                 let req = form
                     .set_body_convert::<hyper::Body, MultipartBody>(
-                        HyperRequest::builder().method(Method::POST).uri("/run"),
+                        HyperRequest::builder()
+                            .method(Method::POST)
+                            .header(API_TOKEN_HEADER, &API_TOKEN as &str)
+                            .uri("/run"),
                     )
                     .unwrap();
 
@@ -494,7 +513,10 @@ mod tests {
 
                 let req = form
                     .set_body_convert::<hyper::Body, MultipartBody>(
-                        HyperRequest::builder().method(Method::POST).uri("/run"),
+                        HyperRequest::builder()
+                            .method(Method::POST)
+                            .header(API_TOKEN_HEADER, &API_TOKEN as &str)
+                            .uri("/run"),
                     )
                     .unwrap();
 
@@ -522,7 +544,7 @@ mod tests {
             let runtime = rt.clone();
 
             rt.block_on(async {
-                let (task_manager, task_scheduler) = TaskManager::new(DB.clone(), runtime);
+                let (task_manager, _task_scheduler) = TaskManager::new(DB.clone(), runtime);
                 let test_routes = test_routes(DB.clone(), task_manager.clone());
 
                 let mut form = Form::default();
@@ -538,7 +560,10 @@ mod tests {
 
                 let req = form
                     .set_body_convert::<hyper::Body, MultipartBody>(
-                        HyperRequest::builder().method(Method::POST).uri("/run"),
+                        HyperRequest::builder()
+                            .method(Method::POST)
+                            .header(API_TOKEN_HEADER, &API_TOKEN as &str)
+                            .uri("/run"),
                     )
                     .unwrap();
 
@@ -584,7 +609,10 @@ mod tests {
 
                 let req = form
                     .set_body_convert::<hyper::Body, MultipartBody>(
-                        HyperRequest::builder().method(Method::POST).uri("/run"),
+                        HyperRequest::builder()
+                            .method(Method::POST)
+                            .header(API_TOKEN_HEADER, &API_TOKEN as &str)
+                            .uri("/run"),
                     )
                     .unwrap();
 

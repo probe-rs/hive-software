@@ -5,15 +5,18 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use async_graphql::{Context, Object, Result as GraphQlResult, Upload};
+use chrono::{DateTime, Utc};
 use comm_types::auth::{DbUser, JwtClaims, Role};
 use comm_types::hardware::{ProbeInfo, ProbeState, TargetState};
-use hive_db::BincodeTransactional;
+use comm_types::token::{DbToken, TokenLifetime};
+use hive_db::{BincodeDb, BincodeIter, BincodeTransactional, Key};
 use probe_rs::Lister;
 use sled::transaction::{abort, TransactionError};
 use tower_cookies::Cookies;
 
 use crate::tasks::TaskManager;
 use crate::testprogram::{Testprogram, DEFAULT_TESTPROGRAM_NAME};
+use crate::webserver::api_token::generate_token;
 use crate::ACTIVE_TESTPROGRAM_CHANGED;
 use crate::{
     database::{hasher, keys, MonitorDb},
@@ -707,5 +710,84 @@ impl BackendMutation {
         *ACTIVE_TESTPROGRAM_CHANGED.lock().await = true;
 
         Ok(testprogram_name)
+    }
+
+    /// Creates a new test API token for use
+    async fn create_test_api_token<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+        name: String,
+        description: String,
+        expiration: Option<String>,
+    ) -> GraphQlResult<String> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+
+        // Check if token with this name already exists
+        for token in db.token_tree.iter().b_values::<DbToken>() {
+            let token = token.expect("Failed to retrieve API tokens from DB");
+
+            if token.name == name {
+                return Err(anyhow!("A token with this name already exists.").into());
+            }
+        }
+
+        let lifetime = match expiration {
+            Some(expiration_date) => {
+                let expiration_date: DateTime<Utc> = DateTime::parse_from_rfc3339(&expiration_date)
+                    .map(|dt| dt.into())
+                    .map_err(|err| anyhow!("Failed to parse provided expiration date. Make sure it is valid RFC3339: {err}"))?;
+
+                // Check if provided date has not expired already
+                if expiration_date <= chrono::offset::Utc::now() {
+                    return Err(anyhow!("Provided date lies in the past (already expired).").into());
+                }
+
+                TokenLifetime::Temporary(expiration_date)
+            }
+            None => TokenLifetime::Permanent,
+        };
+
+        let new_token_entry = DbToken {
+            name,
+            description,
+            lifetime,
+        };
+
+        let token = generate_token();
+
+        db.token_tree
+            .b_insert(&Key::new(&token), &new_token_entry)
+            .expect("Failed to insert API token data into DB");
+
+        Ok(token)
+    }
+
+    /// Revokes the test API token with the provided name
+    async fn revoke_test_api_token<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+        name: String,
+    ) -> GraphQlResult<String> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+
+        let mut token_to_delete: Option<String> = None;
+
+        // find token with name
+        for token in db.token_tree.b_iter::<DbToken>() {
+            let (token, token_data) = token.expect("Failed to retrieve API tokens from DB");
+
+            if token_data.name == name {
+                token_to_delete = Some(token);
+            }
+        }
+
+        db.token_tree
+            .remove(
+                token_to_delete
+                    .ok_or(anyhow!("Provided token with name {} does not exist", name))?,
+            )
+            .expect("Failed do delete token data from DB");
+
+        Ok(name)
     }
 }

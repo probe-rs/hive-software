@@ -20,6 +20,8 @@ pub struct MonitorDb {
     pub config_tree: Tree,
     /// DB Tree which stores user credentials and credential tokens
     pub credentials_tree: Tree,
+    /// DB Tree which stores the test API tokens
+    pub token_tree: Tree,
 }
 
 impl MonitorDb {
@@ -31,11 +33,13 @@ impl MonitorDb {
         let db = HiveDb::open(DB_PATH, FLUSH_INTERVAL_MS, CACHE_CAPACITY);
         let config_tree = db.open_tree("config");
         let credentials_tree = db.open_tree("credentials");
+        let token_tree = db.open_tree("tokens");
 
         Self {
             _db: db,
             config_tree,
             credentials_tree,
+            token_tree,
         }
     }
 
@@ -46,11 +50,13 @@ impl MonitorDb {
         let db = HiveDb::open_test(FLUSH_INTERVAL_MS, CACHE_CAPACITY);
         let config_tree = db.open_tree("config");
         let credentials_tree = db.open_tree("credentials");
+        let token_tree = db.open_tree("tokens");
 
         Self {
             _db: db,
             config_tree,
             credentials_tree,
+            token_tree,
         }
     }
 }

@@ -8,8 +8,9 @@ use std::{path::Path, sync::Arc};
 use anyhow::anyhow;
 use async_graphql::{Context, Object, Result as GrapqlResult};
 use comm_types::auth::Role;
+use comm_types::token::DbToken;
 use controller::logger::LogEntry;
-use hive_db::BincodeDb;
+use hive_db::{BincodeDb, BincodeIter};
 use log::Level;
 use probe_rs::config::{get_target_by_name, search_chips};
 use probe_rs::{Architecture, Lister};
@@ -19,8 +20,8 @@ use crate::database::{keys, MonitorDb};
 use crate::testprogram::Testprogram;
 
 use super::model::{
-    Application, FlatProbeState, FlatTargetState, FullTestProgramResponse, LogLevel, ProbeInfo,
-    SystemInfo, UserResponse,
+    ApiTokenInfo, Application, FlatProbeState, FlatTargetState, FullTestProgramResponse, LogLevel,
+    ProbeInfo, SystemInfo, UserResponse,
 };
 
 const RUNNER_LOGFILE_PATH: &str = "./data/logs/runner.log";
@@ -289,5 +290,16 @@ impl BackendQuery {
         })
         .await
         .unwrap()
+    }
+
+    /// Get all currently active test API tokens
+    async fn test_api_tokens<'ctx>(&self, ctx: &Context<'ctx>) -> Vec<ApiTokenInfo> {
+        let db = ctx.data::<Arc<MonitorDb>>().unwrap();
+
+        db.token_tree
+            .iter()
+            .b_values::<DbToken>()
+            .map(|e| e.expect("Failed to get token values from DB").into())
+            .collect()
     }
 }
