@@ -1,6 +1,14 @@
 //! Handles test API tokens which are a means to authorize a token holder to use the underlying API
 //!
 //! Only to be used to secure the test API. This token does not authenticate the user!
+//!
+//! # Security
+//! The tokens only act as a means to control access to the test API which is used to run tests on the Hive testrack.
+//! The tokens are currently stored in plain text inside the Hive DB. This is deemed sufficient for now as in case an attacker
+//! is able to obtain the DB they are likely able to cause much more damage to the system already than with the stolen API keys.
+//!
+//! In case this requirement changes there will still be the possibility to store the keys in hashed form (like the user passwords for example).
+//!
 
 use std::sync::Arc;
 
