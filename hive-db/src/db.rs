@@ -4,8 +4,7 @@ use bincode::serde::{decode_from_slice, encode_to_vec};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sled::transaction::{TransactionalTree, UnabortableTransactionError};
-use sled::{Error as SledError, Iter};
-use sled::{Result as SledResult, Tree};
+use sled::{Iter, Result as SledResult, Tree};
 
 use crate::keys::Key;
 
@@ -20,6 +19,10 @@ pub trait BincodeDb {
         T: Serialize + DeserializeOwned;
 
     fn b_remove<T>(&self, key: &Key<T>) -> SledResult<Option<T>>
+    where
+        T: Serialize + DeserializeOwned;
+
+    fn b_iter<T>(&self) -> impl Iterator<Item = SledResult<(String, T)>>
     where
         T: Serialize + DeserializeOwned;
 }
@@ -45,13 +48,19 @@ pub trait BincodeTransactional {
 
 /// Functions which allow the DB to operate on bincode values (Serializing/Deserializing) on each DB iteration.
 pub trait BincodeIter {
-    fn b_values<T>(self) -> impl DoubleEndedIterator<Item = Result<T, SledError>> + Send + Sync
+    fn b_values<T>(self) -> impl DoubleEndedIterator<Item = SledResult<T>> + Send + Sync
     where
         T: Serialize + DeserializeOwned;
+
+    fn b_keys(self) -> impl DoubleEndedIterator<Item = SledResult<String>> + Send + Sync;
 }
 
 impl BincodeIter for Iter {
-    fn b_values<T>(self) -> impl DoubleEndedIterator<Item = Result<T, SledError>> + Send + Sync
+    /// Like [`Iter::values()`] but deserializes the values from bincode
+    ///
+    /// # Panics
+    /// In case the data received from the DB cannot be deserialized to the expected data type.
+    fn b_values<T>(self) -> impl DoubleEndedIterator<Item = SledResult<T>> + Send + Sync
     where
         T: Serialize + DeserializeOwned,
     {
@@ -65,6 +74,20 @@ impl BincodeIter for Iter {
                         )
                     });
                 val
+            })
+        })
+    }
+
+    /// Like [`Iter::keys()`] but deserializes the keys to [`String`]
+    ///
+    /// # Panics
+    /// In case the keys received from the DB cannot be deserialized to UTF-8 [`String`].
+    fn b_keys(self) -> impl DoubleEndedIterator<Item = SledResult<String>> + Send + Sync {
+        self.keys().map(|key| {
+            key.map(|key| {
+                std::str::from_utf8(key.as_ref())
+                    .expect("Key received from DB could not be converted to UTF-8")
+                    .to_owned()
             })
         })
     }
@@ -99,7 +122,7 @@ impl BincodeDb for Tree {
         Ok(None)
     }
 
-    /// Like [`Tree::get()`], but deserializes the value to bincode
+    /// Like [`Tree::get()`], but deserializes the value from bincode
     ///
     /// # Panics
     /// In case the data received from the DB cannot be deserialized to the expected data type of the key.
@@ -120,7 +143,7 @@ impl BincodeDb for Tree {
         Ok(None)
     }
 
-    /// Like [`Tree::remove()`], but deserializes the value to bincode
+    /// Like [`Tree::remove()`], but deserializes the value from bincode
     ///
     /// # Panics
     /// In case the data received from the DB cannot be deserialized to the expected data type of the key.
@@ -139,6 +162,34 @@ impl BincodeDb for Tree {
         }
 
         Ok(None)
+    }
+
+    /// Like [`Tree::iter()`], but deserializes the key to [`String`] and the value from bincode
+    ///
+    /// # Panics
+    /// In case the data received from the DB cannot be deserialized to the expected data type of the key.
+    /// In case the keys received from the DB cannot be deserialized into UTF-8 [`String`]
+    fn b_iter<T>(&self) -> impl Iterator<Item = SledResult<(String, T)>>
+    where
+        T: Serialize + DeserializeOwned,
+    {
+        self.iter().map(|val| {
+            val.map(|(key, val)| {
+                let (val, _): (T, _) = decode_from_slice(val.as_ref(), config::standard())
+                    .unwrap_or_else(|err| {
+                        panic!(
+                            "Failed to deserialize the existing DB value to bincode: {}",
+                            err
+                        )
+                    });
+
+                let key = std::str::from_utf8(key.as_ref())
+                    .expect("Key received from DB could not be converted to UTF-8")
+                    .to_owned();
+
+                (key, val)
+            })
+        })
     }
 }
 
