@@ -19,10 +19,15 @@ const menu = [
     minRole: "ADMIN",
   },
   {
+    title: "API Tokens",
+    icon: "mdi-key-variant",
+    url: "/api-tokens"
+  },
+  {
     title: "Logs",
     icon: "mdi-console",
     url: "/logs",
-  },
+  }
 ];
 
 // This is wrong and not reactive, use computed instead to modify base data
