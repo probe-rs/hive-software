@@ -93,7 +93,7 @@ const { mutate: revokeTokenMutation, onDone: onRevokeDone } = useMutation<
 
       cache.writeQuery({ query: QUERY, data: cacheData });
     },
-  }
+  },
 );
 
 const tokenRevokeSuccess = ref(false);

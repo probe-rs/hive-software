@@ -92,7 +92,7 @@ const { mutate: createToken, onDone: onCreateDone } = useMutation(
 
       cache.writeQuery({ query: QUERY, data });
     },
-  }
+  },
 );
 
 function addToken() {
