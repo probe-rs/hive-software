@@ -716,7 +716,7 @@ impl BackendMutation {
     async fn create_test_api_token<'ctx>(
         &self,
         ctx: &Context<'ctx>,
-        name: String,
+        #[graphql(validator(chars_min_length = 4))] name: String,
         description: String,
         expiration: Option<String>,
     ) -> GraphQlResult<String> {
