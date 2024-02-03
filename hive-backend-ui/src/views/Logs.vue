@@ -4,7 +4,7 @@ import Terminal from "@/components/Terminal.vue";
 import { useQuery } from "@vue/apollo-composable";
 import gql from "graphql-tag";
 import type { BackendQuery } from "@/gql/backend";
-import c from "ansi-colors"
+import c from "ansi-colors";
 
 enum LogLevel {
   ERROR = "ERROR",
@@ -21,11 +21,11 @@ const logLevels = [
 ];
 
 type LogEntry = {
-  timestamp: string,
-  level: string,
-  module: string,
-  message: string,
-}
+  timestamp: string;
+  level: string;
+  module: string;
+  message: string;
+};
 
 const selectedLogLevel: Ref<LogLevel> = ref(LogLevel.INFO);
 const selectedApplication = ref(0);
@@ -77,11 +77,11 @@ const terminalText = computed<string>(() => {
           case LogLevel.DEBUG:
             return c.magenta(c.bold("debug:"));
           default:
-            return ""
+            return "";
         }
       })();
 
-      text += (`${logEntry.timestamp} ${logLevelColored} ${c.italic(logEntry.module)} ${logEntry.message}\n`);
+      text += `${logEntry.timestamp} ${logLevelColored} ${c.italic(logEntry.module)} ${logEntry.message}\n`;
     });
 
     return text;
@@ -126,11 +126,16 @@ function exportLog() {
     <v-spacer />
 
     <v-btn>
-      Level: {{  selectedLogLevel  }}
+      Level: {{ selectedLogLevel }}
       <v-menu activator="parent">
         <v-list>
-          <v-list-item v-for="level in logLevels" :key="level" :value="level" @click="selectedLogLevel = level">
-            <v-list-item-title>{{  level  }}</v-list-item-title>
+          <v-list-item
+            v-for="level in logLevels"
+            :key="level"
+            :value="level"
+            @click="selectedLogLevel = level"
+          >
+            <v-list-item-title>{{ level }}</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>

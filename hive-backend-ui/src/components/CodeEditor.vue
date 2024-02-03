@@ -5,7 +5,7 @@ import { VAceEditor } from "vue3-ace-editor";
 import "ace-builds/src-noconflict/mode-assembly_x86";
 import "ace-builds/src-noconflict/theme-dracula";
 import "ace-builds/src-noconflict/theme-kuroir";
-import { computed, toRefs } from "@vue/reactivity";
+import { computed, toRefs } from "vue";
 import { useAppConfig } from "@/stores/appConfig";
 import { AppTheme } from "@/plugins/vuetify";
 

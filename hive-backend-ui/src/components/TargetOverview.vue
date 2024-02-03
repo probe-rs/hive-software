@@ -8,10 +8,10 @@ import {
   type FlatTargetState,
 } from "@/gql/backend";
 
-import { ref, defineProps, watch, type PropType } from "vue";
+import { ref, watch, type PropType } from "vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import { gql } from "@apollo/client/core";
-import { computed, toRefs } from "@vue/reactivity";
+import { computed, toRefs } from "vue";
 import { cloneDeep } from "@apollo/client/utilities";
 
 const props = defineProps({

@@ -79,7 +79,7 @@ const errorLink = onError((error) => {
     return;
   }
 
-  if (process.env.NODE_ENV !== "production") {
+  if (import.meta.env.PROD) {
     logErrorMessages(error);
   }
 
@@ -98,7 +98,7 @@ const errorLink = onError((error) => {
 
 // Auth error handler
 const authErrorLink = onError((error) => {
-  if (process.env.NODE_ENV !== "production") {
+  if (import.meta.env.PROD) {
     logErrorMessages(error);
   }
 });

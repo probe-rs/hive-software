@@ -11,7 +11,7 @@ import {
   type FullTestProgramResponse,
 } from "@/gql/backend";
 import { useMutation, useQuery } from "@vue/apollo-composable";
-import { computed, ref, toRefs } from "@vue/reactivity";
+import { computed, ref, toRefs } from "vue";
 import gql from "graphql-tag";
 import { watch, type PropType } from "vue";
 import * as base64 from "base-64";

@@ -2,17 +2,20 @@
 import { RouterView, useRoute } from "vue-router";
 import { useAppConfig } from "@/stores/appConfig";
 import MenuFrame from "./components/MenuFrame.vue";
-import { computed } from "@vue/reactivity";
+import { computed } from "vue";
 import { provide } from "vue";
 import { ApolloClients } from "@vue/apollo-composable";
 import { apolloClient, authApolloClient } from "./plugins/apollo";
+import { watch } from "vue";
+import { removeFragmentSpreadFromDocument } from "@apollo/client/utilities";
 
 provide(ApolloClients, { default: apolloClient, auth: authApolloClient });
 
 const appConfig = useAppConfig();
+const route = useRoute();
 
 const currentRoute = computed(() => {
-  return useRoute().name;
+  return route.name;
 });
 </script>
 

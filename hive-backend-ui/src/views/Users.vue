@@ -126,39 +126,70 @@ function addUser() {
           </tr>
         </thead>
         <tbody>
-          <User v-for="(user, idx) in users" :username="user.username" :role="user.role" :key="`user-${idx}`" />
+          <User
+            v-for="(user, idx) in users"
+            :username="user.username"
+            :role="user.role"
+            :key="`user-${idx}`"
+          />
         </tbody>
       </v-table>
       <v-progress-linear v-else indeterminate color="secondary" />
     </v-col>
   </v-row>
 
-  <v-dialog v-model="addUserDialog" persistent max-width="800px" transition="dialog-top-transition">
+  <v-dialog
+    v-model="addUserDialog"
+    persistent
+    max-width="800px"
+    transition="dialog-top-transition"
+  >
     <v-card style="min-width: 50vw">
       <v-card-title class="text-h5 grey lighten-2"> Add User </v-card-title>
 
       <v-card-text>
         <v-form>
-          <v-text-field v-model="newUsername" label="Username" variant="underlined" density="compact" />
-          <v-select v-model="newUserRole" label="Role" variant="underlined" :items="roles"></v-select>
+          <v-text-field
+            v-model="newUsername"
+            label="Username"
+            variant="underlined"
+            density="compact"
+          />
+          <v-select
+            v-model="newUserRole"
+            label="Role"
+            variant="underlined"
+            :items="roles"
+          ></v-select>
         </v-form>
       </v-card-text>
 
       <v-divider></v-divider>
 
       <v-card-actions>
-        <v-btn color="error" variant="text" @click="closeAddUserDialog"> Cancel </v-btn>
+        <v-btn color="error" variant="text" @click="closeAddUserDialog">
+          Cancel
+        </v-btn>
         <v-spacer></v-spacer>
-        <v-btn color="success" variant="text" @click="addUser"> Create new user </v-btn>
+        <v-btn color="success" variant="text" @click="addUser">
+          Create new user
+        </v-btn>
       </v-card-actions>
 
       <!--Replace with loading save and exit button once available in vuetify-->
-      <v-overlay v-model="loading" contained class="align-center justify-center">
+      <v-overlay
+        v-model="loading"
+        contained
+        class="align-center justify-center"
+      >
         <v-progress-circular size="80" color="secondary" indeterminate />
       </v-overlay>
     </v-card>
   </v-dialog>
 
-  <SuccessSnackbar :isSuccess="addUserSuccess" @closeEvent="addUserSuccess = false"
-    message="Successfully added new user, the generated password has been copied to clipboard." />
+  <SuccessSnackbar
+    :isSuccess="addUserSuccess"
+    @closeEvent="addUserSuccess = false"
+    message="Successfully added new user, the generated password has been copied to clipboard."
+  />
 </template>

@@ -5,7 +5,7 @@ import type {
 } from "@/gql/backendAuth";
 
 import { useLazyQuery } from "@vue/apollo-composable";
-import { computed } from "@vue/reactivity";
+import { computed } from "vue";
 import gql from "graphql-tag";
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
