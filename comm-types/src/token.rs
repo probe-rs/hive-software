@@ -2,6 +2,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+/// Header key value for the API token
+pub const API_TOKEN_HEADER: &str = "Authorization";
+
 /// Lifetime of a token
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum TokenLifetime {

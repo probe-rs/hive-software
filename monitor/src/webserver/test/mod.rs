@@ -89,7 +89,7 @@ mod tests {
     use comm_types::hardware::{Capabilities, ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData};
     use comm_types::test::TestOptions;
-    use comm_types::token::{DbToken, TokenLifetime};
+    use comm_types::token::{DbToken, TokenLifetime, API_TOKEN_HEADER};
     use hive_db::{BincodeDb, Key};
     use hyper::Request as HyperRequest;
     use lazy_static::lazy_static;
@@ -99,7 +99,6 @@ mod tests {
 
     use crate::database::{keys, MonitorDb};
     use crate::tasks::{TaskManager, WS_CONNECT_TIMEOUT_SECS};
-    use crate::webserver::api_token::API_TOKEN_HEADER;
 
     use super::test_routes;
 

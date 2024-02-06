@@ -7,7 +7,8 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::config::HiveConfig;
 use crate::models::Host;
-use crate::{client, validate, CliArgs};
+use crate::request::{client, send_request};
+use crate::{validate, CliArgs};
 
 pub mod connect;
 pub mod list;
@@ -17,18 +18,35 @@ pub mod test;
 ///
 /// # Error
 /// Returns an error in case the connection cannot be established or fails. Or the response contains unexpected data.
-fn get_testserver_capabilities(address: &Host, accept_invalid_certs: bool) -> Result<Capabilities> {
+fn get_testserver_capabilities(
+    accept_invalid_certs: bool,
+    hive_config: &HiveConfig,
+    cli_args: &CliArgs,
+) -> Result<Capabilities> {
     let client = client::get_http_client(accept_invalid_certs);
 
-    client.get(format!("{}/test/capabilities", address.as_https_url())).send()
-        .map_err(|err| {
-            anyhow!(
-            "Failed to connect to provided testserver. Is the address '{}' correct?\nCaused by: {}",
-            address.as_https_url(),
-            err
+    let response = send_request(
+        client.get(format!(
+            "{}/test/capabilities",
+            hive_config
+                .testserver
+                .as_ref()
+                .expect("Testserver not defined in config. This is a bug, please file an issue.")
+                .as_https_url()
+        )),
+        hive_config,
+        cli_args,
+    )?;
+
+    if !response.status().is_success() {
+        bail!(
+            "Recieved error status from server: {} {}",
+            response.status(),
+            String::from_utf8_lossy(&response.bytes()?)
         )
-        })?
-        .json()
+    }
+
+    response.json()
         .map_err(|err| anyhow!("Testserver response contained unexpected data. Is it up to date and really a testerver?\n Caused by: {}", err))
 }
 
@@ -58,10 +76,10 @@ fn show_testserver_prompt_if_none(config: &mut HiveConfig, cli_args: &CliArgs) -
             .unwrap()
             .into();
 
-        // We check if the provided host sends a response and is a testserver
-        get_testserver_capabilities(&host, cli_args.accept_invalid_certs)?;
-
         config.testserver = Some(host);
+
+        // We check if the provided host sends a response and is a testserver
+        get_testserver_capabilities(cli_args.accept_invalid_certs, config, cli_args)?;
 
         config.save_config()?;
     }

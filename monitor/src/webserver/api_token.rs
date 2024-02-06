@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use comm_types::token::{DbToken, TokenLifetime};
+use comm_types::token::{DbToken, TokenLifetime, API_TOKEN_HEADER};
 use hive_db::{BincodeTransactional, Key};
 use hyper::{Request, StatusCode};
 use rand::distributions::Alphanumeric;
@@ -26,7 +26,6 @@ use thiserror::Error;
 
 use crate::database::MonitorDb;
 
-pub(super) const API_TOKEN_HEADER: &str = "Authorization";
 const API_TOKEN_LENGTH: usize = 64;
 
 #[derive(Debug, Error)]

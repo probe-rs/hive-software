@@ -15,8 +15,9 @@ use prettytable::{cell, format, row, Table};
 use reqwest::blocking::multipart::{Form, Part};
 use tungstenite::Message;
 
-use crate::client::{get_http_client, get_ws_client};
 use crate::config::HiveConfig;
+use crate::request::client::{get_http_client, get_ws_client};
+use crate::request::send_request;
 use crate::{workspace, Test};
 use crate::{CliArgs, Commands};
 
@@ -84,21 +85,23 @@ pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
             false => Form::new().part("runner", fileupload),
         };
 
-        let response = client
-            .post(format!(
-                "{}/test/run",
-                config.testserver.as_ref().unwrap().as_https_url()
-            ))
-            .multipart(form)
-            .timeout(Duration::from_secs(300))
-            .send()
-            .map_err(|err| {
-                anyhow!(
-                    "Failed to send test request to testserver. Status: {:?}\nCaused by: {}",
-                    err.status(),
-                    err
-                )
-            })?;
+        let response = send_request(
+            client
+                .post(format!(
+                    "{}/test/run",
+                    config.testserver.as_ref().unwrap().as_https_url()
+                ))
+                .multipart(form)
+                .timeout(Duration::from_secs(300)),
+            &config,
+            &cli_args,
+        )
+        .map_err(|err| {
+            anyhow!(
+                "Failed to send test request to testserver. Caused by: {}",
+                err
+            )
+        })?;
 
         progress.set_message("Connecting websocket...");
         let ws_ticket: String = response.json().map_err(|err| anyhow!("Failed to deserialize received testserver response. This Hive CLI version might not be compatible with the connected testserver.\n\nCaused by: {}", err))?;

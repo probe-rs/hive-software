@@ -8,7 +8,11 @@ description = "Hive cli which allows testing of probe-rs code directly in the te
 readme = "README.md"
 
 [dependencies]
-comm-types = { path = "../comm-types/", features = ["test", "hardware"] }
+comm-types = { path = "../comm-types/", features = [
+    "test",
+    "hardware",
+    "token",
+] }
 clap = { workspace = true, features = ["derive", "color", "suggestions"] }
 clap-verbosity-flag = { workspace = true }
 colored = { workspace = true }
@@ -37,3 +41,4 @@ fs_extra = "1.2"
 thiserror = { workspace = true }
 toml = "0.5"
 git2 = "0.14"
+keyring = "2.3"
