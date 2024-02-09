@@ -11,6 +11,11 @@ mod query;
 pub(super) type BackendSchema =
     Schema<query::BackendQuery, mutation::BackendMutation, EmptySubscription>;
 
+/// Gets the schema as SDL definition
+pub fn get_schema_sdl() -> String {
+    build_schema().sdl()
+}
+
 pub(super) fn build_schema() -> BackendSchema {
     Schema::build(
         query::BackendQuery,

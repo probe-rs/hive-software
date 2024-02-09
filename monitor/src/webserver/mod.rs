@@ -41,6 +41,8 @@ mod csrf;
 mod handlers;
 mod test;
 
+pub use backend::get_schema_sdl;
+
 const STATIC_FILES: &str = "data/webserver/static/";
 const PEM_CERT: &str = "data/webserver/cert/cert.pem";
 const PEM_KEY: &str = "data/webserver/cert/key.pem";
