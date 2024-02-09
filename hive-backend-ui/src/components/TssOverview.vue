@@ -1,17 +1,12 @@
 <script setup lang="ts">
-import {
-  type BackendMutation,
-  type BackendQuery,
-  ResultEnum,
-} from "@/gql/backend";
-
 import TargetOverview from "@/components/TargetOverview.vue";
 import { useAppConfig } from "@/stores/appConfig";
 import { computed, ref, toRefs } from "vue";
 import { AppTheme } from "@/plugins/vuetify";
 import SuccessSnackbar from "@/components/SuccessSnackbar.vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
-import gql from "graphql-tag";
+import { gql } from "@/gql-schema";
+import { ResultEnum } from "@/gql-schema/graphql";
 
 // Assets
 import ferrisGesture from "@/assets/ferris/rustacean-flat-gesture.svg";
@@ -24,8 +19,9 @@ const props = defineProps({
 
 const { tssPos } = toRefs(props);
 
-const { loading, result, refetch } = useQuery<BackendQuery>(gql`
-  query {
+const { loading, result, refetch } = useQuery(
+  gql(`
+  query AssignedTargets {
     assignedTargets {
       state
       data {
@@ -35,19 +31,20 @@ const { loading, result, refetch } = useQuery<BackendQuery>(gql`
       }
     }
   }
-`);
+`),
+);
 
 const reloadSuccess = ref(false);
 const {
   mutate: reloadTestrack,
   loading: testrackLoading,
   onDone: onReloadDone,
-} = useMutation<BackendMutation>(
-  gql`
-    mutation {
+} = useMutation(
+  gql(`
+    mutation ReinitializeHardware{
       reinitializeHardware
     }
-  `,
+  `),
   { fetchPolicy: "no-cache" },
 );
 

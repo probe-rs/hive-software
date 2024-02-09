@@ -1,16 +1,8 @@
 <script setup lang="ts">
-import {
-  ResultEnum,
-  State,
-  type BackendMutation,
-  type BackendMutationAssignTargetArgs,
-  type BackendQuery,
-  type FlatTargetState,
-} from "@/gql/backend";
-
 import { ref, watch, type PropType } from "vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
-import { gql } from "@apollo/client/core";
+import { gql } from "@/gql-schema";
+import { type FlatTargetState, State, ResultEnum } from "@/gql-schema/graphql";
 import { computed, toRefs } from "vue";
 import { cloneDeep } from "@apollo/client/utilities";
 
@@ -42,22 +34,18 @@ const { target, status, statusMessage, tssPos, initialData } = toRefs(props);
 const search = ref("");
 const selectedChip = ref(getInitialSelectedChip());
 
-const { result: searchResults, loading: searchLoading } =
-  useQuery<BackendQuery>(
-    gql`
-      query ($search: String) {
+const { result: searchResults, loading: searchLoading } = useQuery(
+  gql(`
+      query SearchSupportedTargets ($search: String!) {
         searchSupportedTargets(search: $search)
       }
-    `,
-    { search },
-  );
+    `),
+  { search: search.value },
+);
 
-const { mutate: submitTarget } = useMutation<
-  BackendMutation,
-  BackendMutationAssignTargetArgs
->(
-  gql`
-    mutation ($tssPos: Int!, $targetPos: Int!, $targetName: String!) {
+const { mutate: submitTarget } = useMutation(
+  gql(`
+    mutation AssignTarget ($tssPos: Int!, $targetPos: Int!, $targetName: String!) {
       assignTarget(
         tssPos: $tssPos
         targetPos: $targetPos
@@ -68,7 +56,7 @@ const { mutate: submitTarget } = useMutation<
         targetName
       }
     }
-  `,
+  `),
   {
     update: (cache, { data }) => {
       if (!data) {
@@ -77,8 +65,8 @@ const { mutate: submitTarget } = useMutation<
 
       const assignTarget = data.assignTarget;
 
-      const QUERY = gql`
-        query {
+      const QUERY = gql(`
+        query AssignedTargets{
           assignedTargets {
             state
             data {
@@ -88,9 +76,9 @@ const { mutate: submitTarget } = useMutation<
             }
           }
         }
-      `;
+      `);
 
-      let cacheData: BackendQuery | null = cache.readQuery({
+      let cacheData = cache.readQuery({
         query: QUERY,
       });
 
@@ -139,7 +127,7 @@ const { mutate: submitTarget } = useMutation<
         assignedTargets: newAssignedTargets,
       };
 
-      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
+      cache.writeQuery({ query: QUERY, data: cacheData });
     },
   },
 );
@@ -170,7 +158,9 @@ watch(tssPos, () => {
   selectedChip.value = getInitialSelectedChip();
 });
 
-function submit(targetName: string) {
+function submit(targetName: string | null) {
+  if (!targetName) return;
+
   submitTarget({ tssPos: tssPos.value, targetPos: target.value, targetName });
 }
 </script>

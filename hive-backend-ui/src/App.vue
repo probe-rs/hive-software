@@ -6,8 +6,6 @@ import { computed } from "vue";
 import { provide } from "vue";
 import { ApolloClients } from "@vue/apollo-composable";
 import { apolloClient, authApolloClient } from "./plugins/apollo";
-import { watch } from "vue";
-import { removeFragmentSpreadFromDocument } from "@apollo/client/utilities";
 
 provide(ApolloClients, { default: apolloClient, auth: authApolloClient });
 

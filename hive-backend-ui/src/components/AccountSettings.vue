@@ -1,14 +1,8 @@
 <script setup lang="ts">
-import type {
-  BackendMutation,
-  BackendMutationChangeUsernameArgs,
-  BackendQuery,
-} from "@/gql/backend";
-
 import { useUserStore } from "@/stores/userStore";
 import { cloneDeep } from "@apollo/client/utilities";
 import { useMutation } from "@vue/apollo-composable";
-import gql from "graphql-tag";
+import { gql } from "@/gql-schema";
 import { ref, watch } from "vue";
 import SuccessSnackbar from "./SuccessSnackbar.vue";
 
@@ -37,15 +31,15 @@ const {
   mutate: changeUsername,
   onError: onUsernameChangeError,
   onDone: onUsernameChangeDone,
-} = useMutation<BackendMutation, BackendMutationChangeUsernameArgs>(
-  gql`
-    mutation ($username: String!) {
+} = useMutation(
+  gql(`
+    mutation ChangeUserName ($username: String!) {
       changeUsername(username: $username) {
         username
         role
       }
     }
-  `,
+  `),
   {
     fetchPolicy: "no-cache",
     update: (cache, { data }) => {
@@ -55,16 +49,16 @@ const {
 
       const changeUsername = data.changeUsername;
 
-      const QUERY = gql`
-        query {
+      const QUERY = gql(`
+        query RegisteredUsers{
           registeredUsers {
             username
             role
           }
         }
-      `;
+      `);
 
-      let cacheData: BackendQuery | null = cache.readQuery({
+      let cacheData = cache.readQuery({
         query: QUERY,
       });
 
@@ -85,7 +79,7 @@ const {
         registeredUsers: newRegisteredUsers,
       };
 
-      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
+      cache.writeQuery({ query: QUERY, data: cacheData });
     },
   },
 );
@@ -96,11 +90,11 @@ const {
   onError: onPasswordChangeError,
   onDone: onPasswordChangeDone,
 } = useMutation(
-  gql`
-    mutation ($oldPassword: String!, $newPassword: String!) {
+  gql(`
+    mutation ChangePassword ($oldPassword: String!, $newPassword: String!) {
       changePassword(oldPassword: $oldPassword, newPassword: $newPassword)
     }
-  `,
+  `),
   {
     fetchPolicy: "no-cache",
   },

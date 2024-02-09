@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BackendAuthMutation } from "@/gql/backendAuth";
+import type { BackendAuthMutation } from "@/gql-schema/backendAuth";
 
 import { onMounted, ref } from "vue";
 import AppSettings from "@/components/AppSettings.vue";
@@ -20,7 +20,7 @@ const errorMessage = ref("");
 
 onMounted(() => {
   document.addEventListener(APOLLO_ERROR, (e) => {
-    //@ts-ignore
+    //@ts-expect-error
     errorMessage.value = `Error: ${e.detail}`;
     showError.value = true;
   });

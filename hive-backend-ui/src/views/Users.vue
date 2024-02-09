@@ -1,22 +1,23 @@
 <script setup lang="ts">
-import type { BackendQuery } from "@/gql/backend";
-
 import User from "@/components/User.vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
-import gql from "graphql-tag";
+import { gql } from "@/gql-schema";
+import { Role } from "@/gql-schema/graphql";
 import { computed, ref } from "vue";
 import SuccessSnackbar from "@/components/SuccessSnackbar.vue";
 import generator from "generate-password-browser";
 import { cloneDeep } from "@apollo/client/utilities";
 
-const { result, loading } = useQuery<BackendQuery>(gql`
-  query {
+const REGISTERED_USERS_QUERY = gql(`
+  query RegisteredUsers {
     registeredUsers {
       username
       role
     }
   }
 `);
+
+const { result, loading } = useQuery(REGISTERED_USERS_QUERY);
 
 const users = computed(() => {
   if (result.value) {
@@ -28,32 +29,27 @@ const users = computed(() => {
 
 const addUserDialog = ref(false);
 const newUsername = ref("");
-const newUserRole = ref("MAINTAINER");
+const newUserRole = ref(Role.Maintainer);
 const addUserSuccess = ref(false);
-const roles = ref(["ADMIN", "MAINTAINER"]);
+const roles = ref([Role.Admin, Role.Maintainer]);
 
 const { mutate: createUser, onDone: onCreateDone } = useMutation(
-  gql`
-    mutation ($username: String!, $password: String!, $role: String!) {
+  gql(`
+    mutation CreateUser ($username: String!, $password: String!, $role: Role!) {
       createUser(username: $username, password: $password, role: $role) {
         username
         role
       }
     }
-  `,
+  `),
   {
-    update: (cache, { data: { createUser } }) => {
-      const QUERY = gql`
-        query {
-          registeredUsers {
-            username
-            role
-          }
-        }
-      `;
+    update: (cache, { data: resultData }) => {
+      if (!resultData) return;
+
+      const createUser = resultData.createUser;
 
       let data: any = cache.readQuery({
-        query: QUERY,
+        query: REGISTERED_USERS_QUERY,
       });
 
       const newRegisteredUsers = cloneDeep(data.registeredUsers);
@@ -68,7 +64,7 @@ const { mutate: createUser, onDone: onCreateDone } = useMutation(
         registeredUsers: newRegisteredUsers,
       };
 
-      cache.writeQuery({ query: QUERY, data });
+      cache.writeQuery({ query: REGISTERED_USERS_QUERY, data });
     },
   },
 );
@@ -127,10 +123,10 @@ function addUser() {
         </thead>
         <tbody>
           <User
-            v-for="(user, idx) in users"
+            v-for="user in users"
             :username="user.username"
             :role="user.role"
-            :key="`user-${idx}`"
+            :key="`user-${user.username}`"
           />
         </tbody>
       </v-table>

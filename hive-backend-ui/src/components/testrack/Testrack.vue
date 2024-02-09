@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import type { BackendQuery, FlatTargetState } from "@/gql/backend";
-import type { Maybe } from "@/gql/baseTypes";
-
 import { ref, onBeforeMount, onUnmounted, onMounted } from "vue";
 import { computed } from "vue";
 import RackPartComponent from "./RackPart.vue";
@@ -13,7 +10,8 @@ import {
   stageAspectRatio,
 } from "./constants";
 import { useQuery } from "@vue/apollo-composable";
-import gql from "graphql-tag";
+import { gql } from "@/gql-schema";
+import { type FlatTargetState } from "@/gql-schema/graphql";
 
 const emit = defineEmits<{
   (event: "selectedPartLocation", location: number): void;
@@ -48,14 +46,16 @@ const konvaStage = ref(null);
 const stage = ref(null);
 
 // Server data
-const { result } = useQuery<BackendQuery>(gql`
-  query {
+const { result } = useQuery(
+  gql(`
+  query ConnectedTssAndTargets{
     connectedTss
     assignedTargets {
       state
     }
   }
-`);
+`),
+);
 
 const connectedTss = computed(() => {
   if (result.value) {
@@ -135,7 +135,7 @@ onUnmounted(() => {
   window.removeEventListener("resize", updateStageSize);
 });
 
-function tssConfig(idx: number, daugtherboard: Maybe<Array<FlatTargetState>>) {
+function tssConfig(idx: number, daugtherboard: Array<FlatTargetState> | null) {
   let img = undefined;
   let yVal = rackYpos - 71;
 

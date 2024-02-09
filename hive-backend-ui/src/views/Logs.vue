@@ -2,22 +2,15 @@
 import { computed, ref, type Ref } from "vue";
 import Terminal from "@/components/Terminal.vue";
 import { useQuery } from "@vue/apollo-composable";
-import gql from "graphql-tag";
-import type { BackendQuery } from "@/gql/backend";
+import { gql } from "@/gql-schema";
+import { Application, LogLevel } from "@/gql-schema/graphql";
 import c from "ansi-colors";
 
-enum LogLevel {
-  ERROR = "ERROR",
-  WARN = "WARN",
-  INFO = "INFO",
-  DEBUG = "DEBUG",
-}
-
 const logLevels = [
-  LogLevel.ERROR,
-  LogLevel.WARN,
-  LogLevel.INFO,
-  LogLevel.DEBUG,
+  LogLevel.Error,
+  LogLevel.Warn,
+  LogLevel.Info,
+  LogLevel.Debug,
 ];
 
 type LogEntry = {
@@ -27,26 +20,26 @@ type LogEntry = {
   message: string;
 };
 
-const selectedLogLevel: Ref<LogLevel> = ref(LogLevel.INFO);
+const selectedLogLevel: Ref<LogLevel> = ref(LogLevel.Info);
 const selectedApplication = ref(0);
 
 const selectedApplicationString = computed(() => {
   switch (selectedApplication.value) {
     case 0:
-      return "MONITOR";
+      return Application.Monitor;
     case 1:
-      return "RUNNER";
+      return Application.Runner;
     default:
-      return "MONITOR";
+      return Application.Monitor;
   }
 });
 
-const { result } = useQuery<BackendQuery>(
-  gql`
-    query ($application: String!, $level: String!) {
+const { result } = useQuery(
+  gql(`
+    query ApplicationLog ($application: Application!, $level: LogLevel!) {
       applicationLog(application: $application, level: $level)
     }
-  `,
+  `),
   () => ({
     application: selectedApplicationString.value,
     level: selectedLogLevel.value,
@@ -68,13 +61,13 @@ const terminalText = computed<string>(() => {
 
       const logLevelColored = (() => {
         switch (logEntry.level) {
-          case LogLevel.ERROR:
+          case LogLevel.Error:
             return c.red(c.bold("error:"));
-          case LogLevel.WARN:
+          case LogLevel.Warn:
             return c.yellow(c.bold("warn: "));
-          case LogLevel.INFO:
+          case LogLevel.Info:
             return c.blue(c.bold("info: "));
-          case LogLevel.DEBUG:
+          case LogLevel.Debug:
             return c.magenta(c.bold("debug:"));
           default:
             return "";

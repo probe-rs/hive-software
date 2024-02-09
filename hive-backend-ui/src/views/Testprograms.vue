@@ -2,14 +2,8 @@
 import { ref } from "vue";
 import { computed } from "vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
-import {
-  Architecture,
-  type BackendMutation,
-  type BackendMutationCreateTestprogramArgs,
-  type BackendMutationSetActiveTestprogramArgs,
-  type BackendQuery,
-} from "@/gql/backend";
-import gql from "graphql-tag";
+import { gql } from "@/gql-schema";
+import { Architecture } from "@/gql-schema/graphql";
 import Testprogram from "@/components/Testprogram.vue";
 import ErrorSnackbar from "@/components/ErrorSnackbar.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
@@ -26,14 +20,16 @@ const errorMessage = ref("");
 // Flag which is true if there have been unsaved changed
 const unsavedChanges = ref(false);
 
-const { result, refetch: refetchTestprograms } = useQuery<BackendQuery>(gql`
-  query {
+const { result, refetch: refetchTestprograms } = useQuery(
+  gql(`
+  query AvailableAndActiveTestPrograms {
     availableTestprograms {
       name
     }
     activeTestprogram
   }
-`);
+`),
+);
 
 const testprograms = computed(() => {
   if (result.value) {
@@ -58,15 +54,12 @@ const selectedIsActive = computed(() => {
   return activeTestprogram.value === selectedTestprogram.value;
 });
 
-const { mutate: setActiveTestprogram } = useMutation<
-  BackendMutation,
-  BackendMutationSetActiveTestprogramArgs
->(
-  gql`
-    mutation ($testprogramName: String!) {
+const { mutate: setActiveTestprogram } = useMutation(
+  gql(`
+    mutation SetActiveTestProgram ($testprogramName: String!) {
       setActiveTestprogram(testprogramName: $testprogramName)
     }
-  `,
+  `),
   {
     update: (cache, { data }) => {
       if (!data) {
@@ -75,13 +68,13 @@ const { mutate: setActiveTestprogram } = useMutation<
 
       const setActiveTestprogram = data.setActiveTestprogram;
 
-      const QUERY = gql`
-        query {
+      const QUERY = gql(`
+        query ActiveTestProgram {
           activeTestprogram
         }
-      `;
+      `);
 
-      let cacheData: BackendQuery | null = cache.readQuery({
+      let cacheData = cache.readQuery({
         query: QUERY,
       });
 
@@ -94,7 +87,7 @@ const { mutate: setActiveTestprogram } = useMutation<
         activeTestprogram: setActiveTestprogram,
       };
 
-      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
+      cache.writeQuery({ query: QUERY, data: cacheData });
     },
   },
 );
@@ -104,9 +97,9 @@ const {
   onDone: onTestprogramCreated,
   onError: OnTestprogramCreateError,
   loading: testprogramCreateLoading,
-} = useMutation<BackendMutation, BackendMutationCreateTestprogramArgs>(
-  gql`
-    mutation ($testprogramName: String!) {
+} = useMutation(
+  gql(`
+    mutation CreateTestProgram ($testprogramName: String!) {
       createTestprogram(testprogramName: $testprogramName) {
         name
         testprogramArm {
@@ -121,7 +114,7 @@ const {
         }
       }
     }
-  `,
+  `),
   {
     update: (cache, { data }) => {
       if (!data) {
@@ -130,8 +123,8 @@ const {
 
       const createTestprogram = data.createTestprogram;
 
-      const QUERY = gql`
-        query {
+      const QUERY = gql(`
+        query AvailableTestprogramsOverview {
           availableTestprograms {
             name
             testprogramArm {
@@ -146,9 +139,9 @@ const {
             }
           }
         }
-      `;
+      `);
 
-      let cacheData: BackendQuery | null = cache.readQuery({
+      let cacheData = cache.readQuery({
         query: QUERY,
       });
 
@@ -166,7 +159,7 @@ const {
         availableTestprograms: newAvailableTestprograms,
       };
 
-      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
+      cache.writeQuery({ query: QUERY, data: cacheData });
     },
   },
 );

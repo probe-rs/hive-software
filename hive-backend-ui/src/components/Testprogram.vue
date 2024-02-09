@@ -1,23 +1,17 @@
 <script setup lang="ts">
 import CodeEditor from "@/components/CodeEditor.vue";
 import Terminal from "@/components/Terminal.vue";
-import {
-  Architecture,
-  type BackendMutation,
-  type BackendMutationDeleteTestprogramArgs,
-  type BackendMutationModifyTestprogramArgs,
-  type BackendQuery,
-  type BackendQueryTestprogramArgs,
-  type FullTestProgramResponse,
-} from "@/gql/backend";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import { computed, ref, toRefs } from "vue";
-import gql from "graphql-tag";
+import { gql } from "@/gql-schema";
+import {
+  Architecture,
+  type FullTestProgramResponse,
+} from "@/gql-schema/graphql";
 import { watch, type PropType } from "vue";
 import * as base64 from "base-64";
 import { cloneDeep } from "@apollo/client/utilities";
 import ConfirmDialog from "./ConfirmDialog.vue";
-import type { Maybe } from "@/gql/baseTypes";
 
 const DEFAULT_TESTPROGRAM = "default";
 
@@ -36,6 +30,24 @@ const props = defineProps({
   },
 });
 
+const AVAILABLE_TESTPROGRAMS_QUERY = gql(`
+query AvailableTestPrograms{
+  availableTestprograms {
+    name
+    testprogramArm {
+      architecture
+      status
+      compileMessage
+    }
+    testprogramRiscv {
+      architecture
+      status
+      compileMessage
+    }
+  }
+}
+`);
+
 const { selectedArchitecture, testprogramName, deleteTestprogramEvent } =
   toRefs(props);
 
@@ -45,7 +57,7 @@ const emit = defineEmits([
   "codeEdited",
 ]);
 
-const testprogram = ref<Maybe<FullTestProgramResponse>>(null);
+const testprogram = ref<FullTestProgramResponse | null>(null);
 const codeArm = ref("");
 const codeRiscv = ref("");
 
@@ -53,9 +65,9 @@ const {
   loading,
   onResult: onTestprogramResult,
   refetch: refetchTestprogram,
-} = useQuery<BackendQuery, BackendQueryTestprogramArgs>(
-  gql`
-    query ($testprogramName: String!) {
+} = useQuery(
+  gql(`
+    query TestProgram ($testprogramName: String!) {
       testprogram(testprogramName: $testprogramName) {
         testprogram {
           name
@@ -74,7 +86,7 @@ const {
         codeRiscv
       }
     }
-  `,
+  `),
   {
     testprogramName: testprogramName.value,
   },
@@ -98,6 +110,8 @@ const code = computed(() => {
       return codeArm;
     case Architecture.Riscv:
       return codeRiscv;
+    default:
+      throw new Error("Found unknown architecture in switch case");
   }
 });
 
@@ -111,6 +125,8 @@ const compileMessage = computed(() => {
       return testprogram.value.testprogram.testprogramArm.compileMessage;
     case Architecture.Riscv:
       return testprogram.value.testprogram.testprogramRiscv.compileMessage;
+    default:
+      throw new Error("Encountered unknown architecture in switch case");
   }
 });
 
@@ -120,15 +136,12 @@ watch(deleteTestprogramEvent, (isDelete) => {
   }
 });
 
-const { mutate: deleteTestprogram, onDone: onTestprogramDeleted } = useMutation<
-  BackendMutation,
-  BackendMutationDeleteTestprogramArgs
->(
-  gql`
-    mutation ($testprogramName: String!) {
+const { mutate: deleteTestprogram, onDone: onTestprogramDeleted } = useMutation(
+  gql(`
+    mutation DeleteTestProgram ($testprogramName: String!) {
       deleteTestprogram(testprogramName: $testprogramName)
     }
-  `,
+  `),
   {
     update: (cache, { data }) => {
       if (!data) {
@@ -137,26 +150,8 @@ const { mutate: deleteTestprogram, onDone: onTestprogramDeleted } = useMutation<
 
       const deleteTestprogram = data.deleteTestprogram;
 
-      const QUERY = gql`
-        query {
-          availableTestprograms {
-            name
-            testprogramArm {
-              architecture
-              status
-              compileMessage
-            }
-            testprogramRiscv {
-              architecture
-              status
-              compileMessage
-            }
-          }
-        }
-      `;
-
-      let cacheData: BackendQuery | null = cache.readQuery({
-        query: QUERY,
+      let cacheData = cache.readQuery({
+        query: AVAILABLE_TESTPROGRAMS_QUERY,
       });
 
       if (!cacheData) {
@@ -177,7 +172,10 @@ const { mutate: deleteTestprogram, onDone: onTestprogramDeleted } = useMutation<
         availableTestprograms: newAvailableTestprograms,
       };
 
-      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
+      cache.writeQuery({
+        query: AVAILABLE_TESTPROGRAMS_QUERY,
+        data: cacheData,
+      });
     },
   },
 );
@@ -199,14 +197,17 @@ onTestprogramDeleted(() => {
   emit("testprogramDeleted");
 });
 
+/*
+TODO: Testprogram modification is currently not implemented
+
 const {
   mutate: modifyTestprogram,
   onDone: onTestprogramModified,
   onError: OnTestprogramModifyError,
   loading: testprogramModifyLoading,
-} = useMutation<BackendMutation, BackendMutationModifyTestprogramArgs>(
-  gql`
-    mutation ($testprogramName: String!, $codeFiles: FileList!) {
+} = useMutation(
+  gql(`
+    mutation ModifyTestProgram ($testprogramName: String!, $codeFiles: [Upload!]!) {
       modifyTestprogram(
         testprogramName: $testprogramName
         codeFiles: $codeFiles
@@ -224,7 +225,7 @@ const {
         }
       }
     }
-  `,
+  `),
   {
     update: (cache, { data }) => {
       if (!data) {
@@ -233,26 +234,8 @@ const {
 
       const modifyTestprogram = data.modifyTestprogram;
 
-      const QUERY = gql`
-        query {
-          availableTestprograms {
-            name
-            testprogramArm {
-              architecture
-              status
-              compileMessage
-            }
-            testprogramRiscv {
-              architecture
-              status
-              compileMessage
-            }
-          }
-        }
-      `;
-
-      let cacheData: BackendQuery | null = cache.readQuery({
-        query: QUERY,
+      let cacheData = cache.readQuery({
+        query: AVAILABLE_TESTPROGRAMS_QUERY,
       });
 
       if (!cacheData) {
@@ -260,10 +243,10 @@ const {
       }
 
       const newAvailableTestprograms = cloneDeep(
-        cacheData.availableTestprograms,
+        cacheData.availableTestprograms
       );
-      const modifyIndex = newAvailableTestprograms.findIndex((element) => {
-        element.name === modifyTestprogram.name;
+      const modifyIndex = newAvailableTestprograms.findIndex((e) => {
+        e.name === modifyTestprogram.name;
       });
 
       newAvailableTestprograms[modifyIndex] = modifyTestprogram;
@@ -273,10 +256,13 @@ const {
         availableTestprograms: newAvailableTestprograms,
       };
 
-      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
+      cache.writeQuery({
+        query: AVAILABLE_TESTPROGRAMS_QUERY,
+        data: cacheData,
+      });
     },
-  },
-);
+  }
+);*/
 
 async function fileUpload(file: Array<File>) {
   code.value.value = await file[0].text();

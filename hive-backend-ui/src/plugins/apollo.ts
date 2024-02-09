@@ -66,14 +66,14 @@ const cache = new InMemoryCache();
 
 // Global error handler
 const errorLink = onError((error) => {
-  // @ts-ignore
+  // @ts-expect-error statusCode is unknown
   if (error.networkError && error.networkError.statusCode === 401) {
     // Redirect unauthorized user to login
     router.push("/login");
     return;
   }
 
-  // @ts-ignore
+  // @ts-expect-error statusCode is unknown
   if (error.networkError && error.networkError.statusCode === 403) {
     // Ignore csrf token errors
     return;

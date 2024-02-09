@@ -1,16 +1,12 @@
 <script setup lang="ts">
-import type { BackendQuery } from "@/gql/backend";
-
 import ApiToken from "@/components/ApiToken.vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
-import gql from "graphql-tag";
+import { gql } from "@/gql-schema";
 import { computed, ref } from "vue";
-import SuccessSnackbar from "@/components/SuccessSnackbar.vue";
-import generator from "generate-password-browser";
 import { cloneDeep } from "@apollo/client/utilities";
-import { defaultDataIdFromObject } from "@apollo/client/cache";
-const { result, loading } = useQuery<BackendQuery>(gql`
-  query {
+
+const TEST_API_TOKENS_QUERY = gql(`
+  query TestApiTokens {
     testApiTokens {
       name
       description
@@ -18,6 +14,7 @@ const { result, loading } = useQuery<BackendQuery>(gql`
     }
   }
 `);
+const { result, loading } = useQuery(TEST_API_TOKENS_QUERY);
 
 const tokens = computed(() => {
   if (result.value) {
@@ -52,37 +49,30 @@ const dateInputErrorMessage = computed(() => {
 const minExpirationDate = new Date(Date.now()).toISOString().slice(0, 19);
 
 const { mutate: createToken, onDone: onCreateDone } = useMutation(
-  gql`
-    mutation ($name: String!, $description: String!, $expiration: String) {
+  gql(`
+    mutation CreateTestApiToken ($name: String!, $description: String!, $expiration: String) {
       createTestApiToken(
         name: $name
         description: $description
         expiration: $expiration
       )
     }
-  `,
+  `),
   {
-    update: (cache, { data: { createTestApiToken } }) => {
-      const QUERY = gql`
-        query {
-          testApiTokens {
-            name
-            description
-            expiration
-          }
-        }
-      `;
+    update: (cache, { data: resultData }, { variables }) => {
+      if (!resultData) return;
+      if (!variables) return;
 
       let data: any = cache.readQuery({
-        query: QUERY,
+        query: TEST_API_TOKENS_QUERY,
       });
 
       const newTestApiTokens = cloneDeep(data.testApiTokens);
 
       newTestApiTokens.push({
-        name: createTestApiToken.name,
-        description: createTestApiToken.description,
-        expiration: createTestApiToken.expiration,
+        name: variables.name,
+        description: variables.description,
+        expiration: variables.expiration,
       });
 
       data = {
@@ -90,7 +80,7 @@ const { mutate: createToken, onDone: onCreateDone } = useMutation(
         testApiTokens: newTestApiTokens,
       };
 
-      cache.writeQuery({ query: QUERY, data });
+      cache.writeQuery({ query: TEST_API_TOKENS_QUERY, data });
     },
   },
 );
@@ -109,7 +99,7 @@ function addToken() {
       return;
     }
 
-    let parsedDate = Date.parse(newTokenExpirationDate.value);
+    const parsedDate = Date.parse(newTokenExpirationDate.value);
 
     if (isNaN(parsedDate)) {
       // Invalid date
@@ -132,8 +122,6 @@ function addToken() {
 onCreateDone((res) => {
   if (!res.data) return;
 
-  console.log("resulting token", res.data);
-
   token.value = res.data.createTestApiToken;
 
   tokenCreateSuccess.value = true;
@@ -148,6 +136,11 @@ function closeAddTokenDialog() {
   newTokenExpirationDate.value = "";
 
   generateTokenDialog.value = false;
+}
+
+function closeTokenSuccessSnackbar() {
+  tokenCreateSuccess.value = false;
+  token.value = "";
 }
 </script>
 
@@ -180,10 +173,11 @@ function closeAddTokenDialog() {
         </thead>
         <tbody>
           <ApiToken
-            v-for="(token, idx) in tokens"
+            v-for="token in tokens"
             :name="token.name"
             :description="token.description"
-            :expiration="token.expiration"
+            :expiration="token.expiration ?? undefined"
+            :key="`token-${token.name}`"
           />
         </tbody>
       </v-table>
@@ -267,7 +261,7 @@ function closeAddTokenDialog() {
         icon="mdi-close"
         size="small"
         variant="text"
-        @click="tokenCreateSuccess = false"
+        @click="closeTokenSuccessSnackbar"
       />
     </template>
   </v-snackbar>

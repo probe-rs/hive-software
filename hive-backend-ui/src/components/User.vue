@@ -1,18 +1,10 @@
 <script setup lang="ts">
-import {
-  Role,
-  type BackendMutationModifyUserArgs,
-  type UserResponse,
-  type BackendMutation,
-  type BackendQuery,
-  type BackendMutationDeleteUserArgs,
-} from "@/gql/backend";
-
 import { ref, watch, type PropType } from "vue";
 import generator from "generate-password-browser";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import { useMutation } from "@vue/apollo-composable";
-import gql from "graphql-tag";
+import { gql } from "@/gql-schema";
+import { Role } from "@/gql-schema/graphql";
 import { cloneDeep } from "@apollo/client/utilities";
 import SuccessSnackbar from "./SuccessSnackbar.vue";
 
@@ -26,6 +18,15 @@ const props = defineProps({
     required: true,
   },
 });
+
+const REGISTERED_USERS_QUERY = gql(`
+        query RegisteredUsers {
+          registeredUsers {
+            username
+            role
+          }
+        }
+      `);
 
 const dataChanged = ref(false);
 const showPasswordConfirmDialog = ref(false);
@@ -42,16 +43,13 @@ watch(modifiedRole, () => {
   dataChanged.value = true;
 });
 
-const { mutate: mutateUser, onDone: onModifyDone } = useMutation<
-  BackendMutation,
-  BackendMutationModifyUserArgs
->(
-  gql`
-    mutation (
+const { mutate: mutateUser, onDone: onModifyDone } = useMutation(
+  gql(`
+    mutation ModifyUser (
       $oldUsername: String!
       $newUsername: String
       $newPassword: String
-      $newRole: String
+      $newRole: Role
     ) {
       modifyUser(
         oldUsername: $oldUsername
@@ -63,7 +61,7 @@ const { mutate: mutateUser, onDone: onModifyDone } = useMutation<
         role
       }
     }
-  `,
+  `),
   {
     update: (cache, { data }) => {
       if (!data) {
@@ -72,17 +70,8 @@ const { mutate: mutateUser, onDone: onModifyDone } = useMutation<
 
       const modifyUser = data.modifyUser;
 
-      const QUERY = gql`
-        query {
-          registeredUsers {
-            username
-            role
-          }
-        }
-      `;
-
-      let cacheData: BackendQuery | null = cache.readQuery({
-        query: QUERY,
+      let cacheData = cache.readQuery({
+        query: REGISTERED_USERS_QUERY,
       });
 
       if (!cacheData) {
@@ -91,7 +80,7 @@ const { mutate: mutateUser, onDone: onModifyDone } = useMutation<
 
       const newRegisteredUsers = cloneDeep(cacheData.registeredUsers);
 
-      const idx = newRegisteredUsers.findIndex((e: UserResponse) => {
+      const idx = newRegisteredUsers.findIndex((e) => {
         return e.username === modifyUser.username;
       });
 
@@ -102,7 +91,7 @@ const { mutate: mutateUser, onDone: onModifyDone } = useMutation<
         registeredUsers: newRegisteredUsers,
       };
 
-      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
+      cache.writeQuery({ query: REGISTERED_USERS_QUERY, data: cacheData });
     },
   },
 );
@@ -137,18 +126,15 @@ function changePassword() {
   mutateUser({ oldUsername: props.username, newPassword: generatedPassword });
 }
 
-const { mutate: deleteUserMutation, onDone: onDeleteDone } = useMutation<
-  BackendMutation,
-  BackendMutationDeleteUserArgs
->(
-  gql`
-    mutation ($username: String!) {
+const { mutate: deleteUserMutation, onDone: onDeleteDone } = useMutation(
+  gql(`
+    mutation DeleteUser ($username: String!) {
       deleteUser(username: $username) {
         username
         role
       }
     }
-  `,
+  `),
   {
     update: (cache, { data }) => {
       if (!data) {
@@ -157,17 +143,8 @@ const { mutate: deleteUserMutation, onDone: onDeleteDone } = useMutation<
 
       const deleteUser = data.deleteUser;
 
-      const QUERY = gql`
-        query {
-          registeredUsers {
-            username
-            role
-          }
-        }
-      `;
-
-      let cacheData: BackendQuery | null = cache.readQuery({
-        query: QUERY,
+      let cacheData = cache.readQuery({
+        query: REGISTERED_USERS_QUERY,
       });
 
       if (!cacheData) {
@@ -176,18 +153,30 @@ const { mutate: deleteUserMutation, onDone: onDeleteDone } = useMutation<
 
       const newRegisteredUsers = cloneDeep(cacheData.registeredUsers);
 
-      const idx = newRegisteredUsers.findIndex((e: UserResponse) => {
+      const idx = newRegisteredUsers.findIndex((e) => {
         return e.username === deleteUser.username;
       });
 
+      console.log("found idx: ", idx);
+      console.log("current registered: ", JSON.stringify(newRegisteredUsers));
+
       newRegisteredUsers.splice(idx, 1);
+
+      console.log("afterSplice: ", JSON.stringify(newRegisteredUsers));
 
       cacheData = {
         ...cacheData,
         registeredUsers: newRegisteredUsers,
       };
 
-      cache.writeQuery({ query: QUERY, data: cacheData });
+      cache.writeQuery({ query: REGISTERED_USERS_QUERY, data: cacheData });
+
+      console.log(
+        "new cached query: ",
+        cache.readQuery({
+          query: REGISTERED_USERS_QUERY,
+        }),
+      );
     },
   },
 );

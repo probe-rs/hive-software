@@ -1,18 +1,8 @@
 <script setup lang="ts">
-import {
-  Role,
-  type BackendMutationModifyUserArgs,
-  type UserResponse,
-  type BackendMutation,
-  type BackendQuery,
-  type BackendMutationDeleteUserArgs,
-} from "@/gql/backend";
-
-import { ref, watch, type PropType } from "vue";
-import generator from "generate-password-browser";
+import { ref } from "vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import { useMutation } from "@vue/apollo-composable";
-import gql from "graphql-tag";
+import { gql } from "@/gql-schema";
 import { cloneDeep } from "@apollo/client/utilities";
 import SuccessSnackbar from "./SuccessSnackbar.vue";
 import { computed } from "vue";
@@ -43,15 +33,12 @@ const displayedExpirationDate = computed(() => {
   }
 });
 
-const { mutate: revokeTokenMutation, onDone: onRevokeDone } = useMutation<
-  BackendMutation,
-  BackendMutationRevokeTestApiTokenArgs
->(
-  gql`
-    mutation ($name: String!) {
+const { mutate: revokeTokenMutation, onDone: onRevokeDone } = useMutation(
+  gql(`
+    mutation RevokeTestApiToken ($name: String!) {
       revokeTestApiToken(name: $name)
     }
-  `,
+  `),
   {
     update: (cache, { data }) => {
       if (!data) {
@@ -60,17 +47,17 @@ const { mutate: revokeTokenMutation, onDone: onRevokeDone } = useMutation<
 
       const revokeToken = data.revokeTestApiToken;
 
-      const QUERY = gql`
-        query {
+      const QUERY = gql(`
+        query TestApiTokens {
           testApiTokens {
             name
             description
             expiration
           }
         }
-      `;
+      `);
 
-      let cacheData: BackendQuery | null = cache.readQuery({
+      let cacheData = cache.readQuery({
         query: QUERY,
       });
 
@@ -80,8 +67,8 @@ const { mutate: revokeTokenMutation, onDone: onRevokeDone } = useMutation<
 
       const newTestApiTokens = cloneDeep(cacheData.testApiTokens);
 
-      const idx = newTestApiTokens.findIndex((e: TestApiTokensResponse) => {
-        return e.name === revokeToken.name;
+      const idx = newTestApiTokens.findIndex((e) => {
+        return e.name === revokeToken;
       });
 
       newTestApiTokens.splice(idx, 1);
