@@ -108,6 +108,8 @@ pub enum ApplicationMode {
     Standalone,
     ClusterSlave,
     ClusterMaster,
+    #[clap(hide(true))]
+    GqlSchema,
 }
 
 #[derive(Parser, Debug)]
@@ -142,6 +144,7 @@ fn main() {
         ApplicationMode::Standalone => mode::standalone::run_standalone_mode(db, cli_args),
         ApplicationMode::ClusterSlave => todo!(),
         ApplicationMode::ClusterMaster => todo!(),
+        ApplicationMode::GqlSchema => mode::gql_schema::run_gql_schema_mode(),
     }
     // Only global shutdown procedures should be called here, application logic should be put inside the appropriate mode handler
 }

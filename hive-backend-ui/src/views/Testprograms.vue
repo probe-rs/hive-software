@@ -1,15 +1,9 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { computed } from "@vue/reactivity";
+import { computed } from "vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
-import {
-  Architecture,
-  type BackendMutation,
-  type BackendMutationCreateTestprogramArgs,
-  type BackendMutationSetActiveTestprogramArgs,
-  type BackendQuery,
-} from "@/gql/backend";
-import gql from "graphql-tag";
+import { gql } from "@/gql-schema";
+import { Architecture } from "@/gql-schema/graphql";
 import Testprogram from "@/components/Testprogram.vue";
 import ErrorSnackbar from "@/components/ErrorSnackbar.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
@@ -26,20 +20,20 @@ const errorMessage = ref("");
 // Flag which is true if there have been unsaved changed
 const unsavedChanges = ref(false);
 
-const { result, refetch: refetchTestprograms } = useQuery<BackendQuery>(
-  gql`
-    query {
-      availableTestprograms {
-        name
-      }
-      activeTestprogram
+const { result, refetch: refetchTestprograms } = useQuery(
+  gql(`
+  query AvailableAndActiveTestPrograms {
+    availableTestprograms {
+      name
     }
-  `,
+    activeTestprogram
+  }
+`),
 );
 
 const testprograms = computed(() => {
   if (result.value) {
-    let testprograms: Array<string> = [];
+    const testprograms: Array<string> = [];
     result.value.availableTestprograms.forEach((e) =>
       testprograms.push(e.name),
     );
@@ -60,15 +54,12 @@ const selectedIsActive = computed(() => {
   return activeTestprogram.value === selectedTestprogram.value;
 });
 
-const { mutate: setActiveTestprogram } = useMutation<
-  BackendMutation,
-  BackendMutationSetActiveTestprogramArgs
->(
-  gql`
-    mutation ($testprogramName: String!) {
+const { mutate: setActiveTestprogram } = useMutation(
+  gql(`
+    mutation SetActiveTestProgram ($testprogramName: String!) {
       setActiveTestprogram(testprogramName: $testprogramName)
     }
-  `,
+  `),
   {
     update: (cache, { data }) => {
       if (!data) {
@@ -77,13 +68,13 @@ const { mutate: setActiveTestprogram } = useMutation<
 
       const setActiveTestprogram = data.setActiveTestprogram;
 
-      const QUERY = gql`
-        query {
+      const QUERY = gql(`
+        query ActiveTestProgram {
           activeTestprogram
         }
-      `;
+      `);
 
-      let cacheData: BackendQuery | null = cache.readQuery({
+      let cacheData = cache.readQuery({
         query: QUERY,
       });
 
@@ -96,7 +87,7 @@ const { mutate: setActiveTestprogram } = useMutation<
         activeTestprogram: setActiveTestprogram,
       };
 
-      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
+      cache.writeQuery({ query: QUERY, data: cacheData });
     },
   },
 );
@@ -106,9 +97,9 @@ const {
   onDone: onTestprogramCreated,
   onError: OnTestprogramCreateError,
   loading: testprogramCreateLoading,
-} = useMutation<BackendMutation, BackendMutationCreateTestprogramArgs>(
-  gql`
-    mutation ($testprogramName: String!) {
+} = useMutation(
+  gql(`
+    mutation CreateTestProgram ($testprogramName: String!) {
       createTestprogram(testprogramName: $testprogramName) {
         name
         testprogramArm {
@@ -123,7 +114,7 @@ const {
         }
       }
     }
-  `,
+  `),
   {
     update: (cache, { data }) => {
       if (!data) {
@@ -132,8 +123,8 @@ const {
 
       const createTestprogram = data.createTestprogram;
 
-      const QUERY = gql`
-        query {
+      const QUERY = gql(`
+        query AvailableTestprogramsOverview {
           availableTestprograms {
             name
             testprogramArm {
@@ -148,9 +139,9 @@ const {
             }
           }
         }
-      `;
+      `);
 
-      let cacheData: BackendQuery | null = cache.readQuery({
+      let cacheData = cache.readQuery({
         query: QUERY,
       });
 
@@ -168,7 +159,7 @@ const {
         availableTestprograms: newAvailableTestprograms,
       };
 
-      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
+      cache.writeQuery({ query: QUERY, data: cacheData });
     },
   },
 );
@@ -232,24 +223,44 @@ function confirmChangeSelectedProgram() {
       </v-tabs>
 
       <v-spacer></v-spacer>
-      <v-btn :color="selectedIsActive ? 'disabled' : 'info'" :disabled="selectedIsActive"
-        @click="setActiveTestprogram({ testprogramName: selectedTestprogram })">Set active</v-btn>
-      <v-btn v-if="selectedTestprogram !== DEFAULT_TESTPROGRAM" color="error" @click="deleteSelectedTestprogram = true">
-        Delete Testprogram</v-btn>
-      <v-btn v-if="selectedTestprogram !== DEFAULT_TESTPROGRAM" color="success">Check & Save</v-btn>
+      <v-btn
+        :color="selectedIsActive ? 'disabled' : 'info'"
+        :disabled="selectedIsActive"
+        @click="setActiveTestprogram({ testprogramName: selectedTestprogram })"
+        >Set active</v-btn
+      >
+      <v-btn
+        v-if="selectedTestprogram !== DEFAULT_TESTPROGRAM"
+        color="error"
+        @click="deleteSelectedTestprogram = true"
+      >
+        Delete Testprogram</v-btn
+      >
+      <v-btn v-if="selectedTestprogram !== DEFAULT_TESTPROGRAM" color="success"
+        >Check & Save</v-btn
+      >
     </template>
 
     <v-spacer />
 
-    <v-icon v-if="selectedIsActive" color="success" icon="mdi-check-circle-outline" />
+    <v-icon
+      v-if="selectedIsActive"
+      color="success"
+      icon="mdi-check-circle-outline"
+    />
     <!--<v-tooltip activator="parent" location="bottom end" origin="top start">Testprogram is currently active</v-tooltip>-->
 
     <v-btn>
       {{ selectedTestprogram }}
       <v-menu activator="parent">
         <v-list>
-          <v-list-item v-for="testprogram in testprograms" :key="testprogram" :value="testprogram"
-            @click="changeSelectedTestprogram(testprogram)" :v-if="testprogram !== selectedTestprogram">
+          <v-list-item
+            v-for="testprogram in testprograms"
+            :key="testprogram"
+            :value="testprogram"
+            @click="changeSelectedTestprogram(testprogram)"
+            :v-if="testprogram !== selectedTestprogram"
+          >
             <v-list-item-title>{{
               testprogram.toUpperCase()
             }}</v-list-item-title>
@@ -260,11 +271,18 @@ function confirmChangeSelectedProgram() {
 
     <v-btn icon @click="createTestprogramDialog = true">
       <v-icon>mdi-plus</v-icon>
-      <v-tooltip activator="parent" location="bottom end">Add testprogram</v-tooltip>
+      <v-tooltip activator="parent" location="bottom end"
+        >Add testprogram</v-tooltip
+      >
     </v-btn>
   </v-toolbar>
 
-  <v-dialog v-model="createTestprogramDialog" persistent max-width="800px" transition="dialog-top-transition">
+  <v-dialog
+    v-model="createTestprogramDialog"
+    persistent
+    max-width="800px"
+    transition="dialog-top-transition"
+  >
     <v-card style="min-width: 50vw">
       <v-card-title class="text-h5 grey lighten-2">
         Create new testprogram
@@ -272,36 +290,65 @@ function confirmChangeSelectedProgram() {
 
       <v-card-text>
         <v-form>
-          <v-text-field v-model="newTestprogramName" label="Testprogram name" variant="underlined" density="compact" />
+          <v-text-field
+            v-model="newTestprogramName"
+            label="Testprogram name"
+            variant="underlined"
+            density="compact"
+          />
         </v-form>
       </v-card-text>
 
       <v-divider></v-divider>
 
       <v-card-actions>
-        <v-btn color="error" variant="text" @click="closeCreateTestprogramDialog">
+        <v-btn
+          color="error"
+          variant="text"
+          @click="closeCreateTestprogramDialog"
+        >
           Cancel
         </v-btn>
         <v-spacer></v-spacer>
-        <v-btn color="success" variant="text" @click="createTestprogram({ testprogramName: newTestprogramName })">
+        <v-btn
+          color="success"
+          variant="text"
+          @click="createTestprogram({ testprogramName: newTestprogramName })"
+        >
           Create new testprogram
         </v-btn>
       </v-card-actions>
 
       <!--Replace with loading save and exit button once available in vuetify-->
-      <v-overlay v-model="testprogramCreateLoading" contained class="align-center justify-center">
+      <v-overlay
+        v-model="testprogramCreateLoading"
+        contained
+        class="align-center justify-center"
+      >
         <v-progress-circular size="80" color="secondary" indeterminate />
       </v-overlay>
     </v-card>
   </v-dialog>
 
-  <Testprogram :deleteTestprogramEvent="deleteSelectedTestprogram" :testprogram-name="selectedTestprogram"
-    :selected-architecture="selectedArchitecture" @testprogramDeleted="onTestprogramDeleted"
-    @testprogramNotDeleted="deleteSelectedTestprogram = false" @code-edited="unsavedChanges = true" />
+  <Testprogram
+    :deleteTestprogramEvent="deleteSelectedTestprogram"
+    :testprogram-name="selectedTestprogram"
+    :selected-architecture="selectedArchitecture"
+    @testprogramDeleted="onTestprogramDeleted"
+    @testprogramNotDeleted="deleteSelectedTestprogram = false"
+    @code-edited="unsavedChanges = true"
+  />
 
-  <ConfirmDialog :is-active="showConfirmChangeSelectedProgram"
+  <ConfirmDialog
+    :is-active="showConfirmChangeSelectedProgram"
     text="Current Testprogram has unsaved changes which will get lost if you change testprograms. Proceed anyway?"
-    @confirm="confirmChangeSelectedProgram" @cancel="showConfirmChangeSelectedProgram = false" />
+    @confirm="confirmChangeSelectedProgram"
+    @cancel="showConfirmChangeSelectedProgram = false"
+  />
 
-  <ErrorSnackbar :is-error="isError" :message="errorMessage" @close-event="isError = false" />
+  <ErrorSnackbar
+    :is-error="isError"
+    :message="errorMessage"
+    @close-event="isError = false"
+  />
 </template>

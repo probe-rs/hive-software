@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import type { BackendQuery, FlatTargetState } from "@/gql/backend";
-import type { Maybe } from "@/gql/baseTypes";
-
 import { ref, onBeforeMount, onUnmounted, onMounted } from "vue";
-import { computed } from "@vue/reactivity";
+import { computed } from "vue";
 import RackPartComponent from "./RackPart.vue";
 import {
   paddingHorizontal,
@@ -13,7 +10,8 @@ import {
   stageAspectRatio,
 } from "./constants";
 import { useQuery } from "@vue/apollo-composable";
-import gql from "graphql-tag";
+import { gql } from "@/gql-schema";
+import { type FlatTargetState } from "@/gql-schema/graphql";
 
 const emit = defineEmits<{
   (event: "selectedPartLocation", location: number): void;
@@ -48,14 +46,16 @@ const konvaStage = ref(null);
 const stage = ref(null);
 
 // Server data
-const { result } = useQuery<BackendQuery>(gql`
-  query {
+const { result } = useQuery(
+  gql(`
+  query ConnectedTssAndTargets{
     connectedTss
     assignedTargets {
       state
     }
   }
-`);
+`),
+);
 
 const connectedTss = computed(() => {
   if (result.value) {
@@ -135,9 +135,9 @@ onUnmounted(() => {
   window.removeEventListener("resize", updateStageSize);
 });
 
-function tssConfig(idx: number, daugtherboard: Maybe<Array<FlatTargetState>>) {
-  var img = undefined;
-  var yVal = rackYpos - 71;
+function tssConfig(idx: number, daugtherboard: Array<FlatTargetState> | null) {
+  let img = undefined;
+  let yVal = rackYpos - 71;
 
   if (idx == showTssIndexes.value.length - 1) {
     if (daugtherboard) {
@@ -210,7 +210,7 @@ function handlePartClick(location: number) {
 
 const showTssIndexes = computed(() => {
   if (connectedTss.value) {
-    let locations: number[] = [];
+    const locations: number[] = [];
 
     connectedTss.value.forEach((isConnected: boolean, idx: number) => {
       if (isConnected) {
@@ -225,13 +225,33 @@ const showTssIndexes = computed(() => {
 </script>
 
 <template>
-  <v-col id="konvaStage" ref="konvaStage" style="border-radius: 8px" cols="lg-10">
+  <v-col
+    id="konvaStage"
+    ref="konvaStage"
+    style="border-radius: 8px"
+    cols="lg-10"
+  >
     <v-stage :config="stageConfig" ref="stage">
       <v-layer ref="layer">
-        <RackPartComponent :config="rpiConfig" :location="0" :isSelected="isSelected[0]" @mouseClick="handlePartClick" />
-        <RackPartComponent :config="pssConfig" :location="1" :isSelected="isSelected[1]" @mouseClick="handlePartClick" />
-        <RackPartComponent v-for="idx in showTssIndexes" :config="tssConfig(idx, assignedTargets[idx])"
-          :location="idx + 2" :isSelected="isSelected[idx + 2]" @mouseClick="handlePartClick" />
+        <RackPartComponent
+          :config="rpiConfig"
+          :location="0"
+          :isSelected="isSelected[0]"
+          @mouseClick="handlePartClick"
+        />
+        <RackPartComponent
+          :config="pssConfig"
+          :location="1"
+          :isSelected="isSelected[1]"
+          @mouseClick="handlePartClick"
+        />
+        <RackPartComponent
+          v-for="idx in showTssIndexes"
+          :config="tssConfig(idx, assignedTargets[idx])"
+          :location="idx + 2"
+          :isSelected="isSelected[idx + 2]"
+          @mouseClick="handlePartClick"
+        />
       </v-layer>
     </v-stage>
   </v-col>

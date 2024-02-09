@@ -6,6 +6,7 @@ mod db;
 mod keys;
 
 pub use db::BincodeDb;
+pub use db::BincodeIter;
 pub use db::BincodeTransactional;
 pub use keys::Key;
 
@@ -84,15 +85,33 @@ mod tests {
         IVec, Tree,
     };
 
-    use crate::{BincodeDb, BincodeTransactional, HiveDb, Key};
+    use crate::{db::BincodeIter, BincodeDb, BincodeTransactional, HiveDb, Key};
 
     lazy_static! {
         static ref DB: HiveDb = HiveDb::open_test(100, 256);
-        static ref KEY: Key<SerDeData> = Key::new("data");
+        static ref KEY: Key<'static, SerDeData> = Key::new("data");
+        static ref KEY_1: Key<'static, SerDeData> = Key::new("key1");
+        static ref KEY_2: Key<'static, SerDeData> = Key::new("key2");
+        static ref KEY_3: Key<'static, SerDeData> = Key::new("key3");
         static ref DATA: SerDeData = SerDeData {
             bool: false,
             number: 1873945,
             string: "some text".to_owned()
+        };
+        static ref DATA_1: SerDeData = SerDeData {
+            bool: false,
+            number: 1,
+            string: "key1".to_owned()
+        };
+        static ref DATA_2: SerDeData = SerDeData {
+            bool: false,
+            number: 2,
+            string: "key2".to_owned()
+        };
+        static ref DATA_3: SerDeData = SerDeData {
+            bool: false,
+            number: 3,
+            string: "key3".to_owned()
         };
     }
 
@@ -116,9 +135,23 @@ mod tests {
         transactional.remove(KEY.get_key())
     }
 
+    /// Creates multiple entries in the tree to test iterators
+    fn setup_test_tree_multiple(tree: &Tree) {
+        tree.b_insert(&KEY_1, &DATA_1).unwrap();
+        tree.b_insert(&KEY_2, &DATA_2).unwrap();
+        tree.b_insert(&KEY_3, &DATA_3).unwrap();
+    }
+
+    /// Removes all entries inserted by calling [`setup_test_tree_multiple()`]
+    fn reset_test_tree_multiple(tree: Tree) {
+        tree.b_remove(&KEY_1).unwrap();
+        tree.b_remove(&KEY_2).unwrap();
+        tree.b_remove(&KEY_3).unwrap();
+    }
+
     #[test]
     #[serial]
-    fn c_get() {
+    fn b_get() {
         let test_tree = DB.open_tree("test");
 
         let option = test_tree.b_get(&KEY).unwrap();
@@ -136,7 +169,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn c_insert() {
+    fn b_insert() {
         let test_tree = DB.open_tree("test");
 
         let option = test_tree.b_insert(&KEY, &DATA).unwrap();
@@ -152,7 +185,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn c_remove() {
+    fn b_remove() {
         let test_tree = DB.open_tree("test");
 
         let option = test_tree.b_remove(&KEY).unwrap();
@@ -166,6 +199,68 @@ mod tests {
         assert_eq!(option, Some(DATA.clone()));
 
         reset_test_tree(test_tree);
+    }
+
+    #[test]
+    #[serial]
+    fn b_iter() {
+        let test_tree = DB.open_tree("test");
+
+        setup_test_tree_multiple(&test_tree);
+
+        let mut iterator = test_tree.b_iter::<SerDeData>();
+
+        assert_eq!(
+            iterator.next().unwrap(),
+            Ok((KEY_1.get_key().to_owned(), DATA_1.clone()))
+        );
+        assert_eq!(
+            iterator.next().unwrap(),
+            Ok((KEY_2.get_key().to_owned(), DATA_2.clone()))
+        );
+        assert_eq!(
+            iterator.next().unwrap(),
+            Ok((KEY_3.get_key().to_owned(), DATA_3.clone()))
+        );
+        assert_eq!(iterator.next(), None);
+
+        drop(iterator);
+
+        reset_test_tree_multiple(test_tree);
+    }
+
+    #[test]
+    #[serial]
+    fn b_values() {
+        let test_tree = DB.open_tree("test");
+
+        setup_test_tree_multiple(&test_tree);
+
+        let mut iterator = test_tree.iter().b_values::<SerDeData>();
+
+        assert_eq!(iterator.next().unwrap(), Ok(DATA_1.clone()));
+        assert_eq!(iterator.next().unwrap(), Ok(DATA_2.clone()));
+        assert_eq!(iterator.next().unwrap(), Ok(DATA_3.clone()));
+        assert_eq!(iterator.next(), None);
+
+        reset_test_tree_multiple(test_tree);
+    }
+
+    #[test]
+    #[serial]
+    fn b_keys() {
+        let test_tree = DB.open_tree("test");
+
+        setup_test_tree_multiple(&test_tree);
+
+        let mut iterator = test_tree.iter().b_keys();
+
+        assert_eq!(iterator.next().unwrap(), Ok(KEY_1.get_key().to_owned()));
+        assert_eq!(iterator.next().unwrap(), Ok(KEY_2.get_key().to_owned()));
+        assert_eq!(iterator.next().unwrap(), Ok(KEY_3.get_key().to_owned()));
+        assert_eq!(iterator.next(), None);
+
+        reset_test_tree_multiple(test_tree);
     }
 
     #[test]

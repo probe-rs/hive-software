@@ -10,6 +10,12 @@ pub struct HiveUid {
     uid: u32,
 }
 
+impl Default for HiveUid {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HiveUid {
     pub fn new() -> Self {
         HiveUid {

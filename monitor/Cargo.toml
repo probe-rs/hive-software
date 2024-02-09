@@ -8,7 +8,12 @@ description = "Hive monitor which handles all external communication, prepares t
 readme = "README.md"
 
 [dependencies]
-comm-types = { path = "../comm-types/", features = ["bincode", "ipc", "auth"] }
+comm-types = { path = "../comm-types/", features = [
+    "bincode",
+    "ipc",
+    "auth",
+    "token",
+] }
 controller = { path = "../controller/" }
 hive-db = { path = "../hive-db/" }
 log = { workspace = true }
@@ -39,6 +44,7 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "color", "suggestions"] }
 clap-verbosity-flag = { workspace = true }
 dialoguer = { workspace = true }
+rand = "0.8"
 rand_chacha = "0.3"
 base64 = "0.13"
 ring = "0.16"
@@ -48,6 +54,7 @@ wait-timeout = "0.2"
 command-fds = "0.2"
 users = "0.11"
 sys-info = "0.9"
+chrono = { workspace = true }
 
 [dev-dependencies]
 hive-db = { path = "../hive-db/", features = ["test"] }

@@ -1,15 +1,12 @@
 <script setup lang="ts">
-import type { BackendQuery } from "@/gql/backend";
-
-import ProbeOverview from "@/components/ProbeOverview.vue";
-import { useMutation, useQuery } from "@vue/apollo-composable";
-import gql from "graphql-tag";
-import { computed, ref, watch, type ComputedRef } from "vue";
+import { gql } from "@/gql-schema";
+import { computed, ref } from "vue";
 import ErrorSnackbar from "./ErrorSnackbar.vue";
+import { useQuery } from "@vue/apollo-composable";
 
-const { loading, result, onError } = useQuery<BackendQuery>(
-  gql`
-    query {
+const { loading, result, onError } = useQuery(
+  gql(`
+    query SystemInfo {
       systemInfo {
         controller
         soc
@@ -27,7 +24,7 @@ const { loading, result, onError } = useQuery<BackendQuery>(
         averageLoad
       }
     }
-  `,
+  `),
   null,
   {
     fetchPolicy: "network-only",

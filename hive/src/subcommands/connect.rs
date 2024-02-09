@@ -5,19 +5,20 @@ use dialoguer::Input;
 
 use crate::config::HiveConfig;
 use crate::models::Host;
+use crate::request::token::delete_api_token;
 use crate::validate;
 use crate::{CliArgs, Commands};
 
 /// Connect subcommand handler
 pub fn connect(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
-    let subcommand_args = if let Commands::Connect(args) = cli_args.command {
+    let subcommand_args = if let Commands::Connect(args) = &cli_args.command {
         args
     } else {
         panic!("You may only call this function if the actual subcommand matches")
     };
 
-    let address: Host = match subcommand_args.address {
-        Some(address) => address.into(),
+    let address: Host = match subcommand_args.address.as_ref() {
+        Some(address) => address.to_owned().into(),
         None => {
             if cli_args.no_human {
                 bail!("No testserver address specified as argument");
@@ -40,10 +41,13 @@ pub fn connect(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
         }
     };
 
-    // We check if the provided host sends a response and is a testserver
-    super::get_testserver_capabilities(&address, cli_args.accept_invalid_certs)?;
-
     config.testserver = Some(address);
+
+    // Delete any saved token for this testserver due to connect call
+    delete_api_token(&config)?;
+
+    // We check if the provided host sends a response and is a testserver
+    super::get_testserver_capabilities(cli_args.accept_invalid_certs, &config, &cli_args)?;
 
     config.save_config()?;
 

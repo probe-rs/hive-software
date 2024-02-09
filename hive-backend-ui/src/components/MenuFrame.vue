@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BackendAuthMutation } from "@/gql/backendAuth";
+import type { BackendAuthMutation } from "@/gql-schema/backendAuth";
 
 import { onMounted, ref } from "vue";
 import AppSettings from "@/components/AppSettings.vue";
@@ -20,7 +20,7 @@ const errorMessage = ref("");
 
 onMounted(() => {
   document.addEventListener(APOLLO_ERROR, (e) => {
-    //@ts-ignore
+    //@ts-expect-error
     errorMessage.value = `Error: ${e.detail}`;
     showError.value = true;
   });
@@ -57,7 +57,10 @@ function resizeEvent() {
       <hiveIcon />
     </v-btn>
 
-    <p style="font-family: Poppins; font-size: 27pt; color: white" class="font-weight-bold pl-2">
+    <p
+      style="font-family: Poppins; font-size: 27pt; color: white"
+      class="font-weight-bold pl-2"
+    >
       Hive
     </p>
 
@@ -71,12 +74,19 @@ function resizeEvent() {
       <AppSettings />
     </v-menu>
     <v-btn icon rounded="0" @click="logout">
-      <v-tooltip location="bottom end" origin="top center" activator="parent">Log out</v-tooltip>
+      <v-tooltip location="bottom end" origin="top center" activator="parent"
+        >Log out</v-tooltip
+      >
       <v-icon> mdi-logout </v-icon>
     </v-btn>
   </v-app-bar>
 
-  <v-navigation-drawer clipped :model-value="showNavigation" app @transitionend="resizeEvent">
+  <v-navigation-drawer
+    clipped
+    :model-value="showNavigation"
+    app
+    @transitionend="resizeEvent"
+  >
     <Navigation />
   </v-navigation-drawer>
 
@@ -86,5 +96,9 @@ function resizeEvent() {
     </v-container>
   </v-main>
 
-  <ErrorSnackbar :is-error="showError" :message="errorMessage" @close-event="showError = false" />
+  <ErrorSnackbar
+    :is-error="showError"
+    :message="errorMessage"
+    @close-event="showError = false"
+  />
 </template>

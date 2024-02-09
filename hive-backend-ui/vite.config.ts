@@ -20,12 +20,12 @@ export default defineConfig({
   server: {
     proxy: {
       "/graphql/backend": {
-        target: "https://192.168.1.85:4445",
+        target: "https://192.168.1.85:5556",
         changeOrigin: true,
         secure: false,
       },
       "/auth/backend": {
-        target: "https://192.168.1.85:4445",
+        target: "https://192.168.1.85:5556",
         changeOrigin: true,
         secure: false,
       },
@@ -33,5 +33,5 @@ export default defineConfig({
   },
   build: {
     //minify: false
-  }
+  },
 });

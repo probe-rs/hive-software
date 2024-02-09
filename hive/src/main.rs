@@ -13,13 +13,13 @@ use std::env;
 use std::path::PathBuf;
 use std::process;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::{ArgGroup, Args, Parser, Subcommand};
 use log::Level;
 
-mod client;
 mod config;
 mod models;
+mod request;
 mod subcommands;
 mod validate;
 mod workspace;
@@ -38,6 +38,9 @@ pub struct CliArgs {
     /// Deactivates all user input prompts and progress indicators
     #[clap(short, long)]
     no_human: bool,
+    /// API token to use when calling the Hive test API
+    #[clap(short, long)]
+    token: Option<String>,
     /// Accept invalid tls certificates
     #[clap(short = 'i', long)]
     accept_invalid_certs: bool,
@@ -116,7 +119,12 @@ fn main() {
 }
 
 fn app(cli_args: CliArgs) -> Result<()> {
-    let config = config::HiveConfig::load_config()?;
+    let config = config::HiveConfig::load_config().map_err(|err| {
+        anyhow!(
+            "Failed to load the config file of hive: {}\nThe file might be corrupted.",
+            err
+        )
+    })?;
 
     match cli_args.command {
         Commands::Test(_) => subcommands::test::test(cli_args, config),

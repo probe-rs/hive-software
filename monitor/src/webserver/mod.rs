@@ -34,11 +34,14 @@ use crate::database::MonitorDb;
 use crate::tasks::TaskManager;
 use crate::{Args, SHUTDOWN_SIGNAL};
 
+mod api_token;
 mod auth;
 mod backend;
 mod csrf;
 mod handlers;
 mod test;
+
+pub use backend::get_schema_sdl;
 
 const STATIC_FILES: &str = "data/webserver/static/";
 const PEM_CERT: &str = "data/webserver/cert/cert.pem";

@@ -18,7 +18,9 @@ use crate::testprogram::Testprogram;
 
 #[derive(Debug)]
 struct FlashStatus {
+    #[allow(dead_code)]
     probe_identifier: String,
+    #[allow(dead_code)]
     probe_serial_number: Option<String>,
     tss_pos: u8,
     target_name: String,

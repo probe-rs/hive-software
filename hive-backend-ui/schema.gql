@@ -1,0 +1,313 @@
+"""
+Serializable view on a [`DbToken`] struct for usage in the GraphQL API
+"""
+type ApiTokenInfo {
+  name: String!
+  description: String!
+  expiration: String
+}
+
+"""
+The main applications of Hive
+"""
+enum Application {
+  MONITOR
+  RUNNER
+}
+
+"""
+The current supported architectures of a Testprogram
+"""
+enum Architecture {
+  ARM
+  RISCV
+}
+
+type AssignProbeResponse {
+  probePos: Int!
+  data: FlatProbeState!
+}
+
+type AssignTargetResponse {
+  tssPos: Int!
+  targetPos: Int!
+  targetName: String!
+}
+
+type BackendMutation {
+  """
+  Assigns a target to a given position. This does only update the data in the DB. To apply the changes into the runtime use the update mutation to reinitialize the testrack
+  """
+  assignTarget(
+    tssPos: Int!
+    targetPos: Int!
+    targetName: String!
+  ): AssignTargetResponse!
+  """
+  Assigns a probe to a given position. This does only update the data in the DB. To apply the changes into the runtime use the update mutation to reinitialize the testrack
+  """
+  assignProbe(
+    probePos: Int!
+    probeState: FlatProbeStateInput!
+  ): AssignProbeResponse!
+  """
+  Manually reinitialize the hardware in the runtime
+  """
+  reinitializeHardware: Boolean!
+  """
+  Change the username of the authenticated user
+  """
+  changeUsername(username: String!): UserResponse!
+  """
+  Change the password of the authenticated user
+  """
+  changePassword(oldPassword: String!, newPassword: String!): Boolean!
+  """
+  Create a new user
+  """
+  createUser(username: String!, password: String!, role: Role!): UserResponse!
+  """
+  Delete a user
+  """
+  deleteUser(username: String!): UserResponse!
+  """
+  Modify a user
+  """
+  modifyUser(
+    oldUsername: String!
+    newRole: Role
+    newUsername: String
+    newPassword: String
+  ): UserResponse!
+  """
+  Modify a testprogram
+  """
+  modifyTestprogram(
+    testprogramName: String!
+    codeFiles: [Upload!]!
+  ): Testprogram!
+  """
+  Delete a testprogram
+  """
+  deleteTestprogram(testprogramName: String!): String!
+  """
+  Create a testprogram
+  """
+  createTestprogram(testprogramName: String!): Testprogram!
+  """
+  Set a testprogram as active testprogram
+  """
+  setActiveTestprogram(testprogramName: String!): String!
+  """
+  Creates a new test API token for use
+  """
+  createTestApiToken(
+    name: String!
+    description: String!
+    expiration: String
+  ): String!
+  """
+  Revokes the test API token with the provided name
+  """
+  revokeTestApiToken(name: String!): String!
+}
+
+type BackendQuery {
+  """
+  The currently connected daughterboards
+  """
+  connectedDaughterboards: [Boolean!]!
+  """
+  The currently connected TSS
+  """
+  connectedTss: [Boolean!]!
+  """
+  The current targets assigned to connected daughterboards
+  """
+  assignedTargets: [[FlatTargetState!]]!
+  """
+  The current probes assigned to testchannels
+  """
+  assignedProbes: [FlatProbeState!]!
+  """
+  Search the supported targets by Hive
+  """
+  searchSupportedTargets(search: String!): [String!]!
+  """
+  The currently connected debug probes
+  """
+  connectedProbes: [ProbeInfo!]!
+  """
+  Return the log data of the provided application (either runner or monitor)
+  """
+  applicationLog(application: Application!, level: LogLevel!): [String!]!
+  """
+  List the registered users
+  """
+  registeredUsers: [UserResponse!]!
+  """
+  Get all avaialable testprograms
+  """
+  availableTestprograms: [Testprogram!]!
+  """
+  Get the currently active testprogram
+  """
+  activeTestprogram: String!
+  """
+  Get the provided testprogram and its sourcecode as base64
+  """
+  testprogram(testprogramName: String!): FullTestProgramResponse!
+  """
+  Get information about the system on which Hive runs
+  """
+  systemInfo: SystemInfo!
+  """
+  Get all currently active test API tokens
+  """
+  testApiTokens: [ApiTokenInfo!]!
+}
+
+type DiskInfo {
+  total: Int!
+  free: Int!
+}
+
+"""
+Flattened version of [`ProbeState`] to use it in graphql api
+"""
+type FlatProbeState {
+  state: State!
+  data: ProbeInfo
+}
+
+"""
+Flattened version of [`ProbeState`] to use it in graphql api
+"""
+input FlatProbeStateInput {
+  state: State!
+  data: ProbeInfoInput
+}
+
+"""
+Flattened version of [`TargetInfo`] to use it in graphql api
+"""
+type FlatTargetInfo {
+  name: String!
+  flashStatus: ResultEnum!
+  flashMessage: String!
+}
+
+"""
+Flattened version of [`TargetState`] to use it in graphql api
+"""
+type FlatTargetState {
+  state: State!
+  data: FlatTargetInfo
+}
+
+type FullTestProgramResponse {
+  testprogram: Testprogram!
+  codeArm: String!
+  codeRiscv: String!
+}
+
+"""
+Wrapper for [`log::Level`] to use it in graphql api
+"""
+enum LogLevel {
+  ERROR
+  WARN
+  INFO
+  DEBUG
+  TRACE
+}
+
+type MemoryInfo {
+  total: Int!
+  free: Int!
+}
+
+"""
+Information on a probe attached to Hive
+"""
+type ProbeInfo {
+  identifier: String!
+  serialNumber: String
+}
+
+"""
+Information on a probe attached to Hive
+"""
+input ProbeInfoInput {
+  identifier: String!
+  serialNumber: String
+}
+
+enum ResultEnum {
+  OK
+  ERROR
+}
+
+"""
+The possible roles a user can have
+"""
+enum Role {
+  """
+  Can create / delete users
+  """
+  ADMIN
+  MAINTAINER
+}
+
+enum State {
+  KNOWN
+  UNKNOWN
+  NOT_CONNECTED
+}
+
+"""
+System information of the System running this application
+"""
+type SystemInfo {
+  controller: String!
+  soc: String!
+  cores: Int!
+  hostname: String!
+  os: String!
+  memory: MemoryInfo!
+  disk: DiskInfo!
+  averageLoad: Float!
+}
+
+type Testprogram {
+  name: String!
+  testprogramArm: TestprogramArchitecture!
+  testprogramRiscv: TestprogramArchitecture!
+}
+
+"""
+The sub-instance of [`Testprogram`] which contains all architecture specific functionality
+"""
+type TestprogramArchitecture {
+  architecture: Architecture!
+  status: TestprogramStatus!
+  compileMessage: String!
+}
+
+enum TestprogramStatus {
+  NOT_INITIALIZED
+  COMPILE_FAILURE
+  OK
+}
+
+scalar Upload
+
+type UserResponse {
+  username: String!
+  role: Role!
+}
+
+schema {
+  query: BackendQuery
+  mutation: BackendMutation
+}

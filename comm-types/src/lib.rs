@@ -19,5 +19,8 @@ pub mod test;
 #[cfg(feature = "auth")]
 pub mod auth;
 
+#[cfg(feature = "token")]
+pub mod token;
+
 #[cfg(feature = "defines")]
 pub mod defines;

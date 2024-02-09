@@ -1,13 +1,14 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHashHistory } from "vue-router";
 import Overview from "@/views/Overview.vue";
 import Testprograms from "@/views/Testprograms.vue";
 import NotFound from "@/views/NotFound.vue";
 import Login from "@/views/Login.vue";
 import Logs from "@/views/Logs.vue";
 import Users from "@/views/Users.vue";
+import ApiTokens from "@/views/ApiTokens.vue";
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: "/",
@@ -40,6 +41,11 @@ const router = createRouter({
         }*/
         return true;
       },
+    },
+    {
+      path: "/api-tokens",
+      name: "api tokens",
+      component: ApiTokens,
     },
     { path: "/:pathMatch(.*)*", component: NotFound, name: "notFound" },
   ],

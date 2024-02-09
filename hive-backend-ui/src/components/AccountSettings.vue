@@ -1,14 +1,8 @@
 <script setup lang="ts">
-import type {
-  BackendMutation,
-  BackendMutationChangeUsernameArgs,
-  BackendQuery,
-} from "@/gql/backend";
-
 import { useUserStore } from "@/stores/userStore";
 import { cloneDeep } from "@apollo/client/utilities";
 import { useMutation } from "@vue/apollo-composable";
-import gql from "graphql-tag";
+import { gql } from "@/gql-schema";
 import { ref, watch } from "vue";
 import SuccessSnackbar from "./SuccessSnackbar.vue";
 
@@ -37,15 +31,15 @@ const {
   mutate: changeUsername,
   onError: onUsernameChangeError,
   onDone: onUsernameChangeDone,
-} = useMutation<BackendMutation, BackendMutationChangeUsernameArgs>(
-  gql`
-    mutation ($username: String!) {
+} = useMutation(
+  gql(`
+    mutation ChangeUserName ($username: String!) {
       changeUsername(username: $username) {
         username
         role
       }
     }
-  `,
+  `),
   {
     fetchPolicy: "no-cache",
     update: (cache, { data }) => {
@@ -55,16 +49,16 @@ const {
 
       const changeUsername = data.changeUsername;
 
-      const QUERY = gql`
-        query {
+      const QUERY = gql(`
+        query RegisteredUsers{
           registeredUsers {
             username
             role
           }
         }
-      `;
+      `);
 
-      let cacheData: BackendQuery | null = cache.readQuery({
+      let cacheData = cache.readQuery({
         query: QUERY,
       });
 
@@ -85,7 +79,7 @@ const {
         registeredUsers: newRegisteredUsers,
       };
 
-      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
+      cache.writeQuery({ query: QUERY, data: cacheData });
     },
   },
 );
@@ -96,11 +90,11 @@ const {
   onError: onPasswordChangeError,
   onDone: onPasswordChangeDone,
 } = useMutation(
-  gql`
-    mutation ($oldPassword: String!, $newPassword: String!) {
+  gql(`
+    mutation ChangePassword ($oldPassword: String!, $newPassword: String!) {
       changePassword(oldPassword: $oldPassword, newPassword: $newPassword)
     }
-  `,
+  `),
   {
     fetchPolicy: "no-cache",
   },
@@ -174,21 +168,56 @@ onPasswordChangeDone(() => {
 
     <v-card-text>
       <v-form>
-        <v-text-field v-model="localUsername" label="Username" :error="isUsernameError" variant="underlined"
-          density="compact" :error-messages="isUsernameError ? usernameErrorMessage : undefined" />
-        <v-text-field label="Role" v-model="userStore.role" disabled variant="underlined" density="compact" />
+        <v-text-field
+          v-model="localUsername"
+          label="Username"
+          :error="isUsernameError"
+          variant="underlined"
+          density="compact"
+          :error-messages="isUsernameError ? usernameErrorMessage : undefined"
+        />
+        <v-text-field
+          label="Role"
+          v-model="userStore.role"
+          disabled
+          variant="underlined"
+          density="compact"
+        />
         <template v-if="showChangePassword">
-          <v-text-field v-model="oldPassword" variant="underlined" density="compact"
-            :type="showPassword ? 'text' : 'password'" label="Old Password" :error="isPasswordError" />
-          <v-text-field v-model="newPassword" variant="underlined" density="compact"
-            :type="showPassword ? 'text' : 'password'" label="New Password" :error="isPasswordError" />
-          <v-text-field v-model="newPasswordConfirm" variant="underlined" density="compact"
-            :append-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'" :type="showPassword ? 'text' : 'password'"
-            label="New Password Confirm" :error="isPasswordError"
-            :error-messages="isPasswordError ? passwordErrorMessage : undefined" :loading="passwordLoading"
-            @click:append="showPassword = !showPassword" />
+          <v-text-field
+            v-model="oldPassword"
+            variant="underlined"
+            density="compact"
+            :type="showPassword ? 'text' : 'password'"
+            label="Old Password"
+            :error="isPasswordError"
+          />
+          <v-text-field
+            v-model="newPassword"
+            variant="underlined"
+            density="compact"
+            :type="showPassword ? 'text' : 'password'"
+            label="New Password"
+            :error="isPasswordError"
+          />
+          <v-text-field
+            v-model="newPasswordConfirm"
+            variant="underlined"
+            density="compact"
+            :append-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+            :type="showPassword ? 'text' : 'password'"
+            label="New Password Confirm"
+            :error="isPasswordError"
+            :error-messages="isPasswordError ? passwordErrorMessage : undefined"
+            :loading="passwordLoading"
+            @click:append="showPassword = !showPassword"
+          />
         </template>
-        <v-btn v-if="!showChangePassword" color="info" @click="showChangePassword = true">
+        <v-btn
+          v-if="!showChangePassword"
+          color="info"
+          @click="showChangePassword = true"
+        >
           Change Password
         </v-btn>
         <v-btn v-if="showChangePassword" color="info" @click="submitPassword">
@@ -200,9 +229,13 @@ onPasswordChangeDone(() => {
     <v-divider></v-divider>
 
     <v-card-actions>
-      <v-btn color="error" variant="text" @click="$emit('closeEvent')"> Cancel </v-btn>
+      <v-btn color="error" variant="text" @click="$emit('closeEvent')">
+        Cancel
+      </v-btn>
       <v-spacer></v-spacer>
-      <v-btn color="success" variant="text" @click="submitData"> Save and Exit </v-btn>
+      <v-btn color="success" variant="text" @click="submitData">
+        Save and Exit
+      </v-btn>
     </v-card-actions>
 
     <!--Replace with loading save and exit button once available in vuetify-->
@@ -211,6 +244,9 @@ onPasswordChangeDone(() => {
     </v-overlay>
   </v-card>
 
-  <SuccessSnackbar :isSuccess="isPasswordSuccess" @closeEvent="isPasswordSuccess = false"
-    message="Successfully changed the password" />
+  <SuccessSnackbar
+    :isSuccess="isPasswordSuccess"
+    @closeEvent="isPasswordSuccess = false"
+    message="Successfully changed the password"
+  />
 </template>

@@ -107,12 +107,17 @@ function handleMouseLeave() {
 </script>
 
 <template>
-  <v-image @click="$emit('mouseClick', location)" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave" ref="part"
+  <v-image
+    @click="$emit('mouseClick', location)"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave"
+    ref="part"
     :config="{
       ...config,
       scale: {
         x: scale,
         y: scale,
       },
-    }" />
+    }"
+  />
 </template>

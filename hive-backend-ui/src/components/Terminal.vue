@@ -46,8 +46,7 @@ onBeforeMount(() => {
 });
 
 onMounted(async () => {
-  // @ts-ignore
-  await terminal.open(terminalParent.value!) //loadWebfontAndOpen(terminalParent.value!);
+  await terminal.open(terminalParent.value!); //loadWebfontAndOpen(terminalParent.value!);
   updateTerminalSize();
 });
 

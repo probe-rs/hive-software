@@ -5,6 +5,7 @@ use async_graphql::{Enum, InputObject, SimpleObject};
 use comm_types::{
     auth::{DbUser, Role},
     hardware::{ProbeInfo as CommProbeInfo, ProbeState, TargetInfo, TargetState},
+    token::{DbToken, TokenLifetime},
 };
 use log::Level;
 use probe_rs::DebugProbeInfo;
@@ -247,6 +248,29 @@ impl From<sys_info::DiskInfo> for DiskInfo {
         Self {
             total: info.total,
             free: info.free,
+        }
+    }
+}
+
+/// Serializable view on a [`DbToken`] struct for usage in the GraphQL API
+#[derive(Debug, SimpleObject)]
+pub(super) struct ApiTokenInfo {
+    name: String,
+    description: String,
+    expiration: Option<String>,
+}
+
+impl From<DbToken> for ApiTokenInfo {
+    fn from(value: DbToken) -> Self {
+        let expiration = match value.lifetime {
+            TokenLifetime::Permanent => None,
+            TokenLifetime::Temporary(expiration_date) => Some(expiration_date.to_rfc3339()),
+        };
+
+        Self {
+            name: value.name,
+            description: value.description,
+            expiration,
         }
     }
 }

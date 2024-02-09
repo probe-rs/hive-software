@@ -7,16 +7,16 @@ use std::marker::PhantomData;
 use serde::{de::DeserializeOwned, Serialize};
 
 /// A key which is used to access data in the database
-pub struct Key<T> {
-    key: &'static str,
+pub struct Key<'a, T> {
+    key: &'a str,
     phantom_data: PhantomData<T>,
 }
 
-impl<T> Key<T>
+impl<'a, T> Key<'a, T>
 where
     T: Serialize + DeserializeOwned,
 {
-    pub fn new(key: &'static str) -> Self {
+    pub fn new(key: &'a str) -> Self {
         Self {
             key,
             phantom_data: PhantomData,

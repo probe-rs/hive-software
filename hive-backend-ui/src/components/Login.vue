@@ -2,12 +2,12 @@
 import type {
   BackendAuthQuery,
   BackendAuthQueryAuthenticateUserArgs,
-} from "@/gql/backendAuth";
+} from "@/gql-schema/backendAuth";
 
 import { useLazyQuery } from "@vue/apollo-composable";
-import { computed } from "@vue/reactivity";
+import { computed } from "vue";
 import gql from "graphql-tag";
-import { ref, watch } from "vue";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/stores/userStore";
 
@@ -19,7 +19,7 @@ const username = ref("");
 const password = ref("");
 const queryLoaded = ref(false);
 
-const { loading, result, error, refetch, load, onResult } = useLazyQuery<
+const { loading, error, refetch, load, onResult } = useLazyQuery<
   BackendAuthQuery,
   BackendAuthQueryAuthenticateUserArgs
 >(

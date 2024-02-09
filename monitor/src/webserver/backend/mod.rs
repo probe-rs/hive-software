@@ -11,6 +11,11 @@ mod query;
 pub(super) type BackendSchema =
     Schema<query::BackendQuery, mutation::BackendMutation, EmptySubscription>;
 
+/// Gets the schema as SDL definition
+pub fn get_schema_sdl() -> String {
+    build_schema().sdl()
+}
+
 pub(super) fn build_schema() -> BackendSchema {
     Schema::build(
         query::BackendQuery,
@@ -27,7 +32,8 @@ mod tests {
     use comm_types::auth::{DbUser, Role};
     use comm_types::hardware::{ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData};
-    use hive_db::BincodeDb;
+    use comm_types::token::{DbToken, TokenLifetime};
+    use hive_db::{BincodeDb, BincodeIter, Key};
     use lazy_static::lazy_static;
 
     use crate::database::{keys, MonitorDb};
@@ -42,6 +48,9 @@ mod tests {
             db.config_tree.b_insert(&keys::config::TSS, &[true, true, true, true, true, true, false, false]).unwrap();
 
             db.credentials_tree.b_insert(&keys::credentials::USERS, &DUMMY_USERS).unwrap();
+
+            db.token_tree.b_insert(&API_TOKEN_KEY, &API_TOKEN).unwrap();
+
             Arc::new(db)
         };
         static ref PROBE_DATA: HiveProbeData = [
@@ -156,6 +165,8 @@ mod tests {
             let hash = crate::database::hasher::hash_password("Acorn");
             vec![DbUser { username: "Scrat".to_owned(), hash, role: Role::ADMIN }]
         };
+        static ref API_TOKEN_KEY: Key<'static, DbToken> = Key::new("token");
+        static ref API_TOKEN: DbToken = DbToken { name: "myToken".to_owned(), description: "Some token description".to_owned(), lifetime: TokenLifetime::Permanent };
     }
 
     /// Restore the test DB to its default values.
@@ -179,6 +190,15 @@ mod tests {
         db.credentials_tree
             .b_insert(&keys::credentials::USERS, &*DUMMY_USERS)
             .unwrap();
+
+        // Remove any other tokens
+        for key in db.token_tree.iter().b_keys() {
+            let key = key.unwrap();
+
+            db.token_tree.remove(key).unwrap();
+        }
+
+        db.token_tree.b_insert(&API_TOKEN_KEY, &API_TOKEN).unwrap();
     }
 
     mod query {
@@ -455,6 +475,41 @@ mod tests {
                 })
             );
         }
+
+        #[tokio::test]
+        #[serial]
+        async fn test_api_tokens() {
+            let schema = build_schema();
+
+            let query = r#"{
+                testApiTokens {
+                    name
+                    description
+                    expiration
+                }
+            }"#;
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()))
+                .await
+                .into_result()
+                .unwrap();
+
+            assert!(result.is_ok());
+
+            assert_eq!(
+                result.data,
+                value!({
+                    "testApiTokens": [
+                        {
+                            "name": "myToken",
+                            "description": "Some token description",
+                            "expiration": null
+                        }
+                    ]
+                })
+            );
+        }
     }
 
     mod mutation {
@@ -462,7 +517,8 @@ mod tests {
         use async_graphql::{value, Request};
         use comm_types::auth::{DbUser, JwtClaims, Role};
         use comm_types::hardware::ProbeState;
-        use hive_db::BincodeDb;
+        use comm_types::token::{DbToken, TokenLifetime};
+        use hive_db::{BincodeDb, Key};
         use serial_test::serial;
         use tower_cookies::Cookies;
 
@@ -1496,5 +1552,165 @@ mod tests {
 
             assert_eq!(second_req_response.errors[0].message, "Discarded this reinitialization task as another reinitialization task is still waiting for execution");
         }*/
+
+        #[tokio::test]
+        #[serial]
+        async fn create_test_api_token() {
+            let schema = build_schema();
+
+            let expiration_date =
+                chrono::DateTime::parse_from_rfc3339("2077-02-02T15:25:58.000+01:00")
+                    .map(|dt| dt.into())
+                    .unwrap();
+
+            let expected_db_entry = DbToken {
+                name: "NewToken".to_owned(),
+                description: "My token description".to_owned(),
+                lifetime: TokenLifetime::Temporary(expiration_date),
+            };
+
+            let query = r#"mutation{
+                createTestApiToken(name: "NewToken", description: "My token description", expiration: "2077-02-02T15:25:58.000+01:00")
+            }"#;
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()))
+                .await
+                .into_result()
+                .unwrap();
+
+            assert!(result.is_ok());
+
+            let token = &result.data.to_string()[22..86]; // Slice it out of the response
+
+            // Check if everything was properly saved to DB
+            let db_entry = DB.token_tree.b_get::<DbToken>(&Key::new(token)).unwrap();
+
+            assert_eq!(db_entry, Some(expected_db_entry));
+
+            super::restore_db();
+        }
+
+        #[tokio::test]
+        #[serial]
+        async fn create_test_api_token_already_exists() {
+            let schema = build_schema();
+
+            DB.token_tree
+                .b_insert(
+                    &Key::new("sometokenvalue"),
+                    &DbToken {
+                        name: "myToken".to_owned(),
+                        description: "test".to_owned(),
+                        lifetime: TokenLifetime::Permanent,
+                    },
+                )
+                .unwrap();
+
+            let query = r#"mutation{
+                createTestApiToken(name: "myToken", description: "My token description")
+            }"#;
+
+            let result = schema.execute(Request::new(query).data(DB.clone())).await;
+
+            assert!(result.is_err());
+            assert_eq!(
+                result.errors[0].message,
+                "A token with this name already exists."
+            );
+
+            super::restore_db();
+        }
+
+        #[tokio::test]
+        #[serial]
+        async fn create_test_api_token_invalid_date() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                createTestApiToken(name: "otherToken", description: "My token description", expiration: "invalidDate")
+            }"#;
+
+            let result = schema.execute(Request::new(query).data(DB.clone())).await;
+
+            assert!(result.is_err());
+            assert_eq!(
+                result.errors[0].message,
+                "Failed to parse provided expiration date. Make sure it is valid RFC3339: input contains invalid characters"
+            );
+        }
+
+        #[tokio::test]
+        #[serial]
+        async fn create_test_api_token_date_expired() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                createTestApiToken(name: "otherToken", description: "My token description", expiration: "1970-01-08T09:06:08.169+01:00")
+            }"#;
+
+            let result = schema.execute(Request::new(query).data(DB.clone())).await;
+
+            assert!(result.is_err());
+            assert_eq!(
+                result.errors[0].message,
+                "Provided date lies in the past (already expired)."
+            );
+        }
+
+        #[tokio::test]
+        #[serial]
+        async fn revoke_test_api_token() {
+            let schema = build_schema();
+
+            let token = "someTokenValue";
+
+            DB.token_tree
+                .b_insert(
+                    &Key::new(token),
+                    &DbToken {
+                        name: "otherToken".to_owned(),
+                        description: "test".to_owned(),
+                        lifetime: TokenLifetime::Permanent,
+                    },
+                )
+                .unwrap();
+
+            let query = r#"mutation{
+                revokeTestApiToken(name: "otherToken")
+            }"#;
+
+            let result = schema
+                .execute(Request::new(query).data(DB.clone()))
+                .await
+                .into_result()
+                .unwrap();
+
+            assert!(result.is_ok());
+
+            // Make sure the token got deleted from DB
+            let db_entry = DB.token_tree.b_get::<DbToken>(&Key::new(token)).unwrap();
+            assert_eq!(db_entry, None);
+
+            super::restore_db();
+        }
+
+        #[tokio::test]
+        #[serial]
+        async fn revoke_test_api_token_not_existing() {
+            let schema = build_schema();
+
+            let query = r#"mutation{
+                revokeTestApiToken(name: "notExistingToken")
+            }"#;
+
+            let result = schema.execute(Request::new(query).data(DB.clone())).await;
+
+            assert!(result.is_err());
+            assert_eq!(
+                result.errors[0].message,
+                "Provided token with name notExistingToken does not exist"
+            );
+        }
     }
 }

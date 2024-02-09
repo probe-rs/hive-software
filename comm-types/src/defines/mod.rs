@@ -20,6 +20,12 @@ pub struct DefineRegistry {
     registered_defines: HashMap<String, Box<dyn HiveDefine>>,
 }
 
+impl Default for DefineRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DefineRegistry {
     pub fn new() -> Self {
         Self {

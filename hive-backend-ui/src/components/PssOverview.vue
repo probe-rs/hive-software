@@ -1,19 +1,14 @@
 <script setup lang="ts">
-import type {
-  BackendQuery,
-  BackendMutation,
-  FlatProbeState,
-} from "@/gql/backend";
-
 import ProbeOverview from "@/components/ProbeOverview.vue";
 import { useMutation, useQuery } from "@vue/apollo-composable";
-import gql from "graphql-tag";
-import { computed, ref, watch, type ComputedRef } from "vue";
+import { gql } from "@/gql-schema";
+import { type FlatProbeState } from "@/gql-schema/graphql";
+import { computed, ref, type ComputedRef } from "vue";
 import SuccessSnackbar from "./SuccessSnackbar.vue";
 
-const { loading, result, refetch } = useQuery<BackendQuery>(
-  gql`
-    query {
+const { loading, result, refetch } = useQuery(
+  gql(`
+    query AssignedProbes {
       assignedProbes {
         state
         data {
@@ -26,7 +21,8 @@ const { loading, result, refetch } = useQuery<BackendQuery>(
         serialNumber
       }
     }
-  `,
+  `),
+  null,
   {
     fetchPolicy: "cache-and-network",
   },
@@ -37,12 +33,12 @@ const {
   mutate: reloadTestrack,
   loading: testrackLoading,
   onDone: onReloadDone,
-} = useMutation<BackendMutation>(
-  gql`
-    mutation {
+} = useMutation(
+  gql(`
+    mutation ReinitializeHardware {
       reinitializeHardware
     }
-  `,
+  `),
   { fetchPolicy: "no-cache" },
 );
 

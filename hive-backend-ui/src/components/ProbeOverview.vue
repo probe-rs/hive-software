@@ -1,16 +1,12 @@
 <script setup lang="ts">
+import { cloneDeep } from "@apollo/client/utilities";
+import { useMutation, useQuery } from "@vue/apollo-composable";
+import { gql } from "@/gql-schema";
 import {
-  type BackendMutation,
-  type BackendMutationAssignProbeArgs,
-  type BackendQuery,
   State,
   type FlatProbeState,
   type ProbeInfo,
-} from "@/gql/backend";
-
-import { cloneDeep } from "@apollo/client/utilities";
-import { useMutation, useQuery } from "@vue/apollo-composable";
-import gql from "graphql-tag";
+} from "@/gql-schema/graphql";
 import { computed, ref, toRefs, type PropType } from "vue";
 
 const props = defineProps({
@@ -28,8 +24,9 @@ const { channel, initialData } = toRefs(props);
 
 const selectedProbe = ref(displayAssignedProbe(initialData.value));
 
-const { loading, result } = useQuery<BackendQuery>(gql`
-  query {
+const { loading, result } = useQuery(
+  gql(`
+  query AssignedAndConnectedProbes {
     assignedProbes {
       state
       data {
@@ -42,14 +39,12 @@ const { loading, result } = useQuery<BackendQuery>(gql`
       serialNumber
     }
   }
-`);
+`),
+);
 
-const { mutate: submitProbe } = useMutation<
-  BackendMutation,
-  BackendMutationAssignProbeArgs
->(
-  gql`
-    mutation ($probePos: Int!, $probeState: FlatProbeStateInput!) {
+const { mutate: submitProbe } = useMutation(
+  gql(`
+    mutation AssignProbe ($probePos: Int!, $probeState: FlatProbeStateInput!) {
       assignProbe(probePos: $probePos, probeState: $probeState) {
         probePos
         data {
@@ -61,7 +56,7 @@ const { mutate: submitProbe } = useMutation<
         }
       }
     }
-  `,
+  `),
   {
     update: (cache, { data }) => {
       if (!data) {
@@ -70,8 +65,8 @@ const { mutate: submitProbe } = useMutation<
 
       const assignProbe = data.assignProbe;
 
-      const QUERY = gql`
-        query {
+      const QUERY = gql(`
+        query AssignedProbesOverview {
           assignedProbes {
             state
             data {
@@ -80,9 +75,9 @@ const { mutate: submitProbe } = useMutation<
             }
           }
         }
-      `;
+      `);
 
-      let cacheData: BackendQuery | null = cache.readQuery({
+      let cacheData = cache.readQuery({
         query: QUERY,
       });
 
@@ -99,7 +94,7 @@ const { mutate: submitProbe } = useMutation<
         assignedProbes: newAssignedProbes,
       };
 
-      cache.writeQuery<BackendQuery>({ query: QUERY, data: cacheData });
+      cache.writeQuery({ query: QUERY, data: cacheData });
     },
   },
 );
