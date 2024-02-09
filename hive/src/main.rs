@@ -13,7 +13,7 @@ use std::env;
 use std::path::PathBuf;
 use std::process;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::{ArgGroup, Args, Parser, Subcommand};
 use log::Level;
 
@@ -119,7 +119,12 @@ fn main() {
 }
 
 fn app(cli_args: CliArgs) -> Result<()> {
-    let config = config::HiveConfig::load_config()?;
+    let config = config::HiveConfig::load_config().map_err(|err| {
+        anyhow!(
+            "Failed to load the config file of hive: {}\nThe file might be corrupted.",
+            err
+        )
+    })?;
 
     match cli_args.command {
         Commands::Test(_) => subcommands::test::test(cli_args, config),

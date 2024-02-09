@@ -1,9 +1,9 @@
 //! Manages the API tokens used to access the endpoints of the testserver
 use anyhow::{bail, Result};
 use dialoguer::{theme::ColorfulTheme, Input};
-use keyring::Entry;
+use keyring::{Entry, Error as KeyringError};
 
-use crate::{config::HiveConfig, validate, CliArgs};
+use crate::{config::HiveConfig, CliArgs};
 
 /// Prompts the user to enter the API token to access the test endpoints if no token has been found in the keyring for the currently connected testserver
 ///
@@ -35,9 +35,10 @@ pub(super) fn get_api_token_or_prompt(config: &HiveConfig, cli_args: &CliArgs) -
         let token_input = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("Please enter your Hive API token\n(The token will be securely stored for further use)")
             .validate_with(|input: &String| -> Result<(), &str> {
-                match validate::ip_or_url(input) {
-                    Ok(_) => Ok(()),
-                    Err(_) => Err("Invalid API token"),
+                if input.chars().all(|c| c.is_ascii_alphanumeric()) {
+                    Ok(())
+                } else {
+                    Err("API token may only contain alphanumeric ASCII characters")
                 }
             })
             .interact_text()
@@ -51,15 +52,21 @@ pub(super) fn get_api_token_or_prompt(config: &HiveConfig, cli_args: &CliArgs) -
     Ok(token.unwrap())
 }
 
-/// Deletes the API token of the currently selected testserver from the keyring
+/// Deletes the API token of the currently selected testserver from the keyring if it exists
 pub fn delete_api_token(config: &HiveConfig) -> Result<()> {
     let keyring_entry = get_entry(config)?;
 
-    keyring_entry.delete_password()?;
+    if let Err(err) = keyring_entry.delete_password() {
+        match err {
+            KeyringError::NoEntry => (), // Entry does not exist, ignore
+            err => Err(err)?,
+        }
+    }
 
     Ok(())
 }
 
+/// Saves the API token of the currently selected testserver in the keyring
 fn save_api_token(config: &HiveConfig, token: &str) -> Result<()> {
     let keyring_entry = get_entry(config)?;
 
