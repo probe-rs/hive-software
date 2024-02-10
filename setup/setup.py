@@ -4,9 +4,12 @@ import subprocess
 import os
 import tarfile
 import grp
+import urllib.request
 
 import update
 
+HIVE_CONFIG_TOP_SEPARATOR =    "# ==================Hive Configuration================="
+HIVE_CONFIG_BOTTOM_SEPARATOR = "# ==============End of Hive Configuration=============="
 
 def setup_group(groupname: str, create: bool):
     """Setup the group used to run the Hive testserver"""
@@ -52,8 +55,39 @@ def setup_user(username: str, groupname: str, create: bool):
             exit(1)
 
 
-HIVE_CONFIG_TOP_SEPARATOR =    "# ==================Hive Configuration================="
-HIVE_CONFIG_BOTTOM_SEPARATOR = "# ==============End of Hive Configuration=============="
+def setup_debug_probe_permissions():
+    """Applies the udev rules so non-root users (eg. the created hive user) can access the connected debug probes (see https://probe.rs/docs/getting-started/probe-setup/#udev-rules)"""
+    urllib.request.urlretrieve("https://probe.rs/files/69-probe-rs.rules", "/etc/udev/rules.d/69-probe-rs.rules");
+
+    # Apply new udev rules
+    try:
+        res = subprocess.run(
+            ["udevadm", "control", "--reload"], check=True, capture_output=True)
+        print("Loaded probe-rs udev rules")
+    except subprocess.CalledProcessError:
+        reason = res.stderr.decode("utf-8", "ignore")
+        print(
+            f"Failed to load probe-rs udev rules: {reason}")
+        exit(1)
+    except Exception as e:
+        print(
+            f"Failed to load probe-rs udev rules: {e}")
+        exit(1)
+
+    # Apply new udev rules to already added devices
+    try:
+        res = subprocess.run(
+            ["udevadm", "trigger"], check=True, capture_output=True)
+        print("Applied probe-rs udev rules to existing devices")
+    except subprocess.CalledProcessError:
+        reason = res.stderr.decode("utf-8", "ignore")
+        print(
+            f"Failed to apply probe-rs udev rules to existing devices: {reason}")
+        exit(1)
+    except Exception as e:
+        print(
+            f"Failed to apply probe-rs udev rules to existing devices: {e}")
+        exit(1)
 
 
 def setup_hardware():
