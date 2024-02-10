@@ -81,7 +81,7 @@ pub fn prepare_workspace(probe_rs_project: &Path) -> Result<()> {
 /// # Panics
 /// If the requested [`REPO_REFERENCE`] does not exist in the repository
 fn prepare_runner_source(hive_software_path: &Path) -> Result<(), WorkspaceError> {
-    match Repository::open(&hive_software_path) {
+    match Repository::open(hive_software_path) {
         Ok(repo) => {
             let mut remote = repo.find_remote("origin").expect("Failed to find remote 'origin' in local workspace repository. This might be a corrupted installation.");
 
@@ -91,7 +91,7 @@ fn prepare_runner_source(hive_software_path: &Path) -> Result<(), WorkspaceError
                 .revparse_single(REPO_REFERENCE)
                 .expect("Failed to find repository reference specified in binary. This should not happen, please file an issue.");
             let mut checkout_builder = CheckoutBuilder::new();
-            checkout_builder.force().target_dir(&hive_software_path);
+            checkout_builder.force().target_dir(hive_software_path);
 
             repo.checkout_tree(&reference, Some(&mut checkout_builder))?;
             repo.set_head(REPO_REFERENCE)?;
@@ -102,12 +102,12 @@ fn prepare_runner_source(hive_software_path: &Path) -> Result<(), WorkspaceError
             );
 
             let mut checkout_builder = CheckoutBuilder::new();
-            checkout_builder.force().target_dir(&hive_software_path);
+            checkout_builder.force().target_dir(hive_software_path);
 
             RepoBuilder::new()
                 .with_checkout(checkout_builder)
                 .branch(REPO_REFERENCE.split('/').last().unwrap())
-                .clone(RUNNER_SOURCE_REPO, &hive_software_path)?;
+                .clone(RUNNER_SOURCE_REPO, hive_software_path)?;
         }
     }
 
@@ -295,7 +295,7 @@ pub fn build_runner() -> Result<Vec<u8>> {
     }
 
     let runner_bin = fs::read(
-        &hive_software_path.join("target/aarch64-unknown-linux-gnu/debug/runner"),
+        hive_software_path.join("target/aarch64-unknown-linux-gnu/debug/runner"),
     )
     .expect("Failed to read built runner binary, this might be an application logic error.");
 
