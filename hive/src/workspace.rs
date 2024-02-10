@@ -185,7 +185,7 @@ fn modify_testcandidate_probe_rs_cargofile(project_path: &Path) -> Result<()> {
             ..Default::default()
         };
 
-        *hive_test = Dependency::Detailed(hive_test_dependency);
+        *hive_test = Dependency::Detailed(Box::new(hive_test_dependency));
 
         fs::write(cargofile_path, toml::to_string_pretty(&manifest).unwrap()).expect("Failed to write modified probe-rs Cargo.toml file. This is likely due to a corrupted installation or missing permissions.");
     }
