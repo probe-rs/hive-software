@@ -6,7 +6,6 @@ on:
   pull_request:
   merge_group:
 
-
 name: Run linter and check
 
 jobs:
@@ -59,9 +58,14 @@ jobs:
         with:
           components: clippy
 
-      - name: Run cargo clippy
-        run: cargo clippy --all-features -- -D warnings
+      - name: Run cargo clippy monitor
+        run: cargo clippy --all-features -p monitor -- -D warnings
 
+      - name: Run cargo clippy controller
+        run: cargo clippy --features monitor -p controller -- -D warnings
+
+      - name: Run cargo clippy others
+        run: cargo clippy --workspace --all-features --exclude monitor --exclude controller -- -D warnings
 #  cargo-deny:
 #    name: Deny
 #    runs-on: ubuntu-latest

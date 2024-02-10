@@ -24,7 +24,7 @@ jobs:
         run: cargo test --all-features -p monitor
 
       - name: cargo test others
-        run: cargo test --workspace --all-features --exclude monitor --exclude hive --no-fail-fast
+        run: cargo test --workspace --all-features --exclude monitor --exclude hive --exclude controller --no-fail-fast # excluding controller for now due to optional probe-rs deps not making it possible to build (tracking issue: https://github.com/rust-lang/cargo/issues/2911)
 
   # Special test-case hive CLI, which needs to build/run on win, linux and mac
   test-hive-cli:
