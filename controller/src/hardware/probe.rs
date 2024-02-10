@@ -8,10 +8,13 @@ use comm_types::hardware::TargetInfo;
 use thiserror::Error;
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
-#[cfg(not(feature = "runner"))]
+#[cfg(feature = "monitor")]
 use probe_rs::{DebugProbeInfo, Lister, Permissions, Session};
 #[cfg(feature = "runner")]
-use probe_rs_test::{DebugProbeInfo, Lister, Permissions, Session};
+use probe_rs_test::{
+    probe::{list::Lister, DebugProbeInfo},
+    Permissions, Session,
+};
 
 use super::CombinedTestChannel;
 

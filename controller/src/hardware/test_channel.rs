@@ -7,10 +7,10 @@ use ll_api::{RpiTestChannel, Target, TestChannel};
 use retry::{delay::Fixed, retry};
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
-#[cfg(not(feature = "runner"))]
+#[cfg(feature = "monitor")]
 use probe_rs::{DebugProbeError, DebugProbeInfo, Lister, Probe};
 #[cfg(feature = "runner")]
-use probe_rs_test::{DebugProbeError, DebugProbeInfo, Lister, Probe};
+use probe_rs_test::probe::{list::Lister, DebugProbeError, DebugProbeInfo, Probe};
 
 use super::{TargetStackShield, MAX_DAUGHTERBOARD_TARGETS};
 

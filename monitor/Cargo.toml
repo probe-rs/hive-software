@@ -14,7 +14,7 @@ comm-types = { path = "../comm-types/", features = [
     "auth",
     "token",
 ] }
-controller = { path = "../controller/" }
+controller = { path = "../controller/", features = ["monitor"] }
 hive-db = { path = "../hive-db/" }
 log = { workspace = true }
 tokio = { workspace = true, features = ["rt", "sync", "fs", "signal"] }
