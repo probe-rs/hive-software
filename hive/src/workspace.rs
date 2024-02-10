@@ -14,14 +14,14 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use anyhow::{bail, Result};
-use cargo_toml::{Dependency, DependencyDetail, Manifest};
+use anyhow::{anyhow, bail, Result};
 use fs_extra::dir::CopyOptions;
 use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::Error as GitError;
 use git2::Repository;
 use ignore::WalkBuilder;
 use thiserror::Error;
+use toml::{Table, Value};
 
 use super::config;
 
@@ -52,21 +52,25 @@ pub fn prepare_workspace(probe_rs_project: &Path) -> Result<()> {
     let project_dirs = config::get_project_dirs();
     let workspace_path = project_dirs.cache_dir();
 
-    let project_path = workspace_path.join("probe-rs-testcandidate");
+    let testcandidate_path = workspace_path.join("probe-rs-hive-testcandidate");
+    let hive_software_path = workspace_path.join("hive-software");
 
     if !workspace_path.exists() {
         fs::create_dir_all(workspace_path).expect("Failed to create cache directory for Hive CLI");
     }
 
-    prepare_runner_source(workspace_path)?;
+    if !testcandidate_path.exists() {
+        fs::create_dir_all(&testcandidate_path)
+            .expect("Failed to create testcandidate cache directory for Hive CLI");
+    }
 
-    copy_testcandidate_source_to_workspace(probe_rs_project, &project_path)?;
+    prepare_runner_source(&hive_software_path)?;
 
-    remove_testcandidate_workspace_cargofile(&project_path)?;
+    copy_testcandidate_source_to_workspace(probe_rs_project, &testcandidate_path)?;
 
-    modify_testcandidate_probe_rs_cargofile(&project_path)?;
+    modify_testcandidate_probe_rs_cargofile(&testcandidate_path)?;
 
-    copy_hive_test_dir(&project_path, workspace_path)?;
+    copy_hive_test_dir(&testcandidate_path, &hive_software_path)?;
 
     Ok(())
 }
@@ -76,8 +80,8 @@ pub fn prepare_workspace(probe_rs_project: &Path) -> Result<()> {
 ///
 /// # Panics
 /// If the requested [`REPO_REFERENCE`] does not exist in the repository
-fn prepare_runner_source(workspace_path: &Path) -> Result<(), WorkspaceError> {
-    match Repository::open(workspace_path) {
+fn prepare_runner_source(hive_software_path: &Path) -> Result<(), WorkspaceError> {
+    match Repository::open(&hive_software_path) {
         Ok(repo) => {
             let mut remote = repo.find_remote("origin").expect("Failed to find remote 'origin' in local workspace repository. This might be a corrupted installation.");
 
@@ -87,7 +91,7 @@ fn prepare_runner_source(workspace_path: &Path) -> Result<(), WorkspaceError> {
                 .revparse_single(REPO_REFERENCE)
                 .expect("Failed to find repository reference specified in binary. This should not happen, please file an issue.");
             let mut checkout_builder = CheckoutBuilder::new();
-            checkout_builder.force().target_dir(workspace_path);
+            checkout_builder.force().target_dir(&hive_software_path);
 
             repo.checkout_tree(&reference, Some(&mut checkout_builder))?;
             repo.set_head(REPO_REFERENCE)?;
@@ -98,12 +102,12 @@ fn prepare_runner_source(workspace_path: &Path) -> Result<(), WorkspaceError> {
             );
 
             let mut checkout_builder = CheckoutBuilder::new();
-            checkout_builder.force().target_dir(workspace_path);
+            checkout_builder.force().target_dir(&hive_software_path);
 
             RepoBuilder::new()
                 .with_checkout(checkout_builder)
                 .branch(REPO_REFERENCE.split('/').last().unwrap())
-                .clone(RUNNER_SOURCE_REPO, workspace_path)?;
+                .clone(RUNNER_SOURCE_REPO, &hive_software_path)?;
         }
     }
 
@@ -151,44 +155,58 @@ fn copy_testcandidate_source_to_workspace(
     Ok(())
 }
 
-/// Deletes the workspace Cargo.toml of the provided probe-rs project to avoid nested workspaces which would fail the build process
-///
-/// # Panics
-/// In case any file system operations fail which indicate insufficient permissions or a corrupted install
-fn remove_testcandidate_workspace_cargofile(project_path: &Path) -> Result<()> {
-    let cargofile_path = project_path.join("Cargo.toml");
-
-    fs::remove_file(cargofile_path).expect("Failed to delete workspace cargofile of probe-rs testcandidate. This is likely caused by insufficient permissions");
-
-    Ok(())
-}
-
 /// Modifies the probe_rs testcandidate crates cargofile hive-test dependency to depend on the local hive-test source on the testserver instead of any other source defined by the user.
 ///
 /// This is required to avoid any circular dependencies or using outdated/incompatible versions on the testserver as well as allowing the build process to pass in case of custom path dependencies.
 ///
 /// # Panics
 /// In case any file system operations fail which indicate insufficient permissions or a corrupted install
-fn modify_testcandidate_probe_rs_cargofile(project_path: &Path) -> Result<()> {
-    let cargofile_path = project_path.join("probe-rs/Cargo.toml");
+fn modify_testcandidate_probe_rs_cargofile(testcandidate_path: &Path) -> Result<()> {
+    let cargofile_path = testcandidate_path.join("probe-rs/Cargo.toml");
 
     if !cargofile_path.exists() {
         return Err(WorkspaceError::NoProbeRsCargoFile.into());
     }
+
+    let manifest_content = fs::read_to_string(&cargofile_path)?;
+    let mut manifest = manifest_content.parse::<Table>()?;
+
+    let dev_dependencies = manifest.get_mut("dev-dependencies").ok_or(anyhow!(
+        "Failed to find dev-dependencies in probe-rs Cargo.toml file"
+    ))?;
+
+    if let Value::Table(deps) = dev_dependencies {
+        let hive_test = deps.get_mut("hive-test").ok_or(anyhow!("Failed to find hive-test dependency in probe-rs Cargo.toml file. Have you properly set up your Hive tests inside your probe-rs project?"))?;
+
+        let mut hive_test_dependency = Table::new();
+        hive_test_dependency.insert(
+            "path".to_owned(),
+            Value::String(String::from("../../hive-software/hive-test")),
+        );
+
+        *hive_test = Value::Table(hive_test_dependency);
+
+        fs::write(cargofile_path, toml::to_string_pretty(&manifest).expect("Failed to serialize newly formed Cargo.toml data. This is a bug, please open an issue and provide your probe-rs Cargo.toml file.")).expect("Failed to write modified probe-rs Cargo.toml file. This is likely due to a corrupted installation or missing permissions.");
+    }
+
+    /*
+    TODO: this code fails with cargo_toml 0.19 due to ValueAfterTable error workaround is to just use toml for now
 
     let mut manifest = Manifest::from_path(&cargofile_path)?;
 
     if let Some(hive_test) = manifest.dev_dependencies.get_mut("hive-test") {
         let hive_test_dependency = DependencyDetail {
             package: Some("hive-test".to_owned()),
-            path: Some("../../hive-test/".to_owned()),
+            path: Some(String::from("../../hive-software/hive-test")),
             ..Default::default()
         };
 
         *hive_test = Dependency::Detailed(Box::new(hive_test_dependency));
 
         fs::write(cargofile_path, toml::to_string_pretty(&manifest).unwrap()).expect("Failed to write modified probe-rs Cargo.toml file. This is likely due to a corrupted installation or missing permissions.");
-    }
+    } else {
+        bail!("Failed to find hive-test dependency in probe-rs Cargo.toml file. Have you properly set up your Hive tests inside your probe-rs project?")
+    }*/
 
     Ok(())
 }
@@ -197,8 +215,8 @@ fn modify_testcandidate_probe_rs_cargofile(project_path: &Path) -> Result<()> {
 ///
 /// # Panics
 /// In case any file system operations fail which indicate insufficient permissions or a corrupted install
-fn copy_hive_test_dir(project_path: &Path, workspace_path: &Path) -> Result<()> {
-    let hive_path = project_path.join("probe-rs/tests/hive/");
+fn copy_hive_test_dir(testcandidate_path: &Path, hive_software_path: &Path) -> Result<()> {
+    let hive_path = testcandidate_path.join("probe-rs/tests/hive/");
 
     if !hive_path.exists() {
         return Err(WorkspaceError::NoHiveDir.into());
@@ -208,7 +226,7 @@ fn copy_hive_test_dir(project_path: &Path, workspace_path: &Path) -> Result<()> 
     copy_options.overwrite = true;
     copy_options.copy_inside = true;
 
-    let runner_hive_path = workspace_path.join("runner/src/");
+    let runner_hive_path = hive_software_path.join("runner/src/");
     fs_extra::copy_items(&[hive_path], runner_hive_path, &copy_options).expect("Failed to copy hive directory from probe-rs testcandidate to runner source files. This is likely due to missing permissions.");
 
     Ok(())
@@ -222,15 +240,15 @@ pub fn clean_workspace() {
     let project_dirs = config::get_project_dirs();
     let workspace_path = project_dirs.cache_dir();
 
-    let project_path = workspace_path.join("probe-rs-testcandidate");
+    let testcandidate_path = workspace_path.join("probe-rs-hive-testcandidate");
 
-    if !project_path.exists() {
+    if !testcandidate_path.exists() {
         // Nothing needs cleaning
         return;
     }
 
-    let testcandidate_contents = fs::read_dir(project_path).expect(
-        "Failed to read probe-rs-testcandidate directory. This might be caused by missing permissions.",
+    let testcandidate_contents = fs::read_dir(testcandidate_path).expect(
+        "Failed to read probe-rs-hive-testcandidate directory. This might be caused by missing permissions.",
     );
 
     for entry in testcandidate_contents.flatten() {
@@ -252,10 +270,13 @@ pub fn clean_workspace() {
 pub fn build_runner() -> Result<Vec<u8>> {
     let project_dirs = config::get_project_dirs();
     let workspace_path = project_dirs.cache_dir();
+    let hive_software_path = workspace_path.join("hive-software");
 
     let build_output = Command::new("cross")
         .args([
             "build",
+            "--manifest-path",
+            "./hive-software/Cargo.toml",
             "--target",
             "aarch64-unknown-linux-gnu",
             "-p",
@@ -273,8 +294,10 @@ pub fn build_runner() -> Result<Vec<u8>> {
         .into());
     }
 
-    let runner_bin = fs::read(workspace_path.join("target/aarch64-unknown-linux-gnu/debug/runner"))
-        .expect("Failed to read built runner binary, this might be an application logic error.");
+    let runner_bin = fs::read(
+        &hive_software_path.join("target/aarch64-unknown-linux-gnu/debug/runner"),
+    )
+    .expect("Failed to read built runner binary, this might be an application logic error.");
 
     Ok(runner_bin)
 }

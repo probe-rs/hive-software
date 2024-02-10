@@ -39,6 +39,6 @@ pathdiff = "0.2"
 prettytable-rs = "0.8"
 fs_extra = "1.2"
 thiserror = { workspace = true }
-toml = "0.5"
+toml = "0.8"
 git2 = "0.14"
 keyring = "2.3"
