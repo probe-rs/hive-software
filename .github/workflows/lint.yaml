@@ -23,8 +23,12 @@ jobs:
       - name: cargo check monitor
         run: cargo check --all-features -p monitor
 
+      # Check controller separately as --all-features is an invalid configuration for this crate
+      - name: cargo check controller
+        run: cargo check --features monitor -p controller
+
       - name: cargo check others
-        run: cargo check --workspace --all-features --exclude monitor --exclude hive
+        run: cargo check --features monitor -p controller
 
   # Special test-case hive CLI, which needs to build/run on win, linux and mac
   check-hive-cli:
