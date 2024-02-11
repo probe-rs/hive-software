@@ -11,7 +11,7 @@ use comm_types::test::{
     Filter, TaskRunnerMessage, TestFilter, TestOptions, TestResult, TestResults, TestRunStatus,
     TestStatus,
 };
-use prettytable::{cell, format, row, Table};
+use prettytable::{format, row, Table};
 use reqwest::blocking::multipart::{Form, Part};
 use tungstenite::Message;
 

@@ -37,7 +37,7 @@ http = "0.2"
 tungstenite = { version = "0.17", features = ["native-tls"] }
 native-tls = "0.2"
 pathdiff = "0.2"
-prettytable-rs = "0.8"
+prettytable-rs = "0.10"
 fs_extra = "1.2"
 thiserror = { workspace = true }
 toml = "0.8"
