@@ -256,6 +256,26 @@ def setup_os():
         exit(1)
 
 
+def setup_bubblewrap():
+    """Installs bubblewrap sandbox used by Hive"""
+
+    print("Installing bubblewrap sandbox...")
+    
+    try:
+        res = subprocess.run(
+            ["apt", "install", "bubblewrap", "--yes"], check=True, capture_output=True)
+        print("Successfully installed bubblewrap sandbox")
+    except subprocess.CalledProcessError:
+        reason = res.stderr.decode("utf-8", "ignore")
+        print(
+            f"Failed to install bubblewrap sandbox: {reason}")
+        exit(1)
+    except Exception as e:
+        print(
+            f"Failed to install bubblewrap sandbox: {e}")
+        exit(1)
+
+
 def setup_monitor(create: bool, username: str, groupname: str):
     """Downloads the Testserver data and installs it on the home directory of the Hive user"""
     # TODO: probably download tar archive to have filesystem already in place, need a different function for update runs then

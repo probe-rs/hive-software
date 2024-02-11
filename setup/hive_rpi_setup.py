@@ -102,6 +102,8 @@ def setup_hive(hive_user: str, hive_group: str, runner_user: str, create: bool):
 
     setup_routines.setup_os()
 
+    setup_routines.setup_bubblewrap()
+
     setup_routines.setup_debug_probe_permissions()
 
     setup_routines.setup_storage(groupname=hive_group)
