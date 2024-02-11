@@ -114,7 +114,9 @@ pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
         let mut ws = get_ws_client(
             cli_args.accept_invalid_certs,
             config.testserver.as_ref().unwrap(),
-            ws_url,
+            &ws_url,
+            &config,
+            &cli_args,
         )?;
 
         let test_results;

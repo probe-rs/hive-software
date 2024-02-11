@@ -2,13 +2,19 @@
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 
 use anyhow::{bail, Result};
+use comm_types::token::API_TOKEN_HEADER;
+use http::HeaderValue;
 use native_tls::TlsConnector;
 use reqwest::blocking::Client;
+use tungstenite::client::IntoClientRequest;
 use tungstenite::protocol::WebSocketConfig;
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Connector, WebSocket};
 
+use crate::config::HiveConfig;
 use crate::models::Host;
+use crate::request::get_api_token_or_prompt;
+use crate::CliArgs;
 
 /// Get the http client to issue requests.
 ///
@@ -41,9 +47,13 @@ pub fn get_http_client(accept_invalid_certs: bool) -> Client {
 pub fn get_ws_client(
     accept_invalid_certs: bool,
     host: &Host,
-    url: String,
+    url: &str,
+    config: &HiveConfig,
+    cli_args: &CliArgs,
 ) -> Result<WebSocket<MaybeTlsStream<TcpStream>>> {
     let mut tcp_stream = None;
+
+    let api_token = get_api_token_or_prompt(config, cli_args)?;
 
     for addr in host.as_secure_parts().to_socket_addrs().unwrap() {
         if let Ok(stream) = TcpStream::connect::<SocketAddr>(addr) {
@@ -66,8 +76,13 @@ pub fn get_ws_client(
         .build()
         .unwrap();
 
+    let mut client_request = IntoClientRequest::into_client_request(url).expect("Failed to create a tungstenite client request out of the provided WS URL. This is a bug, please open an issue.");
+    client_request
+        .headers_mut()
+        .append(API_TOKEN_HEADER, HeaderValue::from_str(&api_token).expect("Failed to put API token value into header. This should never happen as users should not be allowed to provide non ASCII characters as token. Please open an issue."));
+
     let (ws, res) = tungstenite::client_tls_with_config(
-        url,
+        client_request,
         tcp_stream.unwrap(),
         Some(WebSocketConfig::default()),
         Some(Connector::NativeTls(tls_connector)),
