@@ -10,6 +10,7 @@ LATEST_MONITOR_VERSION = "0.1.0"
 
 HIVE_GROUP = "hive"
 HIVE_USER = "hive"
+RUNNER_USER = "runner"
 
 
 @click.group(invoke_without_command=True)
@@ -35,8 +36,11 @@ def install():
         "Please specify the new user name", default=HIVE_USER)
     hive_group = click.prompt(
         "Please specify the new group name", default=HIVE_GROUP)
+    
+    print("The test-runner binaries will run in a sandbox with a separate user.")
+    runner_user = click.prompt("Please specify the runner user name:", default=RUNNER_USER)
 
-    setup_hive(hive_user=hive_user, hive_group=hive_group, create=True)
+    setup_hive(hive_user=hive_user, hive_group=hive_group, runner_user=runner_user, create=True)
 
 
 @cli.command()
@@ -73,16 +77,21 @@ def update():
         "Please specify the Hive user name", default=HIVE_USER)
     hive_group = click.prompt(
         "Please specify the Hive group name", default=HIVE_GROUP)
+    
+    print("The test-runner binaries will run in a sandbox with a separate user.")
+    runner_user = click.prompt("Please specify the runner user name:", default=RUNNER_USER)
 
-    setup_hive(hive_user=hive_user, hive_group=hive_group, create=False)
+    setup_hive(hive_user=hive_user, hive_group=hive_group, runner_user=runner_user, create=False)
 
 
-def setup_hive(hive_user: str, hive_group: str, create: bool):
+def setup_hive(hive_user: str, hive_group: str, runner_user: str, create: bool):
     """Run the whole setup process. If create is True attempts to create a new Hive install. If False attempts to update an existing install."""
     setup_routines.setup_group(groupname=hive_group, create=create)
 
     setup_routines.setup_user(
         username=hive_user, groupname=hive_group, create=create)
+    
+    setup_routines.setup_runner_user(username=runner_user, create=create)
     
     # Set working dir to hive user base dir
     os.chdir(f"/home/{hive_user}/")

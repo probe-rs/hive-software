@@ -55,6 +55,22 @@ def setup_user(username: str, groupname: str, create: bool):
             exit(1)
 
 
+def setup_runner_user(username: str, create: bool):
+    """Setup the user used to run the Hive test runner"""
+    if create:
+        try:
+            res = subprocess.run(
+                ["adduser",  "--system", username], check=True, capture_output=True)
+            print(f"Successfully created Hive test runner user '{username}'")
+        except subprocess.CalledProcessError:
+            reason = res.stderr.decode("utf-8", "ignore")
+            print(f"Failed to create Hive test runner user: {reason}")
+            exit(1)
+        except Exception as e:
+            print(f"Failed to create Hive test runner user:  {e}")
+            exit(1)
+
+
 def setup_debug_probe_permissions():
     """Applies the udev rules so non-root users (eg. the created hive user) can access the connected debug probes (see https://probe.rs/docs/getting-started/probe-setup/#udev-rules)"""
     urllib.request.urlretrieve("https://probe.rs/files/69-probe-rs.rules", "/etc/udev/rules.d/69-probe-rs.rules");
