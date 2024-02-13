@@ -8,7 +8,7 @@ use comm_types::{
     token::{DbToken, TokenLifetime},
 };
 use log::Level;
-use probe_rs::DebugProbeInfo;
+use probe_rs::probe::DebugProbeInfo;
 use serde::{Deserialize, Serialize};
 
 use crate::testprogram::Testprogram;

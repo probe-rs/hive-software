@@ -13,7 +13,7 @@ use thiserror::Error;
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
 #[cfg(feature = "monitor")]
-use probe_rs::Lister;
+use probe_rs::probe::list::Lister;
 #[cfg(feature = "runner")]
 use probe_rs_test::probe::list::Lister;
 

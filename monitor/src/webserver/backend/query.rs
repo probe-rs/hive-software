@@ -13,7 +13,7 @@ use controller::logger::LogEntry;
 use hive_db::{BincodeDb, BincodeIter};
 use log::Level;
 use probe_rs::config::{get_target_by_name, search_chips};
-use probe_rs::{Architecture, Lister};
+use probe_rs::{probe::list::Lister, Architecture};
 use rppal::system::DeviceInfo;
 
 use crate::database::{keys, MonitorDb};

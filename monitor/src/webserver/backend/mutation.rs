@@ -10,7 +10,7 @@ use comm_types::auth::{DbUser, JwtClaims, Role};
 use comm_types::hardware::{ProbeInfo, ProbeState, TargetState};
 use comm_types::token::{DbToken, TokenLifetime};
 use hive_db::{BincodeDb, BincodeIter, BincodeTransactional, Key};
-use probe_rs::Lister;
+use probe_rs::probe::list::Lister;
 use sled::transaction::{abort, TransactionError};
 use tower_cookies::Cookies;
 

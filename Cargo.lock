@@ -1099,7 +1099,7 @@ dependencies = [
  "nix 0.24.3",
  "pca9535",
  "probe-rs 0.22.0",
- "probe-rs 0.22.0 (git+https://github.com/probe-rs/probe-rs.git)",
+ "probe-rs 0.22.0 (git+https://github.com/probe-rs/probe-rs.git?rev=a003183)",
  "retry",
  "rppal",
  "rusb",
@@ -2918,7 +2918,7 @@ dependencies = [
  "lazy_static",
  "log",
  "mime",
- "probe-rs 0.22.0 (git+https://github.com/probe-rs/probe-rs.git)",
+ "probe-rs 0.22.0 (git+https://github.com/probe-rs/probe-rs.git?rev=a003183)",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "ring",
@@ -3583,7 +3583,7 @@ dependencies = [
 [[package]]
 name = "probe-rs"
 version = "0.22.0"
-source = "git+https://github.com/probe-rs/probe-rs.git#a003183d2350c1bc1a90b2ace61cec34da28f7d6"
+source = "git+https://github.com/probe-rs/probe-rs.git?rev=a003183#a003183d2350c1bc1a90b2ace61cec34da28f7d6"
 dependencies = [
  "anyhow",
  "async-io 2.3.1",
@@ -3610,7 +3610,7 @@ dependencies = [
  "object",
  "once_cell",
  "paste",
- "probe-rs-target 0.22.0 (git+https://github.com/probe-rs/probe-rs.git)",
+ "probe-rs-target 0.22.0 (git+https://github.com/probe-rs/probe-rs.git?rev=a003183)",
  "rmp-serde",
  "scroll",
  "serde",
@@ -3636,7 +3636,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-target"
 version = "0.22.0"
-source = "git+https://github.com/probe-rs/probe-rs.git#a003183d2350c1bc1a90b2ace61cec34da28f7d6"
+source = "git+https://github.com/probe-rs/probe-rs.git?rev=a003183#a003183d2350c1bc1a90b2ace61cec34da28f7d6"
 dependencies = [
  "base64 0.21.7",
  "jep106",

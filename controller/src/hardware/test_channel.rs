@@ -8,7 +8,7 @@ use retry::{delay::Fixed, retry};
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
 #[cfg(feature = "monitor")]
-use probe_rs::{DebugProbeError, DebugProbeInfo, Lister, Probe};
+use probe_rs::probe::{list::Lister, DebugProbeError, DebugProbeInfo, Probe};
 #[cfg(feature = "runner")]
 use probe_rs_test::probe::{list::Lister, DebugProbeError, DebugProbeInfo, Probe};
 
