@@ -41,5 +41,6 @@ embedded-hal = "1.0"
 rppal = "0.17"
 retry = "1.3"
 antidote = "1.0"
+nix = "0.27"
 # Testcandidate used in runner crate
 probe-rs-test = { package = "probe-rs", path = "../probe-rs-hive-testcandidate/probe-rs/" }

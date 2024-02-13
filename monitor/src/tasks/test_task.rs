@@ -8,9 +8,9 @@ use axum::body::Bytes;
 use comm_types::test::{TaskRunnerMessage, TestOptions, TestResults, TestRunError, TestRunStatus};
 use controller::hardware::HiveHardware;
 use lazy_static::lazy_static;
+use nix::unistd::{Gid, Group, Uid, User};
 use thiserror::Error;
 use tokio::sync::mpsc::{self, Sender as MpscSender};
-use users::{get_group_by_name, get_user_by_name};
 use wait_timeout::ChildExt;
 
 use crate::tasks::scheduler::CURRENT_TEST_TASK_OPTIONS;
@@ -36,16 +36,20 @@ const RUNNER_USER_NAME: &str = "runner";
 const RUNNER_BINARY_TIMEOUT_SEC: u64 = 300;
 
 lazy_static! {
-    static ref HIVE_GID: u32 = {
-        if let Some(group) = get_group_by_name(HIVE_GROUP_NAME) {
-            group.gid()
+    static ref HIVE_GID: Gid = {
+        if let Some(group) = Group::from_name(HIVE_GROUP_NAME).expect(
+            "Failed to search for system groups. This is most likely a system configuration issue.",
+        ) {
+            group.gid
         } else {
             panic!("Failed to find a group named '{}' on this system. This user group is required by the monitor. Is the system setup properly?", HIVE_GROUP_NAME);
         }
     };
-    static ref RUNNER_UID: u32 = {
-        if let Some(user) = get_user_by_name(RUNNER_USER_NAME) {
-            user.uid()
+    static ref RUNNER_UID: Uid = {
+        if let Some(user) = User::from_name(RUNNER_USER_NAME).expect(
+            "Failed to search for system users. This is most likely a system configuration issue.",
+        ) {
+            user.uid
         } else {
             panic!("Failed to find a user named '{}' on this system. This user is required by the monitor. Is the system setup properly?", RUNNER_USER_NAME);
         }

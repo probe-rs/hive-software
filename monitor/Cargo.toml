@@ -52,9 +52,9 @@ crossbeam-utils = "0.8"
 cached = "0.34"
 wait-timeout = "0.2"
 command-fds = "0.2"
-users = "0.11"
 sys-info = "0.9"
 chrono = { workspace = true }
+nix = { workspace = true, features = ["user", "fs"] }
 
 [dev-dependencies]
 hive-db = { path = "../hive-db/", features = ["test"] }

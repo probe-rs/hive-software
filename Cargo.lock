@@ -1096,7 +1096,7 @@ dependencies = [
  "ll-api",
  "log",
  "log4rs",
- "nix 0.24.3",
+ "nix 0.27.1",
  "pca9535",
  "probe-rs 0.22.0",
  "probe-rs 0.22.0 (git+https://github.com/probe-rs/probe-rs.git?rev=a003183)",
@@ -2918,6 +2918,7 @@ dependencies = [
  "lazy_static",
  "log",
  "mime",
+ "nix 0.27.1",
  "probe-rs 0.22.0 (git+https://github.com/probe-rs/probe-rs.git?rev=a003183)",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -2933,7 +2934,6 @@ dependencies = [
  "tower",
  "tower-cookies",
  "tower-http",
- "users",
  "wait-timeout",
 ]
 
@@ -3003,18 +3003,6 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.24.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa52e972a9a719cecb6864fb88568781eb706bac2cd1d4f04a648542dbf78069"
-dependencies = [
- "bitflags 1.3.2",
- "cfg-if",
- "libc",
- "memoffset 0.6.5",
-]
-
-[[package]]
-name = "nix"
 version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "598beaf3cc6fdd9a5dfb1630c2800c7acd31df7aaf0f565796fba2b53ca1af1b"
@@ -3024,6 +3012,17 @@ dependencies = [
  "libc",
  "memoffset 0.7.1",
  "pin-utils",
+]
+
+[[package]]
+name = "nix"
+version = "0.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
+dependencies = [
+ "bitflags 2.4.2",
+ "cfg-if",
+ "libc",
 ]
 
 [[package]]
@@ -5350,16 +5349,6 @@ dependencies = [
  "form_urlencoded",
  "idna 0.4.0",
  "percent-encoding",
-]
-
-[[package]]
-name = "users"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24cc0f6d6f267b73e5a2cadf007ba8f9bc39c6a6f9666f8cf25ea809a153b032"
-dependencies = [
- "libc",
- "log",
 ]
 
 [[package]]
