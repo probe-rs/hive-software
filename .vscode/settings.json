@@ -1,0 +1,5 @@
+{
+    // This is a workaround to enable mutually exclusive features in the controller crate (Which either activate the probe-rs stable or the probe-rs testcandidate dependency)
+    // This comes at the cost that rust analyzer does not automatically check the runner crate anymore
+    "rust-analyzer.check.overrideCommand": ["cargo", "check", "--workspace", "--exclude", "runner", "--message-format=json"]
+}
