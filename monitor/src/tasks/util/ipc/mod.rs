@@ -14,14 +14,13 @@ use comm_types::defines::DefineRegistry;
 use comm_types::test::{TestOptions, TestResults};
 use futures::ready;
 use hyper::server::accept::Accept;
-use lazy_static::lazy_static;
-use nix::unistd::{Gid, Group, Uid, User};
 use tokio::net::unix::UCred;
 use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tower::ServiceBuilder;
 
+use crate::config::{HIVE_GID, HIVE_UID};
 use crate::database::MonitorDb;
 use crate::tasks::scheduler::CURRENT_TEST_TASK_OPTIONS;
 use crate::testprogram::defines::DEFINE_REGISTRY;
@@ -30,33 +29,6 @@ use crate::SHUTDOWN_SIGNAL;
 mod handlers;
 
 const SOCKET_PATH: &str = "./data/runner/ipc_sock";
-
-// TODO: user and group names are defined in multiple locations. Should be distributed from a single source in the program
-const HIVE_USER_NAME: &str = "hive";
-/// Name of the Hive group used to get access to hive specific functionalities
-const HIVE_GROUP_NAME: &str = "hive";
-
-// TODO: Also address in https://github.com/probe-rs/hive-software/issues/6
-lazy_static! {
-    static ref HIVE_GID: Gid = {
-        if let Some(group) = Group::from_name(HIVE_GROUP_NAME).expect(
-            "Failed to search for system groups. This is most likely a system configuration issue.",
-        ) {
-            group.gid
-        } else {
-            panic!("Failed to find a group named '{}' on this system. This user group is required by the monitor. Is the system setup properly?", HIVE_GROUP_NAME);
-        }
-    };
-    static ref HIVE_UID: Uid = {
-        if let Some(user) = User::from_name(HIVE_USER_NAME).expect(
-            "Failed to search for system users. This is most likely a system configuration issue.",
-        ) {
-            user.uid
-        } else {
-            panic!("Failed to find a user named '{}' on this system. This user is required by the monitor. Is the system setup properly?", HIVE_USER_NAME);
-        }
-    };
-}
 
 struct IpcStreamListener {
     listener: UnixListener,
