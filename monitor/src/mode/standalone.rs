@@ -4,12 +4,15 @@ use std::thread;
 
 use tokio::runtime::Builder;
 
+use crate::config;
 use crate::database::MonitorDb;
 use crate::tasks::TaskManager;
 use crate::{flash, init, webserver, Args, HARDWARE};
 
 pub fn run_standalone_mode(db: Arc<MonitorDb>, cli_args: Arc<Args>) {
     init::check_uninit(db.clone());
+
+    config::load_app_config_from_db(&db);
 
     init::initialize_statics();
 

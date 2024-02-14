@@ -6,9 +6,10 @@ pub mod config {
     use hive_db::Key;
     use lazy_static::lazy_static;
 
-    use crate::testprogram::Testprogram;
+    use crate::{config::AppConfig, testprogram::Testprogram};
 
     lazy_static! {
+        pub static ref APP_CONFIG: Key<'static, AppConfig> = Key::new("app_config");
         pub static ref TSS: Key<'static, [bool; 8]> = Key::new("tss");
         pub static ref ASSIGNED_TARGETS: Key<'static, HiveTargetData> = Key::new("targets");
         pub static ref ASSIGNED_PROBES: Key<'static, HiveProbeData> = Key::new("probes");
