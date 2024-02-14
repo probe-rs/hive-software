@@ -66,6 +66,7 @@ use rppal::i2c::I2c;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::sync::Mutex as AsyncMutex;
 
+mod config;
 mod database;
 mod flash;
 mod init;

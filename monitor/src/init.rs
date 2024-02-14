@@ -11,6 +11,7 @@ use hive_db::{BincodeDb, BincodeTransactional};
 use probe_rs::config;
 use sled::transaction::UnabortableTransactionError;
 
+use crate::config::{HIVE_GID, HIVE_UID, RUNNER_UID};
 use crate::database::{keys, MonitorDb};
 use crate::testprogram::{Testprogram, DEFAULT_TESTPROGRAM_NAME, TESTPROGRAM_PATH};
 use crate::{database, testprogram};
@@ -23,6 +24,9 @@ pub fn initialize_statics() {
     lazy_static::initialize(&I2C_BUS);
     lazy_static::initialize(&EXPANDERS);
     lazy_static::initialize(&HARDWARE);
+    lazy_static::initialize(&HIVE_UID);
+    lazy_static::initialize(&RUNNER_UID);
+    lazy_static::initialize(&HIVE_GID);
 }
 
 /// Checks if there is at least one user registered in the database, otherwise exit the process, as the application has to be run in init-mode first to register a user.
