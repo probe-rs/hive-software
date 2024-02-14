@@ -21,9 +21,9 @@ lazy_static! {
 /// App configuration data
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppConfig {
-    hive_user: String,
-    hive_group: String,
-    runner_user: String,
+    pub hive_user: String,
+    pub hive_group: String,
+    pub runner_user: String,
 }
 
 /// Load the app config from DB into the [`APP_CONFIG`] static
