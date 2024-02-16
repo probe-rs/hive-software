@@ -44,7 +44,7 @@ def setup_user(username: str, groupname: str, create: bool):
 
         try:
             res = subprocess.run(
-                ["usermod", "-G", f"{groupname},plugdev,i2c", username], check=True, capture_output=True)
+                ["usermod", "-g", groupname, "-G", "plugdev,i2c", username], check=True, capture_output=True)
             print(f"Added groups to Hive user '{username}'")
         except subprocess.CalledProcessError as e:
             reason = res.stderr.decode("utf-8", "ignore")
