@@ -1,8 +1,5 @@
 //! Functions used to manage debug probe related functionality
 use std::error::Error;
-use std::fs::OpenOptions;
-use std::os::unix::io::AsRawFd;
-use std::time::Duration;
 
 use comm_types::hardware::TargetInfo;
 use thiserror::Error;
@@ -80,45 +77,11 @@ where
 
 /// Resets the usb interface to which the probe is connected to
 pub fn reset_probe_usb(probe_info: &DebugProbeInfo) -> Result<(), ProbeResetError> {
-    log::info!("start reset {:?}", probe_info);
-
     let mut usb_device =
         rusb::open_device_with_vid_pid(probe_info.vendor_id, probe_info.product_id)
             .ok_or(ProbeResetError::ProbeNotFound)?;
 
-    log::info!("found device {:?}", usb_device);
-
     usb_device.reset()?;
-    log::info!("success resetting device");
-
-    /*
-    let bus_path = format!(
-                    "/dev/bus/usb/{:03}/{:03}",
-                    device.device().bus_number(),
-                    device.device().port_number()
-                );
-
-    if let Ok(file) = OpenOptions::new().read(true).write(true).open(bus_path) {
-        log::info!("resetting usb {:?}", probe_info);
-        unsafe {
-            reset_usb(file.as_raw_fd()).unwrap();
-        }
-
-        log::info!(
-            "Successfully reset the debug probe {} S/N: {:?}",
-            probe_info.identifier,
-            probe_info.serial_number
-        );
-        return Ok(());
-    }
-    */
 
     Ok(())
 }
-
-nix::ioctl_none!(
-    /// Reset usb by calling USBDEVFS_RESET in linux usbdevice_fs.h
-    reset_usb,
-    b'U',
-    20
-);
