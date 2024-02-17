@@ -80,62 +80,40 @@ where
 
 /// Resets the usb interface to which the probe is connected to
 pub fn reset_probe_usb(probe_info: &DebugProbeInfo) -> Result<(), ProbeResetError> {
-    let devices = rusb::devices()?;
+    log::info!("start reset {:?}", probe_info);
 
-    let timeout = Duration::from_millis(1000);
+    let mut usb_device =
+        rusb::open_device_with_vid_pid(probe_info.vendor_id, probe_info.product_id)
+            .ok_or(ProbeResetError::ProbeNotFound)?;
 
-    let mut last_err = None;
+    log::info!("found device {:?}", usb_device);
 
-    for device in devices.iter() {
-        match || -> Result<(), ProbeResetError> {
-            let device_descriptor = device.device_descriptor()?;
+    usb_device.reset()?;
+    log::info!("success resetting device");
 
-            let device = device.open()?;
-            let languages = device.read_languages(timeout)?;
-
-            if languages.is_empty() {
-                return Err(ProbeResetError::ProbeNotFound);
-            }
-
-            let language = languages[0];
-
-            let product_name = device.read_product_string(language, &device_descriptor, timeout)?;
-            let product_sn =
-                device.read_serial_number_string(language, &device_descriptor, timeout)?;
-
-            if probe_info.product_id == device_descriptor.product_id()
-        && probe_info.vendor_id == device_descriptor.vendor_id()
-        && probe_info.identifier.starts_with(&product_name) // Special handling due to Jlink listing as "Jlink (JLINK)" in DebugProbeInfo and "Jlink" in usb
-        && probe_info.serial_number == Some(product_sn)
-            {
-                let bus_path = format!(
+    /*
+    let bus_path = format!(
                     "/dev/bus/usb/{:03}/{:03}",
                     device.device().bus_number(),
                     device.device().port_number()
                 );
 
-                if let Ok(file) = OpenOptions::new().read(true).write(true).open(bus_path) {
-                    unsafe {
-                        reset_usb(file.as_raw_fd()).unwrap();
-                    }
-
-                    log::info!(
-                        "Successfully reset the debug probe {} S/N: {:?}",
-                        probe_info.identifier,
-                        probe_info.serial_number
-                    );
-                    return Ok(());
-                }
-            }
-
-            Err(ProbeResetError::ProbeNotFound)
-        }() {
-            Ok(_) => return Ok(()),
-            Err(err) => last_err = Some(err),
+    if let Ok(file) = OpenOptions::new().read(true).write(true).open(bus_path) {
+        log::info!("resetting usb {:?}", probe_info);
+        unsafe {
+            reset_usb(file.as_raw_fd()).unwrap();
         }
-    }
 
-    Err(last_err.unwrap_or(ProbeResetError::ProbeNotFound))
+        log::info!(
+            "Successfully reset the debug probe {} S/N: {:?}",
+            probe_info.identifier,
+            probe_info.serial_number
+        );
+        return Ok(());
+    }
+    */
+
+    Ok(())
 }
 
 nix::ioctl_none!(
