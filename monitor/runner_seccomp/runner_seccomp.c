@@ -209,6 +209,18 @@ int main(int argc, char *argv[])
     rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
     if (rc < 0)
         goto err;
+    rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
+    if (rc < 0)
+        goto err;
+    rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(rseq), 0);
+    if (rc < 0)
+        goto err;
+    rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(faccessat2), 0);
+    if (rc < 0)
+        goto err;
+    rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstatfs), 0);
+    if (rc < 0)
+        goto err;
 
     if (human_readable)
     {
