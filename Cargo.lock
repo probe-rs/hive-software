@@ -1096,7 +1096,6 @@ dependencies = [
  "ll-api",
  "log",
  "log4rs",
- "nix 0.27.1",
  "pca9535",
  "probe-rs 0.22.0",
  "probe-rs 0.22.0 (git+https://github.com/probe-rs/probe-rs.git?rev=a003183)",

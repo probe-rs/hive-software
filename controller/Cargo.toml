@@ -31,7 +31,6 @@ chrono = { workspace = true }
 colored = { workspace = true }
 anyhow = { workspace = true }
 rusb = "0.9"
-nix = { workspace = true, features = ["ioctl"] }
 serde_json = { workspace = true }
 serde = { workspace = true }
 
