@@ -2929,11 +2929,11 @@ dependencies = [
  "sled",
  "sys-info",
  "thiserror",
+ "timeout-readwrite",
  "tokio",
  "tower",
  "tower-cookies",
  "tower-http",
- "wait-timeout",
 ]
 
 [[package]]
@@ -4882,6 +4882,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "timeout-readwrite"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37312ddc0adbd0f112618a4250ac586448151ff6d69241ff061b29b883349f3e"
+dependencies = [
+ "nix 0.26.4",
+]
+
+[[package]]
 name = "tinyvec"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5430,15 +5439,6 @@ name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
-
-[[package]]
-name = "wait-timeout"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f200f5b12eb75f8c1ed65abd4b2db8a6e1b138a20de009dacee265a2498f3f6"
-dependencies = [
- "libc",
-]
 
 [[package]]
 name = "waker-fn"

@@ -1,5 +1,4 @@
 use std::fs::{self};
-use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 use std::time::Duration;
 
@@ -9,11 +8,11 @@ use comm_types::test::{TaskRunnerMessage, TestOptions, TestResults, TestRunError
 use controller::hardware::HiveHardware;
 use thiserror::Error;
 use tokio::sync::mpsc::{self, Sender as MpscSender};
-use wait_timeout::ChildExt;
 
 use crate::config::{HIVE_GID, RUNNER_UID};
 use crate::tasks::scheduler::CURRENT_TEST_TASK_OPTIONS;
 use crate::tasks::util::sandbox::Sandbox;
+use crate::tasks::util::subprocess;
 use crate::HARDWARE;
 use crate::HARDWARE_DB_DATA_CHANGED;
 
@@ -125,16 +124,28 @@ impl TestTask {
         // Set hardware changed flag, as runner may leave hardware in unknown state
         *HARDWARE_DB_DATA_CHANGED.blocking_lock() = true;
 
-        if runner_process
-            .wait_timeout(Duration::from_secs(RUNNER_BINARY_TIMEOUT_SEC))?
-            .is_none()
-        {
-            // Kill runner process due to timeout
-            let _ = runner_process.kill(); // TODO: Maybe error handling?
-            let _ = runner_process.wait();
+        let runner_stdout_pipe = runner_process.stdout.take().unwrap();
+        let runner_stderr_pipe = runner_process.stderr.take().unwrap();
 
-            return Err(TestTaskError::RunnerTimeout.into());
-        }
+        let (runner_stdout, runner_stderr) = match subprocess::subprocess_wait_timeout(
+            runner_stdout_pipe,
+            runner_stderr_pipe,
+            Duration::from_secs(RUNNER_BINARY_TIMEOUT_SEC),
+        ) {
+            Ok(data) => Ok(data),
+            Err(err) => match err.kind() {
+                std::io::ErrorKind::TimedOut => {
+                    // Kill runner process due to timeout
+                    let _ = runner_process.kill(); // TODO: Maybe error handling?
+                    let _ = runner_process.wait();
+
+                    return Err(TestTaskError::RunnerTimeout.into());
+                }
+                _ => Err(err),
+            },
+        }?;
+
+        runner_process.wait()?; // Make sure runner process has terminated
 
         // Try to receive a value as the runner command blocks until the runner is finished. If no message is received by then something went wrong
         status_sender.blocking_send(TaskRunnerMessage::Status("Collecting results".to_owned()))?;
@@ -142,31 +153,11 @@ impl TestTask {
         match scheduler.try_recv_test_result() {
             Ok(results) => Ok(results),
             Err(err) => match err {
-                mpsc::error::TryRecvError::Empty => {
-                    let mut runner_stdout = vec![];
-                    runner_process
-                        .stdout
-                        .take()
-                        .unwrap()
-                        .read_to_end(&mut runner_stdout)?;
-
-                    let mut runner_stderr = vec![];
-                    runner_process
-                        .stderr
-                        .take()
-                        .unwrap()
-                        .read_to_end(&mut runner_stderr)?;
-
-                    Err(TestTaskError::RunnerError(format!(
-                        "stdout: {}\n\nstderr: {}",
-                        String::from_utf8(runner_stdout).unwrap_or_else(|_| {
-                            "Could not parse runner output to utf8".to_owned()
-                        }),
-                        String::from_utf8(runner_stderr)
-                            .unwrap_or_else(|_| "Could not parse runner output to utf8".to_owned())
-                    ))
-                    .into())
-                }
+                mpsc::error::TryRecvError::Empty => Err(TestTaskError::RunnerError(format!(
+                    "stdout: {}\n\nstderr: {}",
+                    runner_stdout, runner_stderr
+                ))
+                .into()),
                 mpsc::error::TryRecvError::Disconnected => {
                     // This might be a bug or simply a shutdown operation
                     log::warn!("Testresult sender part has been dropped, stopping test manager");

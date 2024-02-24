@@ -50,11 +50,11 @@ base64 = "0.13"
 ring = "0.16"
 crossbeam-utils = "0.8"
 cached = "0.34"
-wait-timeout = "0.2"
 command-fds = "0.2"
 sys-info = "0.9"
 chrono = { workspace = true }
 nix = { workspace = true, features = ["user", "fs"] }
+timeout-readwrite = "0.3"
 
 [dev-dependencies]
 hive-db = { path = "../hive-db/", features = ["test"] }
