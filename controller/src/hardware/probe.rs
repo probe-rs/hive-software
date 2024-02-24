@@ -27,7 +27,7 @@ pub enum ProbeResetError {
 }
 
 /// Speed to which the debug probe is set
-const DEBUG_PROBE_SPEED_HZ: u32 = 8000;
+const DEBUG_PROBE_SPEED_KHZ: u32 = 8000;
 
 /// Tries to attach the probe and runs the provided closure if attaching was successful
 ///
@@ -42,7 +42,7 @@ where
     F: Fn(Session) -> Result<(), Box<dyn Error>>,
 {
     let mut probe = testchannel.take_probe_owned();
-    let _ = probe.set_speed(DEBUG_PROBE_SPEED_HZ);
+    let _ = probe.set_speed(DEBUG_PROBE_SPEED_KHZ);
     match probe.attach(&target_info.name, Permissions::new()) {
         Ok(session) => return function(session),
         Err(err) => {
@@ -58,7 +58,7 @@ where
     // Retry with attach under reset
     let probe_lister = Lister::new();
     let mut probe = probe_info.open(&probe_lister)?;
-    let _ = probe.set_speed(DEBUG_PROBE_SPEED_HZ);
+    let _ = probe.set_speed(DEBUG_PROBE_SPEED_KHZ);
 
     match probe.attach_under_reset(&target_info.name, Permissions::new()) {
         Ok(session) => function(session),
