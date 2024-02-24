@@ -2146,7 +2146,6 @@ version = "0.1.0"
 dependencies = [
  "darling 0.13.4",
  "hive-test",
- "inventory",
  "probe-rs 0.22.0",
  "proc-macro-error",
  "proc-macro2",
