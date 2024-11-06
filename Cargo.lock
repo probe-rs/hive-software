@@ -235,7 +235,7 @@ dependencies = [
  "serde_urlencoded",
  "static_assertions",
  "tempfile",
- "thiserror",
+ "thiserror 1.0.68",
 ]
 
 [[package]]
@@ -268,7 +268,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
- "thiserror",
+ "thiserror 1.0.68",
 ]
 
 [[package]]
@@ -845,7 +845,7 @@ dependencies = [
  "hashbrown 0.12.3",
  "lazy_static",
  "once_cell",
- "thiserror",
+ "thiserror 1.0.68",
  "tokio",
 ]
 
@@ -902,6 +902,12 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "cfg_aliases"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
 name = "chrono"
@@ -1016,7 +1022,7 @@ dependencies = [
  "http",
  "hyper",
  "serde",
- "thiserror",
+ "thiserror 2.0.0",
  "tokio",
  "tower",
  "typetag",
@@ -1030,7 +1036,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f190f3c954f7bca3c6296d0ec561c739bdbe6c7e990294ed168d415f6e1b5b01"
 dependencies = [
  "nix 0.27.1",
- "thiserror",
+ "thiserror 1.0.68",
 ]
 
 [[package]]
@@ -1046,7 +1052,7 @@ dependencies = [
  "mime",
  "mime_guess",
  "rand 0.8.5",
- "thiserror",
+ "thiserror 1.0.68",
 ]
 
 [[package]]
@@ -1093,7 +1099,7 @@ dependencies = [
  "rusb",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.0",
 ]
 
 [[package]]
@@ -1361,13 +1367,14 @@ checksum = "3c877555693c14d2f84191cfd3ad8582790fc52b5e2274b40b59cf5f5cea25c7"
 
 [[package]]
 name = "dialoguer"
-version = "0.10.4"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59c6f2989294b9a498d3ad5491a79c6deb604617378e1cdc4bfc1c1361fe2f87"
+checksum = "658bce805d770f407bc62102fca7c2c64ceef2fbcb2b8bd19d2765ce093980de"
 dependencies = [
  "console",
  "shell-words",
  "tempfile",
+ "thiserror 1.0.68",
  "zeroize",
 ]
 
@@ -1488,12 +1495,13 @@ checksum = "361a90feb7004eca4019fb28352a9465666b24f840f5c3cddf0ff13920590b89"
 
 [[package]]
 name = "embedded-hal-bus"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57b4e6ede84339ebdb418cd986e6320a34b017cdf99b5cc3efceec6450b06886"
+checksum = "0d3980bf28e8577db59fe2bdb3df868a419469d2cecb363644eea2b6f7797669"
 dependencies = [
  "critical-section",
  "embedded-hal 1.0.0",
+ "portable-atomic",
 ]
 
 [[package]]
@@ -1625,7 +1633,7 @@ dependencies = [
  "serde",
  "serde_plain",
  "strum 0.24.1",
- "thiserror",
+ "thiserror 1.0.68",
 ]
 
 [[package]]
@@ -1646,7 +1654,7 @@ dependencies = [
  "sha2",
  "slip-codec",
  "strum 0.25.0",
- "thiserror",
+ "thiserror 1.0.68",
  "toml",
  "xmas-elf",
 ]
@@ -2025,7 +2033,7 @@ dependencies = [
  "pest_derive",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 1.0.68",
 ]
 
 [[package]]
@@ -2167,7 +2175,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.0",
  "toml",
  "tungstenite 0.17.3",
  "validators",
@@ -2205,7 +2213,7 @@ version = "0.1.0"
 dependencies = [
  "comm-types",
  "hive-macro",
- "inventory",
+ "inventory 0.3.15",
  "ll-api",
 ]
 
@@ -2618,6 +2626,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "inventory"
+version = "0.3.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f958d3d68f4167080a18141e10381e7634563984a537f2a49a30fd8e53ac5767"
+
+[[package]]
 name = "io-kit-sys"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2880,7 +2894,7 @@ dependencies = [
  "pca9535",
  "retry",
  "rppal",
- "thiserror",
+ "thiserror 2.0.0",
 ]
 
 [[package]]
@@ -2930,7 +2944,7 @@ dependencies = [
  "serde-value",
  "serde_json",
  "serde_yaml",
- "thiserror",
+ "thiserror 1.0.68",
  "thread-id",
  "typemap-ors",
  "winapi",
@@ -3013,7 +3027,7 @@ dependencies = [
  "supports-unicode",
  "terminal_size",
  "textwrap",
- "thiserror",
+ "thiserror 1.0.68",
  "unicode-width",
 ]
 
@@ -3113,7 +3127,7 @@ dependencies = [
  "lazy_static",
  "log",
  "mime",
- "nix 0.27.1",
+ "nix 0.29.0",
  "probe-rs 0.22.0 (git+https://github.com/probe-rs/probe-rs.git?rev=a003183)",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -3124,7 +3138,7 @@ dependencies = [
  "serial_test",
  "sled",
  "sys-info",
- "thiserror",
+ "thiserror 2.0.0",
  "timeout-readwrite",
  "tokio",
  "tower",
@@ -3202,6 +3216,18 @@ checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
 dependencies = [
  "bitflags 2.6.0",
  "cfg-if",
+ "libc",
+]
+
+[[package]]
+name = "nix"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
+dependencies = [
+ "bitflags 2.6.0",
+ "cfg-if",
+ "cfg_aliases",
  "libc",
 ]
 
@@ -3548,7 +3574,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879952a81a83930934cbf1786752d6dedc3b1f29e8f8fb2ad1d0a36f377cf442"
 dependencies = [
  "memchr",
- "thiserror",
+ "thiserror 1.0.68",
  "ucd-trie",
 ]
 
@@ -3604,7 +3630,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "strum 0.26.3",
- "thiserror",
+ "thiserror 1.0.68",
 ]
 
 [[package]]
@@ -3688,6 +3714,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "portable-atomic"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc9c68a3f6da06753e9335d63e27f6b9754dd1920d941135b7ea8224f141adb2"
+
+[[package]]
 name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3763,7 +3795,7 @@ dependencies = [
  "signal-hook",
  "static_assertions",
  "svg",
- "thiserror",
+ "thiserror 1.0.68",
  "tracing",
  "typed-path",
  "uf2-decode",
@@ -3807,7 +3839,7 @@ dependencies = [
  "signal-hook",
  "static_assertions",
  "svg",
- "thiserror",
+ "thiserror 1.0.68",
  "tracing",
  "typed-path",
  "uf2-decode",
@@ -4076,7 +4108,7 @@ checksum = "ba009ff324d1fc1b900bd1fdb31564febe58a8ccc8a6fdbb93b543d33b13ca43"
 dependencies = [
  "getrandom",
  "libredox",
- "thiserror",
+ "thiserror 1.0.68",
 ]
 
 [[package]]
@@ -4257,7 +4289,7 @@ dependencies = [
  "hive-test",
  "hurdles",
  "hyper",
- "inventory",
+ "inventory 0.3.15",
  "lazy_static",
  "ll-api",
  "log",
@@ -4373,6 +4405,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "scc"
+version = "2.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8d25269dd3a12467afe2e510f69fb0b46b698e5afb296b59f2145259deaf8e8"
+dependencies = [
+ "sdd",
+]
+
+[[package]]
 name = "schannel"
 version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4402,6 +4443,12 @@ dependencies = [
  "ring 0.17.8",
  "untrusted 0.9.0",
 ]
+
+[[package]]
+name = "sdd"
+version = "3.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49c1eeaf4b6a87c7479688c6d52b9f1153cedd3c489300564f932b065c6eab95"
 
 [[package]]
 name = "secret-service"
@@ -4574,27 +4621,27 @@ dependencies = [
 
 [[package]]
 name = "serial_test"
-version = "0.7.0"
+version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d19dbfb999a147cedbfe82f042eb9555f5b0fa4ef95ee4570b74349103d9c9f4"
+checksum = "4b4b487fe2acf240a021cf57c6b2b4903b1e78ca0ecd862a71b71d2a51fed77d"
 dependencies = [
- "lazy_static",
+ "futures",
  "log",
+ "once_cell",
  "parking_lot 0.12.3",
+ "scc",
  "serial_test_derive",
 ]
 
 [[package]]
 name = "serial_test_derive"
-version = "0.7.0"
+version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb9e2050b2be1d681f8f1c1a528bcfe4e00afa2d8995f713974f5333288659f2"
+checksum = "82fe9db325bcef1fbcde82e078a5cc4efdf787e96b3b9cf45b50b529f2083d67"
 dependencies = [
- "proc-macro-error",
  "proc-macro2",
  "quote",
- "rustversion",
- "syn 1.0.109",
+ "syn 2.0.87",
 ]
 
 [[package]]
@@ -4694,7 +4741,7 @@ checksum = "adc4e5204eb1910f40f9cfa375f6f05b68c3abac4b6fd879c8ff5e7ae8a0a085"
 dependencies = [
  "num-bigint",
  "num-traits",
- "thiserror",
+ "thiserror 1.0.68",
  "time",
 ]
 
@@ -5076,7 +5123,16 @@ version = "1.0.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02dd99dc800bbb97186339685293e1cc5d9df1f8fae2d0aecd9ff1c77efea892"
 dependencies = [
- "thiserror-impl",
+ "thiserror-impl 1.0.68",
+]
+
+[[package]]
+name = "thiserror"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15291287e9bff1bc6f9ff3409ed9af665bec7a5fc8ac079ea96be07bca0e2668"
+dependencies = [
+ "thiserror-impl 2.0.0",
 ]
 
 [[package]]
@@ -5084,6 +5140,17 @@ name = "thiserror-impl"
 version = "1.0.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7c61ec9a6f64d2793d8a45faba21efbe3ced62a886d44c36a009b2b519b4c7e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.87",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22efd00f33f93fa62848a7cab956c3d38c8d43095efda1decfc2b3a5dc0b8972"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5434,7 +5501,7 @@ dependencies = [
  "native-tls",
  "rand 0.8.5",
  "sha-1",
- "thiserror",
+ "thiserror 1.0.68",
  "url",
  "utf-8",
 ]
@@ -5453,7 +5520,7 @@ dependencies = [
  "log",
  "rand 0.8.5",
  "sha1",
- "thiserror",
+ "thiserror 1.0.68",
  "url",
  "utf-8",
 ]
@@ -5486,7 +5553,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4080564c5b2241b5bff53ab610082234e0c57b0417f4bd10596f183001505b8a"
 dependencies = [
  "erased-serde",
- "inventory",
+ "inventory 0.2.3",
  "once_cell",
  "serde",
  "typetag-impl",
@@ -5550,7 +5617,7 @@ version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c878a167baa8afd137494101a688ef8c67125089ff2249284bd2b5f9bfedb815"
 dependencies = [
- "thiserror",
+ "thiserror 1.0.68",
 ]
 
 [[package]]
@@ -5667,7 +5734,7 @@ dependencies = [
  "semver 1.0.23",
  "serde_json",
  "str-utils",
- "thiserror",
+ "thiserror 1.0.68",
  "url",
  "validators-derive",
  "validators-options",
