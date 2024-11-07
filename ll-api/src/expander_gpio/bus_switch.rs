@@ -3,7 +3,7 @@ use embedded_hal::i2c::I2c;
 use pca9535::expander::SyncExpander;
 use pca9535::ExpanderError;
 use pca9535::ExpanderOutputPin;
-use retry::{delay::Fixed, retry, Error};
+use retry::{delay::Fixed, retry};
 
 use crate::StackShieldError;
 use crate::Target;
@@ -56,12 +56,7 @@ where
             Fixed::from_millis(FIXED_RETRY_DELAY_MS).take(RETRY_LIMIT),
             || self.disconnect_all(),
         )
-        .map_err(|err| match err {
-            Error::Internal(string) => {
-                panic!("Internal library error in retry crate: {}", string)
-            }
-            Error::Operation { error, .. } => error,
-        })?;
+        .map_err(|err| err.error)?;
 
         self.sw_test_channel[channel as usize]
             .set_low()

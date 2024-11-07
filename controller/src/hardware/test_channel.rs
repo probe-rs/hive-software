@@ -168,25 +168,19 @@ impl CombinedTestChannel {
                                         std::thread::sleep(std::time::Duration::from_millis(100));
                                         function(self, target_info, tss.get_position())
                                     }
-                                    Err(err) => match err {
-                                        retry::Error::Operation { error, .. } => {
-                                            log::error!(
+                                    Err(err) => {
+                                        log::error!(
                                                 "Failed to connect testchannel {:?} to target {:?}: {}\nCaused by: {:?}",
                                                 self.channel,
                                                 Target::try_from(pos as u8).unwrap(),
-                                                error,
-                                                error.source()
+                                                err.error,
+                                                err.error.source()
 
                                             );
-                                            // At this point it is uncertain in which state the busswitches are. Therefore we try to disconnect all affected switches, so any remaining operations are not influenced by this error.
-                                            // If disconnecting fails the testrack hardware is in an undefined and unrecoverable state, therefore the application panics as such errors need manual power reset and are likely caused by faulty hardware
-                                            tss.inner.borrow_mut().disconnect_all().expect("Failed to disconnect tss successfully, this error cannot be recovered, as further operation in such a state may influence other testchannels.\n This is likely caused by a hardware issue in the I2C communication, please verify that your hardware is working correctly.");
-                                        }
-                                        retry::Error::Internal(string) => panic!(
-                                            "Internal library error in retry crate: {}",
-                                            string
-                                        ),
-                                    },
+                                        // At this point it is uncertain in which state the busswitches are. Therefore we try to disconnect all affected switches, so any remaining operations are not influenced by this error.
+                                        // If disconnecting fails the testrack hardware is in an undefined and unrecoverable state, therefore the application panics as such errors need manual power reset and are likely caused by faulty hardware
+                                        tss.inner.borrow_mut().disconnect_all().expect("Failed to disconnect tss successfully, this error cannot be recovered, as further operation in such a state may influence other testchannels.\n This is likely caused by a hardware issue in the I2C communication, please verify that your hardware is working correctly.");
+                                    }
                                 }
                             }
                         }
