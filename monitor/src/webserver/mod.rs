@@ -23,9 +23,10 @@ use axum::handler::HandlerWithoutStateExt;
 use axum::middleware::from_extractor;
 use axum::response::Redirect;
 use axum::routing::{self, post};
-use axum::{middleware, BoxError, Extension, Router, Server};
+use axum::{middleware, BoxError, Extension, Router};
 use axum_server::tls_rustls::RustlsConfig;
 use hyper::{StatusCode, Uri};
+use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_cookies::CookieManagerLayer;
 use tower_http::services::{ServeDir, ServeFile};
@@ -173,7 +174,10 @@ async fn redirect_http_to_https_server(
         }
     };
 
-    Server::bind(&addr)
-        .serve(redirect.into_make_service())
-        .await
+    let listener = TcpListener::bind(&addr).await.expect(&format!(
+        "Failed to bind {}. This is likely caused by a system configuration issue.",
+        addr
+    ));
+
+    axum::serve(listener, redirect.into_make_service()).await
 }

@@ -11,8 +11,11 @@ use axum::http::Uri;
 use comm_types::defines::DefineRegistry;
 use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
 use comm_types::test::{TestOptions, TestResult, TestResults, TestRunStatus};
-use hyper::client::connect::{Connected, Connection};
-use hyper::{Body, Client};
+use hyper::body::Body;
+use hyper_util::client::legacy::{
+    connect::{Connected, Connection},
+    Client,
+};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::oneshot::Sender;
 use tokio::sync::Notify;
@@ -83,7 +86,7 @@ pub async fn ipc(
     let socket_path = Path::new(SOCKET_PATH);
 
     let ipc_handler = tokio::spawn(async move {
-        let connector = tower::service_fn(move |_: Uri| {
+        let connector = hyper::service::service_fn(move |_: Uri| {
             let path = socket_path;
             Box::pin(async move {
                 let stream = UnixStream::connect(path).await?;
@@ -91,7 +94,7 @@ pub async fn ipc(
             })
         });
 
-        let client: Client<_, Body> = hyper::Client::builder().build(connector);
+        let client: Client<_, Body> = Client::builder().build(connector);
 
         let client_copy = client.clone();
 

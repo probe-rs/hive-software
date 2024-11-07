@@ -1,9 +1,10 @@
 //! Types used in IPC between runner and monitor
 use axum::response::Response;
 use bincode::config;
-use bincode::serde::decode_from_std_read;
-use hyper::body::Buf;
-use hyper::{header, Body};
+use bincode::serde::decode_from_slice;
+use http_body_util::BodyExt;
+use hyper::body::Body;
+use hyper::header;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -42,7 +43,7 @@ pub enum IpcMessage {
 
 impl IpcMessage {
     /// Tries to parse an [`IpcMessage`] from the provided HTTP response
-    pub async fn from_response(res: Response<Body>) -> Result<Self, ClientParseError> {
+    pub async fn from_response<B: Body>(res: Response<B>) -> Result<Self, ClientParseError> {
         if res.headers().get(header::CONTENT_TYPE).is_some() {
             if res.headers().get(header::CONTENT_TYPE).unwrap() != BINCODE_MIME {
                 return Err(ClientParseError::InvalidHeader);
@@ -51,10 +52,13 @@ impl IpcMessage {
             return Err(ClientParseError::InvalidHeader);
         }
 
-        let body = hyper::body::aggregate(res)
+        let body = res
+            .into_body()
+            .collect()
             .await
             .map_err(|_| ClientParseError::InvalidBody)?;
-        let msg = decode_from_std_read(&mut body.reader(), config::standard())
+
+        let (msg, _) = decode_from_slice(&body.to_bytes(), config::standard())
             .map_err(|_| ClientParseError::InvalidBincode)?;
 
         Ok(msg)

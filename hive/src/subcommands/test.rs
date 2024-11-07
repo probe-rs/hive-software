@@ -122,7 +122,7 @@ pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
         let test_results;
 
         loop {
-            match ws.read_message()? {
+            match ws.read()? {
                 Message::Binary(bytes) => {
                     let message: TaskRunnerMessage = serde_json::from_slice(&bytes).expect("Failed to parse json from testserver websocket. Does the client version match the testserver version?");
                     match message {

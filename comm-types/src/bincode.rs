@@ -1,12 +1,13 @@
 //! All bincode helpers and trait implementations used for [`axum`]
 use axum::async_trait;
+use axum::body::Body;
 use axum::extract::{FromRequest, FromRequestParts};
 use axum::response::{IntoResponse, Response};
 use bincode::config;
-use bincode::serde::{decode_from_std_read, encode_to_vec};
+use bincode::serde::{decode_from_slice, encode_to_vec};
 use http::header::{self, HeaderValue};
 use http::request::{Parts, Request};
-use hyper::body::Buf;
+use http_body_util::BodyExt;
 use hyper::StatusCode;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -70,24 +71,23 @@ where
 }
 
 #[async_trait]
-impl<T, S> FromRequest<S, axum::body::Body> for Bincode<T>
+impl<T, S> FromRequest<S, Body> for Bincode<T>
 where
     T: DeserializeOwned,
     S: Send + Sync,
 {
     type Rejection = ServerParseError;
 
-    async fn from_request(
-        req: Request<axum::body::Body>,
-        _state: &S,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request(req: Request<Body>, _state: &S) -> Result<Self, Self::Rejection> {
         // Check and parse body
-        let body = hyper::body::aggregate(req.into_body())
+        let body = req
+            .into_body()
+            .collect()
             .await
             .map_err(|_| ServerParseError::InvalidBody)?;
 
-        match decode_from_std_read::<T, _, _>(&mut body.reader(), config::standard()) {
-            Ok(data) => Ok(Bincode(data)),
+        match decode_from_slice(&body.to_bytes(), config::standard()) {
+            Ok((data, _)) => Ok(Bincode(data)),
             Err(_) => Err(ServerParseError::InvalidBincode),
         }
     }

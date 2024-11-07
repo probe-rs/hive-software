@@ -1,8 +1,9 @@
 //! Wrappers to make hyper requests retryable
 use axum::http::Request;
 use comm_types::ipc::{ClientParseError, IpcMessage};
-use hyper::{header, Body, StatusCode};
-use hyper::{Client, Error as HyperError};
+use hyper::Error as HyperError;
+use hyper::{body::Body, header, StatusCode};
+use hyper_util::client::legacy::{connect::Connect, Client};
 use tokio_retry::strategy::{jitter, FibonacciBackoff};
 use tokio_retry::RetryIf;
 
@@ -59,12 +60,12 @@ fn is_retryable_error(err: &RequestError) -> bool {
 ///
 /// # Unwrapping
 /// As this function already internally retries failed requests the ultimative result should be unwrapped, as the underlying error is likely not recoverable by the application at runtime.
-pub async fn try_request<T: 'static>(
-    client: Client<T, Body>,
-    request: (Request<Body>, Option<Vec<u8>>),
+pub async fn try_request<T: 'static, B: Body>(
+    client: Client<T, B>,
+    request: (Request<B>, Option<Vec<u8>>),
 ) -> Result<IpcMessage, RequestError>
 where
-    T: hyper::client::connect::Connect + Clone + Sync + Send,
+    T: Connect + Clone + Sync + Send,
 {
     let retry_strategy = FibonacciBackoff::from_millis(10)
         .map(jitter)
@@ -79,12 +80,12 @@ where
 }
 
 /// Internal request handler, which might fail and can be retried, as the request is being cloned on every call
-async fn dispatch_request<T: 'static>(
-    client: &Client<T, Body>,
-    request: &(Request<Body>, Option<Vec<u8>>),
+async fn dispatch_request<T: 'static, B: Body>(
+    client: &Client<T, B>,
+    request: &(Request<B>, Option<Vec<u8>>),
 ) -> Result<IpcMessage, RequestError>
 where
-    T: hyper::client::connect::Connect + Clone + Sync + Send,
+    T: Connect + Clone + Sync + Send,
 {
     let response = client
         .clone()
@@ -106,7 +107,7 @@ where
 ///
 /// # Panics
 /// If the provided request does not have the [`header::CONTENT_TYPE`] set.
-fn clone_request(request: &Request<Body>, body: Option<&Vec<u8>>) -> Request<Body> {
+fn clone_request<B: Body>(request: &Request<B>, body: Option<&Vec<u8>>) -> Request<B> {
     Request::builder()
         .method(request.method())
         .header(

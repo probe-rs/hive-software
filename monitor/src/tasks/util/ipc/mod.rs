@@ -8,12 +8,11 @@ use std::task::Poll;
 
 use axum::extract::connect_info;
 use axum::routing::{get, post};
-use axum::{middleware, BoxError, Extension, Router, Server};
+use axum::{middleware, BoxError, Extension, Router};
 use comm_types::bincode::CheckContentType;
 use comm_types::defines::DefineRegistry;
 use comm_types::test::{TestOptions, TestResults};
 use futures::ready;
-use hyper::server::accept::Accept;
 use tokio::net::unix::UCred;
 use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
 use tokio::sync::mpsc::Sender;
@@ -85,8 +84,12 @@ pub async fn ipc_server(db: Arc<MonitorDb>, test_result_sender: Sender<TestResul
             &DEFINE_REGISTRY,
         );
 
-        let server = Server::builder(IpcStreamListener { listener })
-            .serve(route.into_make_service_with_connect_info::<IpcConnectionInfo>());
+        listener.
+        
+        let server = axum::serve(
+            IpcStreamListener { listener },
+            route.into_make_service_with_connect_info::<IpcConnectionInfo>(),
+        );
 
         let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
 

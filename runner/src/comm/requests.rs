@@ -8,9 +8,9 @@ use comm_types::{
     ipc::IpcMessage,
     test::TestResults,
 };
-use hyper::{header, Body};
+use hyper::{body::Body, header};
 
-pub fn get_probes() -> (Request<Body>, Option<Vec<u8>>) {
+pub fn get_probes<B: Body>() -> (Request<B>, Option<Vec<u8>>) {
     (
         Request::builder()
             .method(Method::GET)
@@ -22,7 +22,7 @@ pub fn get_probes() -> (Request<Body>, Option<Vec<u8>>) {
     )
 }
 
-pub fn get_targets() -> (Request<Body>, Option<Vec<u8>>) {
+pub fn get_targets<B: Body>() -> (Request<B>, Option<Vec<u8>>) {
     (
         Request::builder()
             .method(Method::GET)
@@ -34,7 +34,7 @@ pub fn get_targets() -> (Request<Body>, Option<Vec<u8>>) {
     )
 }
 
-pub fn get_defines() -> (Request<Body>, Option<Vec<u8>>) {
+pub fn get_defines<B: Body>() -> (Request<B>, Option<Vec<u8>>) {
     (
         Request::builder()
             .method(Method::GET)
@@ -46,7 +46,7 @@ pub fn get_defines() -> (Request<Body>, Option<Vec<u8>>) {
     )
 }
 
-pub fn get_options() -> (Request<Body>, Option<Vec<u8>>) {
+pub fn get_options<B: Body>() -> (Request<B>, Option<Vec<u8>>) {
     (
         Request::builder()
             .method(Method::GET)
@@ -58,7 +58,7 @@ pub fn get_options() -> (Request<Body>, Option<Vec<u8>>) {
     )
 }
 
-pub fn post_test_results(results: TestResults) -> (Request<Body>, Option<Vec<u8>>) {
+pub fn post_test_results<B: Body>(results: TestResults) -> (Request<B>, Option<Vec<u8>>) {
     let body: Vec<u8> = Bincode(IpcMessage::TestResults(Box::new(results))).into();
 
     (

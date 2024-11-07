@@ -19,7 +19,8 @@ token = []
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 bincode = { workspace = true, features = ["serde"] }
-http = "0.2"
+http = { workspace = true }
+http-body-util = "0.1"
 axum = { workspace = true }
 hyper = { workspace = true }
 async-graphql = { workspace = true }

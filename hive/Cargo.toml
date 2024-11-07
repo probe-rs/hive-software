@@ -27,14 +27,14 @@ directories = "4.0"
 serde_json = { workspace = true }
 cargo_toml = "0.19"
 ignore = "0.4"
-reqwest = { version = "0.11", features = [
+reqwest = { version = "0.12", features = [
     "blocking",
     "json",
     "multipart",
     "native-tls",
 ] }
-http = "0.2"
-tungstenite = { version = "0.17", features = ["native-tls"] }
+http = { workspace = true }
+tungstenite = { version = "0.24", features = ["native-tls"] }
 native-tls = "0.2"
 pathdiff = "0.2"
 prettytable-rs = "0.10"

@@ -77,9 +77,8 @@ where
 
 /// Resets the usb interface to which the probe is connected to
 pub fn reset_probe_usb(probe_info: &DebugProbeInfo) -> Result<(), ProbeResetError> {
-    let mut usb_device =
-        rusb::open_device_with_vid_pid(probe_info.vendor_id, probe_info.product_id)
-            .ok_or(ProbeResetError::ProbeNotFound)?;
+    let usb_device = rusb::open_device_with_vid_pid(probe_info.vendor_id, probe_info.product_id)
+        .ok_or(ProbeResetError::ProbeNotFound)?;
 
     usb_device.reset()?;
 
