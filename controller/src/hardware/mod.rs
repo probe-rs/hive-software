@@ -128,14 +128,12 @@ impl HiveHardware {
                 if found_probes[found_probes_idx].vendor_id == probe_info.vendor_id
                     && found_probes[found_probes_idx].product_id == probe_info.product_id
                     && found_probes[found_probes_idx].serial_number == probe_info.serial_number
-                    && found_probes[found_probes_idx].hid_interface == probe_info.hid_interface
+                    && found_probes[found_probes_idx].interface == probe_info.hid_interface
                 {
                     let tss = self.testchannels[channel_idx].lock().unwrap();
 
                     let probe_info = found_probes.remove(found_probes_idx);
-                    let probe = probe_info
-                        .open(&probe_lister)
-                        .expect("TODO either skip probe or panic");
+                    let probe = probe_info.open().expect("TODO either skip probe or panic");
 
                     tss.bind_probe(probe, probe_info);
                     found_probe = true;

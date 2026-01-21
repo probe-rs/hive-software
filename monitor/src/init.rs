@@ -8,7 +8,7 @@ use comm_types::hardware::{Architecture, TargetState};
 use controller::hardware::{HardwareStatus, HiveHardware, TargetStackShield};
 use embedded_hal_bus::i2c::MutexDevice;
 use hive_db::{BincodeDb, BincodeTransactional};
-use probe_rs::config;
+use probe_rs::config::Registry;
 use sled::transaction::UnabortableTransactionError;
 
 use crate::config::{HIVE_GID, HIVE_UID, RUNNER_UID};
@@ -167,11 +167,12 @@ fn init_target_info_from_registry(hardware: &HiveHardware) {
         if let Some(tss) = tss.as_ref() {
             let mut tss = tss.lock().unwrap();
             let targets = tss.get_targets_mut();
+            let probe_rs_registry = Registry::from_builtin_families();
 
             if targets.is_some() {
                 for target in targets.as_mut().unwrap().iter_mut() {
                     if let TargetState::Known(target_info) = target {
-                        match config::get_target_by_name(&target_info.name) {
+                        match probe_rs_registry.get_target_by_name(&target_info.name) {
                             Ok(probe_rs_target) => {
                                 // Set the architecture field
                                 let architecture = match probe_rs_target.architecture() {

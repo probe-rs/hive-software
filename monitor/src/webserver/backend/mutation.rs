@@ -122,7 +122,7 @@ impl BackendMutation {
                                 vendor_id: probe.vendor_id,
                                 product_id: probe.product_id,
                                 serial_number: probe.serial_number,
-                                hid_interface: probe.hid_interface,
+                                hid_interface: probe.interface,
                             });
                         }
                     }

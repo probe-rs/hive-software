@@ -64,7 +64,7 @@ pub(crate) fn sync_tss_probe_data(db: Arc<MonitorDb>, hardware: &HiveHardware) {
                     vendor_id: probe_info.vendor_id,
                     product_id: probe_info.product_id,
                     serial_number: probe_info.serial_number,
-                    hid_interface: probe_info.hid_interface,
+                    hid_interface: probe_info.interface,
                 });
             }
 

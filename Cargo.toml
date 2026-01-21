@@ -13,7 +13,7 @@ members = [
 ]
 
 [workspace.dependencies]
-probe-rs = { git = "https://github.com/probe-rs/probe-rs.git", rev = "a003183" } # Use master due to hidapi feature collision (https://github.com/probe-rs/probe-rs/pull/1842)
+probe-rs = "0.31" # Use master due to hidapi feature collision (https://github.com/probe-rs/probe-rs/pull/1842)
 log = "0.4"
 lazy_static = "1.5"
 axum = "0.6"

@@ -12,7 +12,7 @@ use comm_types::token::DbToken;
 use controller::logger::LogEntry;
 use hive_db::{BincodeDb, BincodeIter};
 use log::Level;
-use probe_rs::config::{get_target_by_name, search_chips};
+use probe_rs::config::Registry;
 use probe_rs::{probe::list::Lister, Architecture};
 use rppal::system::DeviceInfo;
 
@@ -109,18 +109,22 @@ impl BackendQuery {
 
     /// Search the supported targets by Hive
     async fn search_supported_targets(&self, search: String) -> Vec<String> {
-        tokio::task::spawn_blocking(|| {
+        tokio::task::spawn_blocking(move || {
+            let probe_rs_registry = Registry::from_builtin_families();
+
             // We limit the max amount of returned targets to 30 in order to not send monster responses which could hang the frontend
-            let mut chips = search_chips(search).unwrap();
+            let mut chips = probe_rs_registry.search_chips(&search);
             chips.truncate(30);
 
             chips
                 .into_iter()
-                .filter(|chip_name| match get_target_by_name(chip_name) {
-                    // TODO: Currently Hive does not support Xtensa architecture so we just filter those results out for now
-                    Ok(target) => target.architecture() != Architecture::Xtensa,
-                    Err(_) => false,
-                })
+                .filter(
+                    |chip_name| match probe_rs_registry.get_target_by_name(chip_name) {
+                        // TODO: Currently Hive does not support Xtensa architecture so we just filter those results out for now
+                        Ok(target) => target.architecture() != Architecture::Xtensa,
+                        Err(_) => false,
+                    },
+                )
                 .collect()
         })
         .await

@@ -10,6 +10,7 @@ use controller::hardware::{
 };
 use crossbeam_utils::thread;
 use hive_db::BincodeTransactional;
+use probe_rs::flashing::ElfOptions;
 use probe_rs::flashing::{download_file_with_options, DownloadOptions, Format};
 use sled::transaction::UnabortableTransactionError;
 
@@ -210,7 +211,12 @@ fn flash_target(
                 .get_elf_path(target_info.memory_address.as_ref().unwrap()),
         };
 
-        download_file_with_options(&mut session, path, Format::Elf, download_options)?;
+        download_file_with_options(
+            &mut session,
+            path,
+            Format::Elf(ElfOptions::default()),
+            download_options,
+        )?;
 
         Ok(())
     });
