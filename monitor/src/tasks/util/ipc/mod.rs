@@ -480,7 +480,7 @@ mod tests {
         };
 
         let bytes = encode_to_vec(
-            &IpcMessage::TestResults(Box::new(dummy_test_results)),
+            IpcMessage::TestResults(Box::new(dummy_test_results)),
             config::standard(),
         )
         .unwrap();

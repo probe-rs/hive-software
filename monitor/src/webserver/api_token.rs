@@ -159,7 +159,7 @@ mod tests {
 
         static ref API_TOKEN: &'static str = "secretTokenValue";
 
-        static ref API_TOKEN_KEY: Key<'static, DbToken> = Key::new(&*API_TOKEN);
+        static ref API_TOKEN_KEY: Key<'static, DbToken> = Key::new(*API_TOKEN);
 
         static ref DUMMY_TOKEN_DATA: DbToken = DbToken { name: "my token".to_owned(), description: "some descriptive description".to_owned(), lifetime: TokenLifetime::Permanent };
     }

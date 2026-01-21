@@ -202,7 +202,7 @@ fn get_ram_address(target: Target) -> Result<Range<u64>, ()> {
 
 #[cfg(test)]
 mod tests {
-    use probe_rs::config::{self, Registry};
+    use probe_rs::config::Registry;
 
     use super::{get_nvm_address, get_ram_address};
 

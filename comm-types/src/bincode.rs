@@ -147,9 +147,9 @@ mod tests {
 
     #[derive(Serialize, Deserialize)]
     enum Animal {
-        ZEBRA,
-        LION,
-        CRAB,
+        Zebra,
+        Lion,
+        Crab,
     }
 
     #[derive(Serialize, Deserialize)]
@@ -257,7 +257,7 @@ mod tests {
 
         let data = MockBincodeData {
             username: "User".to_owned(),
-            favorite_animal: Animal::CRAB,
+            favorite_animal: Animal::Crab,
             favorite_numbers: vec![7, 42, 555],
         };
 

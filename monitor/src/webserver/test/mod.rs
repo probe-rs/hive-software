@@ -226,7 +226,7 @@ mod tests {
         static ref API_TOKEN_DATA: DbToken = DbToken { name: "Nice Token".to_owned(), description: "Nicer description".to_owned(), lifetime: TokenLifetime::Permanent };
     }
 
-    fn with_async_runtime<Fn: FnOnce(Arc<Runtime>) -> ()>(function: Fn) {
+    fn with_async_runtime<Fn: FnOnce(Arc<Runtime>)>(function: Fn) {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
