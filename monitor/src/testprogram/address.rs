@@ -7,8 +7,8 @@ use std::ops::Range;
 use comm_types::hardware::{Memory, TargetState};
 use controller::hardware::HiveHardware;
 use probe_rs::{
-    config::{MemoryRegion, Registry},
     Architecture, Target,
+    config::{MemoryRegion, Registry},
 };
 
 pub struct BaseAddressRanges {
@@ -39,7 +39,11 @@ pub fn get_and_init_target_address_ranges(hardware: &HiveHardware) -> BaseAddres
                 let target = match probe_rs_registry.get_target_by_name(&target_info.name) {
                     Ok(target) => target,
                     Err(err) => {
-                        log::warn!("Could not find target '{}' in the probe-rs registry. Failed to determine flash/ram addresses for this target: {}", target_info.name, err);
+                        log::warn!(
+                            "Could not find target '{}' in the probe-rs registry. Failed to determine flash/ram addresses for this target: {}",
+                            target_info.name,
+                            err
+                        );
                         continue;
                     }
                 };

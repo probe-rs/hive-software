@@ -61,16 +61,17 @@
 //! # [`TaskManager`] vs [`TaskScheduler`]
 //! It is important to note that the [`TaskManager`] does not run any tasks. It only manages and queues them for the [`TaskScheduler`] which executes the tasks and reports the results.
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::response::IntoResponse;
-use cached::stores::TimedCache;
 use cached::Cached;
+use cached::stores::TimedCache;
 use comm_types::test::TaskRunnerMessage;
 use hyper::StatusCode;
 use thiserror::Error;
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{self, Receiver as MpscReceiver, Sender as MpscSender};
 use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::mpsc::{self, Receiver as MpscReceiver, Sender as MpscSender};
 
 use crate::database::MonitorDb;
 
@@ -111,7 +112,9 @@ pub enum TaskManagerError {
         "Discarded this reinitialization task as another reinitialization task is still waiting for execution"
     )]
     ReinitTaskDiscarded,
-    #[error("The provided ticket is invalid or the client took too long to connect the websocket after the initial test request")]
+    #[error(
+        "The provided ticket is invalid or the client took too long to connect the websocket after the initial test request"
+    )]
     TestTaskTicketInvalid,
 }
 
@@ -150,7 +153,7 @@ impl TaskManager {
             Arc::new(Self {
                 reinit_task_sender,
                 test_cache: AsyncMutex::new(TimedCache::with_lifespan_and_capacity(
-                    WS_CONNECT_TIMEOUT_SECS,
+                    Duration::from_secs(WS_CONNECT_TIMEOUT_SECS),
                     TASK_CACHE_LIMIT,
                 )),
                 valid_test_task_sender,

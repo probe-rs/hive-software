@@ -7,7 +7,7 @@ use ll_api::TargetStackShield as Shield;
 use pca9535::Register;
 use rppal::i2c::I2c;
 
-use super::{HiveIoExpander, ShareableI2c, MAX_DAUGHTERBOARD_TARGETS, MAX_TSS, PCA9535_BASE_ADDR};
+use super::{HiveIoExpander, MAX_DAUGHTERBOARD_TARGETS, MAX_TSS, PCA9535_BASE_ADDR, ShareableI2c};
 
 pub struct TargetStackShield {
     pub inner: RefCell<Shield<'static, ShareableI2c, HiveIoExpander>>,
@@ -141,7 +141,10 @@ impl TargetStackShield {
         if is_known {
             self.targets.as_mut().unwrap()[pos] = TargetState::Known(info);
         } else {
-            panic!("The target state on pos {} is not TargetState::Known, cannot set TargetInfo on an unknown target", pos);
+            panic!(
+                "The target state on pos {} is not TargetState::Known, cannot set TargetInfo on an unknown target",
+                pos
+            );
         }
     }
 

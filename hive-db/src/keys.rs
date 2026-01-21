@@ -4,7 +4,7 @@
 //! This allows for a safer API as it can guarantee that there are no attempts to read or write invalid types on the DB.
 use std::marker::PhantomData;
 
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 /// A key which is used to access data in the database
 pub struct Key<'a, T> {

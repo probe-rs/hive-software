@@ -1,14 +1,16 @@
 //! Subcommand logic
-use anyhow::{anyhow, bail, Result};
+use std::time::Duration;
+
+use anyhow::{Result, anyhow, bail};
 use comm_types::hardware::Capabilities;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
+use dialoguer::theme::ColorfulTheme;
 use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::config::HiveConfig;
 use crate::models::Host;
 use crate::request::{client, send_request};
-use crate::{validate, CliArgs};
+use crate::{CliArgs, validate};
 
 pub mod connect;
 pub mod list;
@@ -58,7 +60,9 @@ fn get_testserver_capabilities(
 fn show_testserver_prompt_if_none(config: &mut HiveConfig, cli_args: &CliArgs) -> Result<()> {
     if config.testserver.is_none() {
         if cli_args.no_human {
-            bail!("No testserver address found in config. Add a testserver by using the connect subcommand");
+            bail!(
+                "No testserver address found in config. Add a testserver by using the connect subcommand"
+            );
         }
 
         let testserver_address_input = Input::with_theme(&ColorfulTheme::default())
@@ -105,10 +109,11 @@ where
     progress.set_style(
         ProgressStyle::default_spinner()
             .template("{spinner:.blue} {msg}")
+            .expect("Spinner template invalid. This is a bug.")
             .tick_strings(&["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]),
     );
 
-    progress.enable_steady_tick(120);
+    progress.enable_steady_tick(Duration::from_millis(120));
 
     let result = f(&progress);
 

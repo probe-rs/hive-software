@@ -11,18 +11,18 @@ use comm_types::hardware::{ProbeInfo, ProbeState, TargetState};
 use comm_types::token::{DbToken, TokenLifetime};
 use hive_db::{BincodeDb, BincodeIter, BincodeTransactional, Key};
 use probe_rs::probe::list::Lister;
-use sled::transaction::{abort, TransactionError};
+use sled::transaction::{TransactionError, abort};
 use tower_cookies::Cookies;
 
-use crate::tasks::TaskManager;
-use crate::testprogram::{Testprogram, DEFAULT_TESTPROGRAM_NAME};
-use crate::webserver::api_token::generate_token;
 use crate::ACTIVE_TESTPROGRAM_CHANGED;
+use crate::tasks::TaskManager;
+use crate::testprogram::{DEFAULT_TESTPROGRAM_NAME, Testprogram};
+use crate::webserver::api_token::generate_token;
 use crate::{
-    database::{hasher, keys, MonitorDb},
+    HARDWARE_DB_DATA_CHANGED,
+    database::{MonitorDb, hasher, keys},
     tasks::reinit_task::ReinitializationTask,
     webserver::auth,
-    HARDWARE_DB_DATA_CHANGED,
 };
 
 use super::model::{

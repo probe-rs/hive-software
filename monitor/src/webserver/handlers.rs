@@ -9,8 +9,8 @@ use tower_cookies::Cookies;
 use crate::database::MonitorDb;
 use crate::tasks::TaskManager;
 
-use super::backend::auth::BackendAuthSchema;
 use super::backend::BackendSchema;
+use super::backend::auth::BackendAuthSchema;
 
 #[axum::debug_handler]
 pub(super) async fn graphql_backend(

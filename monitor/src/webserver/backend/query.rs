@@ -7,16 +7,17 @@ use std::{path::Path, sync::Arc};
 
 use anyhow::anyhow;
 use async_graphql::{Context, Object, Result as GrapqlResult};
+use base64::{Engine, alphabet};
 use comm_types::auth::Role;
 use comm_types::token::DbToken;
 use controller::logger::LogEntry;
 use hive_db::{BincodeDb, BincodeIter};
 use log::Level;
 use probe_rs::config::Registry;
-use probe_rs::{probe::list::Lister, Architecture};
+use probe_rs::{Architecture, probe::list::Lister};
 use rppal::system::DeviceInfo;
 
-use crate::database::{keys, MonitorDb};
+use crate::database::{MonitorDb, keys};
 use crate::testprogram::Testprogram;
 
 use super::model::{
@@ -235,6 +236,11 @@ impl BackendQuery {
     ) -> GrapqlResult<FullTestProgramResponse> {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
+        let base64_engine = base64::engine::GeneralPurpose::new(
+            &alphabet::URL_SAFE,
+            base64::engine::general_purpose::NO_PAD,
+        );
+
         let testprograms = db
             .config_tree
             .b_get(&keys::config::TESTPROGRAMS)
@@ -247,12 +253,12 @@ impl BackendQuery {
             .ok_or_else(|| anyhow!("Failed to find provided testprogram"))?;
 
         let (code_arm, code_riscv, testprogram) = tokio::task::spawn_blocking(move || {
-            let arm_code = base64::encode(
+            let arm_code = base64_engine.encode(
                 fs::read(testprogram.get_path().join("arm/main.S"))
                     .expect("Failed to open testprogram ARM assembly source code"),
             );
 
-            let riscv_code = base64::encode(
+            let riscv_code = base64_engine.encode(
                 fs::read(testprogram.get_path().join("riscv/main.S"))
                     .expect("Failed to open testprogram ARM assembly source code"),
             );

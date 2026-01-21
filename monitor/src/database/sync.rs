@@ -19,7 +19,7 @@ use controller::hardware::HiveHardware;
 use hive_db::{BincodeDb, BincodeTransactional};
 use sled::transaction::UnabortableTransactionError;
 
-use super::{keys, MonitorDb};
+use super::{MonitorDb, keys};
 
 /// Synchronize the DB target data with the provided [`HiveHardware`] data.
 pub(crate) fn sync_tss_target_data(db: Arc<MonitorDb>, hardware: &HiveHardware) {

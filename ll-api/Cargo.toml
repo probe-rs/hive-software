@@ -1,7 +1,7 @@
 [package]
 name = "ll-api"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["TeyKey1"]
 repository = "https://github.com/probe-rs/hive-software"
 description = "Low level API for controlling the Hive hardware"
@@ -14,3 +14,6 @@ rppal = { workspace = true }
 embedded-hal = { workspace = true }
 thiserror = { workspace = true }
 retry = { workspace = true }
+
+[lints]
+workspace = true

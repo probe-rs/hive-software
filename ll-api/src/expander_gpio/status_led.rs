@@ -1,8 +1,8 @@
 use embedded_hal::digital::OutputPin;
 use embedded_hal::i2c::I2c;
-use pca9535::expander::SyncExpander;
 use pca9535::ExpanderError;
 use pca9535::ExpanderOutputPin;
+use pca9535::expander::SyncExpander;
 
 use crate::StackShieldError;
 use crate::StackShieldStatus;

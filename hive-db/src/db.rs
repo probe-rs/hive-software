@@ -1,8 +1,8 @@
 //! Traits and respective implementations to allow data (de)serialization before reading/writing from the DB
 use bincode::config;
 use bincode::serde::{decode_from_slice, encode_to_vec};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use sled::transaction::{TransactionalTree, UnabortableTransactionError};
 use sled::{Iter, Result as SledResult, Tree};
 

@@ -1,7 +1,7 @@
 [package]
 name = "monitor"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["TeyKey1"]
 repository = "https://github.com/probe-rs/hive-software"
 description = "Hive monitor which handles all external communication, prepares the test environment and starts the test runner."
@@ -38,23 +38,23 @@ sled = { workspace = true }
 serde = { workspace = true }
 probe-rs = { workspace = true }
 thiserror = { workspace = true }
-argon2 = "0.4"
-jsonwebtoken = "8.1"
+argon2 = "0.5"
+jsonwebtoken = { version = "10.2", features = ["rust_crypto"] }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "color", "suggestions"] }
 clap-verbosity-flag = { workspace = true }
 dialoguer = { workspace = true }
 rand = "0.8"
 rand_chacha = "0.3"
-base64 = "0.13"
+base64 = "0.22"
 ring = "0.16"
 crossbeam-utils = "0.8"
-cached = "0.34"
+cached = "0.56"
 command-fds = "0.2"
 sys-info = "0.9"
 chrono = { workspace = true }
 nix = { workspace = true, features = ["user", "fs"] }
-timeout-readwrite = "0.3"
+timeout-readwrite = "0.4"
 
 [dev-dependencies]
 hive-db = { path = "../hive-db/", features = ["test"] }
@@ -63,3 +63,6 @@ tokio = { workspace = true, features = ["macros"] }
 multipart = { version = "0.8", package = "hyper-multipart-rfc7578" }
 mime = "0.3"
 bincode = { workspace = true, features = ["serde"] }
+
+[lints]
+workspace = true

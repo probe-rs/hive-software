@@ -36,7 +36,7 @@ mod tests {
     use hive_db::{BincodeDb, BincodeIter, Key};
     use lazy_static::lazy_static;
 
-    use crate::database::{keys, MonitorDb};
+    use crate::database::{MonitorDb, keys};
 
     lazy_static! {
         // We open a temporary test database and initialize it to the test values
@@ -202,7 +202,7 @@ mod tests {
     }
 
     mod query {
-        use async_graphql::{from_value, value, Request};
+        use async_graphql::{Request, from_value, value};
         use comm_types::auth::{JwtClaims, Role};
         use comm_types::hardware::{TargetInfo, TargetState};
         use serde::Deserialize;
@@ -514,7 +514,7 @@ mod tests {
 
     mod mutation {
 
-        use async_graphql::{value, Request};
+        use async_graphql::{Request, value};
         use comm_types::auth::{DbUser, JwtClaims, Role};
         use comm_types::hardware::ProbeState;
         use comm_types::token::{DbToken, TokenLifetime};
@@ -763,7 +763,10 @@ mod tests {
 
             assert!(result.is_err());
 
-            assert_eq!(result.errors[0].message, "Failed to parse \"String\": the chars length is 2, must be greater than or equal to 4");
+            assert_eq!(
+                result.errors[0].message,
+                "Failed to parse \"String\": the chars length is 2, must be greater than or equal to 4"
+            );
         }
 
         #[tokio::test]
@@ -972,7 +975,10 @@ mod tests {
 
             assert!(result.is_err());
 
-            assert_eq!(result.errors[0].message, "Failed to parse \"String\": the chars length is 3, must be greater than or equal to 4");
+            assert_eq!(
+                result.errors[0].message,
+                "Failed to parse \"String\": the chars length is 3, must be greater than or equal to 4"
+            );
 
             // Username contains whitespace
             let query = r#"mutation{
@@ -1018,7 +1024,10 @@ mod tests {
 
             assert!(result.is_err());
 
-            assert_eq!(result.errors[0].message, "Failed to parse \"String\": the chars length is 4, must be greater than or equal to 6");
+            assert_eq!(
+                result.errors[0].message,
+                "Failed to parse \"String\": the chars length is 4, must be greater than or equal to 6"
+            );
         }
 
         #[tokio::test]
@@ -1143,7 +1152,10 @@ mod tests {
 
             assert!(result.is_err());
 
-            assert_eq!(result.errors[0].message, "Failed to parse \"String\": the chars length is 3, must be greater than or equal to 4");
+            assert_eq!(
+                result.errors[0].message,
+                "Failed to parse \"String\": the chars length is 3, must be greater than or equal to 4"
+            );
 
             // Username contains whitespace
             let query = r#"mutation{
@@ -1257,13 +1269,14 @@ mod tests {
                 })
             );
 
-            assert!(DB
-                .clone()
-                .credentials_tree
-                .b_get(&keys::credentials::USERS)
-                .unwrap()
-                .unwrap()
-                .is_empty());
+            assert!(
+                DB.clone()
+                    .credentials_tree
+                    .b_get(&keys::credentials::USERS)
+                    .unwrap()
+                    .unwrap()
+                    .is_empty()
+            );
 
             super::restore_db();
         }
@@ -1324,7 +1337,10 @@ mod tests {
 
             assert!(result.is_err());
 
-            assert_eq!(result.errors[0].message, "Failed to parse \"String\": the chars length is 3, must be greater than or equal to 4");
+            assert_eq!(
+                result.errors[0].message,
+                "Failed to parse \"String\": the chars length is 3, must be greater than or equal to 4"
+            );
 
             // New username too short
             let query = r#"mutation{
@@ -1344,7 +1360,10 @@ mod tests {
 
             assert!(result.is_err());
 
-            assert_eq!(result.errors[0].message, "Failed to parse \"String\": the chars length is 3, must be greater than or equal to 4");
+            assert_eq!(
+                result.errors[0].message,
+                "Failed to parse \"String\": the chars length is 3, must be greater than or equal to 4"
+            );
 
             // Old username contains whitespace
             let query = r#"mutation{
@@ -1636,7 +1655,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.errors[0].message,
-                "Failed to parse provided expiration date. Make sure it is valid RFC3339: input contains invalid characters"
+                "Failed to parse provided expiration date. Make sure it is valid RFC3339: premature end of input"
             );
         }
 

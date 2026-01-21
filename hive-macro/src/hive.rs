@@ -1,11 +1,11 @@
 //! Logic for the hive macro
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 use proc_macro_error::abort;
+use proc_macro2::Span;
 use quote::quote;
 use syn::{
-    spanned::Spanned, AttributeArgs, Item, ItemConst, ItemMacro, ItemMod, ItemStruct, ItemUse,
-    UseTree, Visibility,
+    AttributeArgs, Item, ItemConst, ItemMacro, ItemMod, ItemStruct, ItemUse, UseTree, Visibility,
+    spanned::Spanned,
 };
 
 const MODULE_EXAMPLE: &str = "\n\n#[hive]\npub mod tests {\n\t// Testfunctions etc...\n}";
@@ -224,22 +224,22 @@ fn check_test_module_dependencies(items: &[Item]) {
 /// In case any unallowed dependencies were found the option contains the name of the unallowed dependency and the span of it.
 fn is_allowed_dependency(tree: &UseTree) -> (bool, Option<String>, Option<Span>) {
     match tree {
-        syn::UseTree::Path(ref path) => (
+        syn::UseTree::Path(path) => (
             ALLOWED_DEPENDENCIES.contains(&path.ident.to_string().as_str()),
             Some(path.ident.to_string()),
             Some(path.ident.span()),
         ),
-        syn::UseTree::Name(ref name) => (
+        syn::UseTree::Name(name) => (
             ALLOWED_DEPENDENCIES.contains(&name.ident.to_string().as_str()),
             Some(name.ident.to_string()),
             Some(name.ident.span()),
         ),
-        syn::UseTree::Rename(ref rename) => (
+        syn::UseTree::Rename(rename) => (
             ALLOWED_DEPENDENCIES.contains(&rename.ident.to_string().as_str()),
             Some(rename.ident.to_string()),
             Some(rename.ident.span()),
         ),
-        syn::UseTree::Group(ref group) => {
+        syn::UseTree::Group(group) => {
             for tree in group.items.iter() {
                 let result = is_allowed_dependency(tree);
 

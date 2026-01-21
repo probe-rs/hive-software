@@ -81,11 +81,11 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use serial_test::{parallel, serial};
     use sled::{
-        transaction::{TransactionalTree, UnabortableTransactionError},
         IVec, Tree,
+        transaction::{TransactionalTree, UnabortableTransactionError},
     };
 
-    use crate::{db::BincodeIter, BincodeDb, BincodeTransactional, HiveDb, Key};
+    use crate::{BincodeDb, BincodeTransactional, HiveDb, Key, db::BincodeIter};
 
     lazy_static! {
         static ref DB: HiveDb = HiveDb::open_test(100, 256);

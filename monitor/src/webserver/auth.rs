@@ -16,14 +16,14 @@ use comm_types::auth::{DbUser, JwtClaims};
 use cookie::time::Duration;
 use cookie::{Cookie, SameSite};
 use hyper::StatusCode;
-use jsonwebtoken::{get_current_timestamp, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, get_current_timestamp};
 use lazy_static::lazy_static;
-use rand_chacha::rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaChaRng;
+use rand_chacha::rand_core::{RngCore, SeedableRng};
 use thiserror::Error;
 use tower_cookies::Cookies;
 
-use crate::database::{hasher, MonitorDb};
+use crate::database::{MonitorDb, hasher};
 
 use super::csrf;
 
@@ -195,21 +195,21 @@ fn check_jwt(token: &str) -> Result<JwtClaims, ()> {
 mod tests {
     use std::sync::Arc;
 
+    use axum::Router;
     use axum::middleware::from_extractor;
     use axum::routing::get;
-    use axum::Router;
     use comm_types::auth::DbUser;
     use comm_types::auth::JwtClaims;
     use comm_types::auth::Role;
-    use cookie::time::Duration;
     use cookie::SameSite;
+    use cookie::time::Duration;
     use hive_db::BincodeDb;
-    use hyper::header;
     use hyper::Body;
     use hyper::Method;
     use hyper::Request;
     use hyper::StatusCode;
-    use jsonwebtoken::{get_current_timestamp, EncodingKey, Header};
+    use hyper::header;
+    use jsonwebtoken::{EncodingKey, Header, get_current_timestamp};
     use lazy_static::lazy_static;
     use serde::Deserialize;
     use serde::Serialize;
@@ -218,17 +218,17 @@ mod tests {
     use tower_cookies::CookieManagerLayer;
     use tower_cookies::Cookies;
 
-    use crate::database::{keys, MonitorDb};
+    use crate::database::{MonitorDb, keys};
     use crate::webserver::csrf;
 
-    use super::check_jwt;
-    use super::generate_jwt;
+    use super::AUTH_COOKIE_KEY;
     use super::AuthError;
     use super::HiveAuth;
-    use super::AUTH_COOKIE_KEY;
     use super::ISSUER;
     use super::JWT_SECRET;
     use super::TOKEN_EXPIRE_TIME_SEC;
+    use super::check_jwt;
+    use super::generate_jwt;
 
     lazy_static! {
         // We open a temporary test database and initialize it to the test values

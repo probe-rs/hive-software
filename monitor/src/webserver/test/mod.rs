@@ -85,11 +85,11 @@ mod tests {
     use std::time::Duration;
 
     use axum::body::Body;
-    use axum::http::{header, Method, Request, StatusCode};
+    use axum::http::{Method, Request, StatusCode, header};
     use comm_types::hardware::{Capabilities, ProbeInfo, ProbeState, TargetInfo, TargetState};
     use comm_types::ipc::{HiveProbeData, HiveTargetData};
     use comm_types::test::TestOptions;
-    use comm_types::token::{DbToken, TokenLifetime, API_TOKEN_HEADER};
+    use comm_types::token::{API_TOKEN_HEADER, DbToken, TokenLifetime};
     use hive_db::{BincodeDb, Key};
     use hyper::Request as HyperRequest;
     use lazy_static::lazy_static;
@@ -97,7 +97,7 @@ mod tests {
     use tokio::runtime::Runtime;
     use tower::ServiceExt;
 
-    use crate::database::{keys, MonitorDb};
+    use crate::database::{MonitorDb, keys};
     use crate::tasks::{TaskManager, WS_CONNECT_TIMEOUT_SECS};
 
     use super::test_routes;
@@ -578,10 +578,12 @@ mod tests {
                 )
                 .unwrap();
 
-                assert!(task_manager
-                    .validate_test_task_ticket(ws_ticket.into())
-                    .await
-                    .is_ok());
+                assert!(
+                    task_manager
+                        .validate_test_task_ticket(ws_ticket.into())
+                        .await
+                        .is_ok()
+                );
             });
         });
     }
@@ -630,10 +632,12 @@ mod tests {
                 // sleep until ws ticket should be invalid
                 tokio::time::sleep(Duration::from_secs(WS_CONNECT_TIMEOUT_SECS + 5)).await;
 
-                assert!(task_manager
-                    .validate_test_task_ticket(ws_ticket.into())
-                    .await
-                    .is_err());
+                assert!(
+                    task_manager
+                        .validate_test_task_ticket(ws_ticket.into())
+                        .await
+                        .is_err()
+                );
             });
         });
     }

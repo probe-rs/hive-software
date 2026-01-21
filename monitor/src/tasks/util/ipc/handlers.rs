@@ -7,10 +7,10 @@ use comm_types::defines::DefineRegistry;
 use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
 use comm_types::test::{TestOptions, TestResults};
 use hive_db::BincodeDb;
-use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::Sender;
 
-use crate::database::{keys, MonitorDb};
+use crate::database::{MonitorDb, keys};
 
 /// Supply probe hardware data to the runner
 pub async fn probe_handler(Extension(db): Extension<Arc<MonitorDb>>) -> Bincode<IpcMessage> {

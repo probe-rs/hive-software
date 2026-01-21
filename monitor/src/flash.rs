@@ -1,20 +1,20 @@
 //! Handles the flashing of the testbinaries onto the available targets
-use std::sync::mpsc;
-use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 use std::sync::RwLock;
+use std::sync::mpsc;
+use std::sync::mpsc::SyncSender;
 
 use comm_types::hardware::{Architecture, TargetInfo, TargetState};
 use controller::hardware::{
-    reset_probe_usb, try_attach, CombinedTestChannel, HardwareStatus, HiveHardware,
+    CombinedTestChannel, HardwareStatus, HiveHardware, reset_probe_usb, try_attach,
 };
 use crossbeam_utils::thread;
 use hive_db::BincodeTransactional;
 use probe_rs::flashing::ElfOptions;
-use probe_rs::flashing::{download_file_with_options, DownloadOptions, Format};
+use probe_rs::flashing::{DownloadOptions, Format, download_file_with_options};
 use sled::transaction::UnabortableTransactionError;
 
-use crate::database::{self, keys, MonitorDb};
+use crate::database::{self, MonitorDb, keys};
 use crate::testprogram::Testprogram;
 
 #[derive(Debug)]

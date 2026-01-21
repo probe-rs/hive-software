@@ -16,13 +16,13 @@ use axum::{
     middleware::Next,
     response::IntoResponse,
 };
-use base64::{decode, encode};
-use cookie::{time::Duration, SameSite};
+use base64::{Engine, engine::GeneralPurpose};
+use cookie::{SameSite, time::Duration};
 use lazy_static::lazy_static;
-use rand_chacha::rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaChaRng;
+use rand_chacha::rand_core::{RngCore, SeedableRng};
 use ring::{
-    hmac::{self, Key, HMAC_SHA256},
+    hmac::{self, HMAC_SHA256, Key},
     rand,
 };
 use thiserror::Error;
@@ -42,6 +42,12 @@ lazy_static! {
     };
     /// ChaCha20 rng which is seeded by os rng
     static ref CHACHA_RNG: Mutex<ChaChaRng> = Mutex::new(ChaChaRng::from_entropy());
+
+    /// Base64 engine
+    static ref BASE64_ENGINE: GeneralPurpose = GeneralPurpose::new(
+        &base64::alphabet::URL_SAFE,
+        base64::engine::general_purpose::NO_PAD,
+    );
 }
 
 #[derive(Error, Debug)]
@@ -158,14 +164,14 @@ async fn generate_csrf_token() -> String {
     rng.fill_bytes(&mut csrf_token);
     drop(rng);
 
-    encode(csrf_token)
+    BASE64_ENGINE.encode(csrf_token)
 }
 
 /// Signs the csrf token with HS256 in the format: `<csrf_token>.<tag>`
 fn sign_csrf_token(token: String) -> String {
     let tag = hmac::sign(&COOKIE_SIGNING_KEY, token.as_bytes());
 
-    format!("{}.{}", token, encode(tag.as_ref()))
+    format!("{}.{}", token, BASE64_ENGINE.encode(tag.as_ref()))
 }
 
 /// Verifies the csrf cookie value signature and returns the csrf token, if valid
@@ -179,7 +185,9 @@ fn verify_csrf_cookie(csrf_cookie: &Cookie) -> Result<String, CsrfError> {
     }
 
     let token = parts[0];
-    let tag = decode(parts[1]).map_err(|_| CsrfError::InvalidCsrfCookie)?;
+    let tag = BASE64_ENGINE
+        .decode(parts[1])
+        .map_err(|_| CsrfError::InvalidCsrfCookie)?;
 
     hmac::verify(&COOKIE_SIGNING_KEY, token.as_bytes(), &tag)
         .map_err(|_| CsrfError::InvalidCsrfCookie)?;
@@ -189,16 +197,16 @@ fn verify_csrf_cookie(csrf_cookie: &Cookie) -> Result<String, CsrfError> {
 
 #[cfg(test)]
 mod tests {
+    use axum::Router;
     use axum::body::Body;
-    use axum::http::{header, Method, Request, StatusCode};
+    use axum::http::{Method, Request, StatusCode, header};
     use axum::middleware;
     use axum::routing::get;
-    use axum::Router;
     use cookie::{Cookie, SameSite};
     use tower::{ServiceBuilder, ServiceExt};
     use tower_cookies::CookieManagerLayer;
 
-    use super::{CsrfError, COOKIE_CSRF_TOKEN_KEY, HEADER_CSRF_TOKEN_KEY};
+    use super::{COOKIE_CSRF_TOKEN_KEY, CsrfError, HEADER_CSRF_TOKEN_KEY};
 
     fn app() -> Router {
         Router::new()

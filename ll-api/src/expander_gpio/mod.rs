@@ -9,10 +9,10 @@
 
 use embedded_hal::i2c::I2c;
 use pca9535::{
-    expander::SyncExpander,
     ExpanderError, ExpanderInputPin, ExpanderOutputPin,
     GPIOBank::{Bank0, Bank1},
     PinState::High,
+    expander::SyncExpander,
 };
 
 use super::StackShieldError;

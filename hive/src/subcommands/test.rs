@@ -1,25 +1,25 @@
 //! The test subcommand
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::fs;
 use std::time::Duration;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use cargo_toml::Manifest;
 use colored::Colorize;
 use comm_types::test::{
     Filter, TaskRunnerMessage, TestFilter, TestOptions, TestResult, TestResults, TestRunStatus,
     TestStatus,
 };
-use prettytable::{format, row, Table};
+use prettytable::{Table, format, row};
 use reqwest::blocking::multipart::{Form, Part};
 use tungstenite::Message;
 
 use crate::config::HiveConfig;
 use crate::request::client::{get_http_client, get_ws_client};
 use crate::request::send_request;
-use crate::{workspace, Test};
 use crate::{CliArgs, Commands};
+use crate::{Test, workspace};
 
 pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
     let subcommand_args = if let Commands::Test(args) = &cli_args.command {
@@ -117,7 +117,7 @@ pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
         let test_results;
 
         loop {
-            match ws.read_message()? {
+            match ws.read()? {
                 Message::Binary(bytes) => {
                     let message: TaskRunnerMessage = serde_json::from_slice(&bytes).expect("Failed to parse json from testserver websocket. Does the client version match the testserver version?");
                     match message {

@@ -2,7 +2,7 @@ use tokio::sync::oneshot::{self, Receiver as OneshotReceiver, Sender as OneshotS
 
 use crate::HARDWARE;
 
-use super::{scheduler::TaskScheduler, Task, TaskManagerError};
+use super::{Task, TaskManagerError, scheduler::TaskScheduler};
 
 /// A hardware reinitialization task which can be sent to a [`TaskManager`]
 pub struct ReinitializationTask {

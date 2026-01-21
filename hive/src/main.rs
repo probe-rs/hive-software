@@ -13,7 +13,7 @@ use std::env;
 use std::path::PathBuf;
 use std::process;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{ArgGroup, Args, Parser, Subcommand};
 use log::Level;
 
@@ -25,8 +25,6 @@ mod validate;
 mod workspace;
 
 use validate::ValidHost;
-
-const HIVE_LOG_ENV: &str = "HIVE_LOG";
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -100,8 +98,12 @@ struct Test {
 
 fn main() {
     let args = CliArgs::parse();
-    set_log_level(&args.verbose.log_level());
-    pretty_env_logger::init_custom_env(HIVE_LOG_ENV);
+
+    let log_level = get_log_level(&args.verbose.log_level());
+
+    pretty_env_logger::formatted_builder()
+        .filter_level(log_level.to_level_filter())
+        .init();
 
     let res = app(args);
 
@@ -133,10 +135,16 @@ fn app(cli_args: CliArgs) -> Result<()> {
     }
 }
 
-/// set the log level of the cli
-fn set_log_level(verbosity: &Option<log::Level>) {
-    match verbosity {
-        Some(level) => env::set_var(HIVE_LOG_ENV, level.as_str()),
-        None => env::set_var(HIVE_LOG_ENV, Level::Error.as_str()),
+/// Determine log level. Priority: CLI arg > RUST_LOG env var > default (Error)
+fn get_log_level(cli_log_level: &Option<log::Level>) -> log::Level {
+    if let Some(level) = cli_log_level {
+        *level
+    } else if let Some(env_level) = env::var("RUST_LOG")
+        .ok()
+        .and_then(|level_str| level_str.parse().ok())
+    {
+        env_level
+    } else {
+        Level::Error
     }
 }

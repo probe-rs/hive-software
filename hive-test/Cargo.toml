@@ -1,14 +1,17 @@
 [package]
 name = "hive-test"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["TeyKey1"]
 repository = "https://github.com/probe-rs/hive-software"
 description = "Types, reexports and macros used for Hive testfunctions"
 readme = "README.md"
 
 [dependencies]
-hive-macro = {path = "../hive-macro/"}
-comm-types = {path = "../comm-types/", features = ["hardware", "defines"]}
+hive-macro = { path = "../hive-macro/" }
+comm-types = { path = "../comm-types/", features = ["hardware", "defines"] }
 ll-api = { path = "../ll-api/" }
 inventory = { workspace = true }
+
+[lints]
+workspace = true

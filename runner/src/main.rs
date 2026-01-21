@@ -44,10 +44,10 @@ use log::Level;
 use rppal::i2c::I2c;
 use test::TEST_FUNCTIONS;
 use tokio::runtime::Builder;
+use tokio::sync::Notify;
 use tokio::sync::broadcast::{self, Sender as BroadcastSender};
 use tokio::sync::mpsc::{Receiver as MpscReceiver, Sender as MpscSender};
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver};
-use tokio::sync::Notify;
 use wildmatch::WildMatch;
 
 use crate::comm::Message;

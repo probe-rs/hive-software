@@ -41,9 +41,13 @@ pub type HiveIoExpander =
 
 #[derive(Debug, Error)]
 pub enum InitError {
-    #[error("The probe hardware which was detected by the runner does not match with the data provided by the monitor")]
+    #[error(
+        "The probe hardware which was detected by the runner does not match with the data provided by the monitor"
+    )]
     ProbeInitDesync,
-    #[error("The target hardware which was detected by the runner does not match with the data provided by the monitor")]
+    #[error(
+        "The target hardware which was detected by the runner does not match with the data provided by the monitor"
+    )]
     TargetInitDesync,
 }
 
@@ -152,7 +156,11 @@ impl HiveHardware {
         }
 
         if data_desync {
-            log::warn!("Encountered data desync during probe data initialization.\nData received:\n{:#?}\nProbes detected by the application, which are not found in the received data:\n{:#?}", data, found_probes);
+            log::warn!(
+                "Encountered data desync during probe data initialization.\nData received:\n{:#?}\nProbes detected by the application, which are not found in the received data:\n{:#?}",
+                data,
+                found_probes
+            );
             return Err(InitError::ProbeInitDesync);
         }
 

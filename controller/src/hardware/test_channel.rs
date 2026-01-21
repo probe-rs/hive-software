@@ -12,7 +12,7 @@ use probe_rs::probe::{DebugProbeError, DebugProbeInfo, Probe};
 #[cfg(feature = "runner")]
 use probe_rs_test::probe::{DebugProbeError, DebugProbeInfo, Probe};
 
-use super::{TargetStackShield, MAX_DAUGHTERBOARD_TARGETS};
+use super::{MAX_DAUGHTERBOARD_TARGETS, TargetStackShield};
 
 const FIXED_RETRY_DELAY_MS: u64 = 10;
 const CONNECT_RETRY_LIMIT: usize = 3;
@@ -149,7 +149,7 @@ impl CombinedTestChannel {
 
                     if let Some(targets) = tss.get_targets() {
                         for (pos, target) in targets.iter().enumerate() {
-                            if let TargetState::Known(ref target_info) = target {
+                            if let TargetState::Known(target_info) = target {
                                 match retry(
                                     Fixed::from_millis(FIXED_RETRY_DELAY_MS)
                                         .take(CONNECT_RETRY_LIMIT),
@@ -168,13 +168,12 @@ impl CombinedTestChannel {
                                     }
                                     Err(err) => {
                                         log::error!(
-                                                "Failed to connect testchannel {:?} to target {:?}: {}\nCaused by: {:?}",
-                                                self.channel,
-                                                Target::try_from(pos as u8).unwrap(),
-                                                err.error,
-                                                err.error.source()
-
-                                            );
+                                            "Failed to connect testchannel {:?} to target {:?}: {}\nCaused by: {:?}",
+                                            self.channel,
+                                            Target::try_from(pos as u8).unwrap(),
+                                            err.error,
+                                            err.error.source()
+                                        );
                                         // At this point it is uncertain in which state the busswitches are. Therefore we try to disconnect all affected switches, so any remaining operations are not influenced by this error.
                                         // If disconnecting fails the testrack hardware is in an undefined and unrecoverable state, therefore the application panics as such errors need manual power reset and are likely caused by faulty hardware
                                         tss.inner.borrow_mut().disconnect_all().expect("Failed to disconnect tss successfully, this error cannot be recovered, as further operation in such a state may influence other testchannels.\n This is likely caused by a hardware issue in the I2C communication, please verify that your hardware is working correctly.");

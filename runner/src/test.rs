@@ -8,7 +8,7 @@ use backtrace::Backtrace;
 use comm_types::defines::DefineRegistry;
 use comm_types::hardware::TargetInfo;
 use comm_types::test::{Filter, TestOptions, TestResult, TestStatus};
-use controller::hardware::{reset_probe_usb, try_attach, CombinedTestChannel};
+use controller::hardware::{CombinedTestChannel, reset_probe_usb, try_attach};
 use hive_test::TestChannelHandle;
 use lazy_static::lazy_static;
 use tokio::sync::mpsc::Sender;

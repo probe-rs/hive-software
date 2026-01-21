@@ -7,8 +7,8 @@ use lazy_static::lazy_static;
 use nix::unistd::{Gid, Group, Uid, User};
 use serde::{Deserialize, Serialize};
 
-use crate::database::keys::config::APP_CONFIG as APP_CONFIG_KEY;
 use crate::database::MonitorDb;
+use crate::database::keys::config::APP_CONFIG as APP_CONFIG_KEY;
 
 static APP_CONFIG: OnceLock<AppConfig> = OnceLock::new();
 
@@ -54,7 +54,10 @@ fn get_user_uid(user_name: &str) -> Uid {
     ) {
         user.uid
     } else {
-        panic!("Failed to find a user named '{}' on this system. This user is required by the monitor. Is the system setup properly?\n\nIn case you changed the usernames for any users used by the testrack you can modify the user names by running the monitor in init mode: 'monitor init'", user_name);
+        panic!(
+            "Failed to find a user named '{}' on this system. This user is required by the monitor. Is the system setup properly?\n\nIn case you changed the usernames for any users used by the testrack you can modify the user names by running the monitor in init mode: 'monitor init'",
+            user_name
+        );
     }
 }
 
@@ -68,6 +71,9 @@ fn get_group_gid(group_name: &str) -> Gid {
     ) {
         group.gid
     } else {
-        panic!("Failed to find a group named '{}' on this system. This user group is required by the monitor. Is the system setup properly?\n\nIn case you changed the group names for any groups used by the testrack you can modify the group names by running the monitor in init mode: 'monitor init'", group_name);
+        panic!(
+            "Failed to find a group named '{}' on this system. This user group is required by the monitor. Is the system setup properly?\n\nIn case you changed the group names for any groups used by the testrack you can modify the group names by running the monitor in init mode: 'monitor init'",
+            group_name
+        );
     }
 }

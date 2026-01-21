@@ -14,8 +14,8 @@ use comm_types::test::{TestOptions, TestResult, TestResults, TestRunStatus};
 use hyper::client::connect::{Connected, Connection};
 use hyper::{Body, Client};
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::sync::oneshot::Sender;
 use tokio::sync::Notify;
+use tokio::sync::oneshot::Sender;
 use tokio::{net::UnixStream, sync::mpsc::Receiver};
 
 use crate::SHUTDOWN_SIGNAL;

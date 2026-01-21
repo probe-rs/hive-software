@@ -2,8 +2,8 @@
 use anyhow::Result;
 use colored::Colorize;
 
-use crate::config::HiveConfig;
 use crate::CliArgs;
+use crate::config::HiveConfig;
 
 pub fn list(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
     super::show_testserver_prompt_if_none(&mut config, &cli_args)?;

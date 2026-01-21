@@ -2,7 +2,7 @@
 
 use std::{
     io::{Error as IoError, Read},
-    os::fd::AsRawFd,
+    os::fd::AsFd,
     process::{ChildStderr, ChildStdout},
     thread,
     time::Duration,
@@ -31,7 +31,7 @@ pub fn subprocess_wait_timeout(
 }
 
 /// Read data from provided pipe into a vector until EOF is encountered (subprocess exited / has been terminated)
-fn read_pipe_to_end<T: Read + AsRawFd>(pipe: T, timeout: Duration) -> Result<Vec<u8>, IoError> {
+fn read_pipe_to_end<T: Read + AsFd>(pipe: T, timeout: Duration) -> Result<Vec<u8>, IoError> {
     let mut buf = Vec::with_capacity(1048576);
 
     let mut reader = TimeoutReader::new(pipe, timeout);

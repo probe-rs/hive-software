@@ -3,7 +3,7 @@ use std::{convert::TryFrom, fmt::Display};
 use comm_types::hardware::StackShieldStatus;
 use embedded_hal::i2c::I2c;
 use expander_gpio::ExpanderGpio;
-use pca9535::{expander::SyncExpander, ExpanderError};
+use pca9535::{ExpanderError, expander::SyncExpander};
 use rpi_gpio::TestChannelGpio;
 use rppal::gpio::Gpio;
 use thiserror::Error;

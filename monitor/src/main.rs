@@ -63,8 +63,8 @@ use controller::logger;
 use lazy_static::lazy_static;
 use log::Level;
 use rppal::i2c::I2c;
-use tokio::sync::broadcast::{self, Sender};
 use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::broadcast::{self, Sender};
 
 mod config;
 mod database;

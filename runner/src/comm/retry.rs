@@ -1,10 +1,10 @@
 //! Wrappers to make hyper requests retryable
 use axum::http::Request;
 use comm_types::ipc::{ClientParseError, IpcMessage};
-use hyper::{header, Body, StatusCode};
+use hyper::{Body, StatusCode, header};
 use hyper::{Client, Error as HyperError};
-use tokio_retry::strategy::{jitter, FibonacciBackoff};
 use tokio_retry::RetryIf;
+use tokio_retry::strategy::{FibonacciBackoff, jitter};
 
 /// How many times a request using [`try_request()`] can be retried until failure.
 ///

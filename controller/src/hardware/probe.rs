@@ -6,9 +6,9 @@ use thiserror::Error;
 
 // Depending on the usecase, the probe-rs dependency is either stable, or the one being tested by Hive
 #[cfg(feature = "monitor")]
-use probe_rs::{probe::DebugProbeInfo, Permissions, Session};
+use probe_rs::{Permissions, Session, probe::DebugProbeInfo};
 #[cfg(feature = "runner")]
-use probe_rs_test::{probe::DebugProbeInfo, Permissions, Session};
+use probe_rs_test::{Permissions, Session, probe::DebugProbeInfo};
 
 use super::CombinedTestChannel;
 

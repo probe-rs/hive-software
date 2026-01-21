@@ -1,7 +1,7 @@
 [package]
 name = "hive-macro"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["TeyKey1"]
 repository = "https://github.com/probe-rs/hive-software"
 description = "Hive macros"
@@ -21,3 +21,6 @@ probe-rs-test = { workspace = true }
 
 [lib]
 proc-macro = true
+
+[lints]
+workspace = true

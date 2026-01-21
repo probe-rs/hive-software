@@ -7,15 +7,15 @@
 use std::sync::Arc;
 
 use argon2::{
-    password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
-    PasswordVerifier, Version,
+    Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
+    password_hash::SaltString,
 };
 use comm_types::auth::DbUser;
 use hive_db::BincodeDb;
 use lazy_static::lazy_static;
 use rand_chacha::rand_core::OsRng;
 
-use super::{keys, MonitorDb};
+use super::{MonitorDb, keys};
 
 const ARGON_HASHER_MEM_COST: u32 = 8192;
 const ARGON_HASHER_TIME_COST: u32 = 3;
@@ -62,7 +62,10 @@ pub fn check_password(db: Arc<MonitorDb>, username: &str, password: &str) -> Res
         let db_password_hash = match PasswordHash::new(&user.hash) {
             Ok(hash) => hash,
             Err(err) => {
-                log::warn!("Failed to parse the user password hash from the DB. This might be caused by a corrupted DB: {}", err);
+                log::warn!(
+                    "Failed to parse the user password hash from the DB. This might be caused by a corrupted DB: {}",
+                    err
+                );
                 return Err(());
             }
         };
@@ -96,16 +99,16 @@ pub fn hash_password(password: &str) -> String {
 mod tests {
     use std::sync::Arc;
 
-    use argon2::password_hash::SaltString;
     use argon2::Argon2;
     use argon2::PasswordHasher;
+    use argon2::password_hash::SaltString;
     use comm_types::auth::DbUser;
     use comm_types::auth::Role;
     use hive_db::BincodeDb;
     use lazy_static::lazy_static;
     use rand_chacha::rand_core::OsRng;
 
-    use crate::database::{keys, MonitorDb};
+    use crate::database::{MonitorDb, keys};
 
     use super::check_password;
 

@@ -4,11 +4,11 @@
 //! In case any payload is sent in the body it needs to be serialized as CBOR using [`into_writer()`] function in the respective request function
 use axum::http::{Method, Request};
 use comm_types::{
-    bincode::{Bincode, BINCODE_MIME},
+    bincode::{BINCODE_MIME, Bincode},
     ipc::IpcMessage,
     test::TestResults,
 };
-use hyper::{header, Body};
+use hyper::{Body, header};
 
 pub fn get_probes() -> (Request<Body>, Option<Vec<u8>>) {
     (

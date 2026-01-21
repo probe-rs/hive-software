@@ -1,7 +1,7 @@
 [package]
 name = "comm-types"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["TeyKey1"]
 repository = "https://github.com/probe-rs/hive-software"
 description = "Common types used for communication between Hive applications"
@@ -25,11 +25,14 @@ hyper = { workspace = true }
 async-graphql = { workspace = true }
 thiserror = { workspace = true }
 uid = "0.1"
-typetag = "0.1"
-downcast-rs = "1.2"
+typetag = "0.2"
+downcast-rs = "2.0"
 dyn-clone = "1.0"
 chrono = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 tower = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
+
+[lints]
+workspace = true

@@ -23,7 +23,7 @@ use axum::handler::HandlerWithoutStateExt;
 use axum::middleware::from_extractor;
 use axum::response::Redirect;
 use axum::routing::{self, post};
-use axum::{middleware, BoxError, Extension, Router, Server};
+use axum::{BoxError, Extension, Router, Server, middleware};
 use axum_server::tls_rustls::RustlsConfig;
 use hyper::{StatusCode, Uri};
 use tower::ServiceBuilder;
@@ -127,7 +127,10 @@ fn app(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) -> Router {
 async fn handle_serve_dir_error(error: std::io::Error) -> (StatusCode, String) {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
-        format!("Failed to fetch static files, this is likely due to a bug in the software or wrong software setup: {}", error),
+        format!(
+            "Failed to fetch static files, this is likely due to a bug in the software or wrong software setup: {}",
+            error
+        ),
     )
 }
 
