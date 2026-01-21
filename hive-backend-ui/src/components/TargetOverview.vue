@@ -40,7 +40,7 @@ const { result: searchResults, loading: searchLoading } = useQuery(
         searchSupportedTargets(search: $search)
       }
     `),
-  () => ({ search: search.value })
+  () => ({ search: search.value }),
 );
 
 const { mutate: submitTarget } = useMutation(
@@ -129,7 +129,7 @@ const { mutate: submitTarget } = useMutation(
 
       cache.writeQuery({ query: QUERY, data: cacheData });
     },
-  }
+  },
 );
 
 function getInitialSelectedChip() {
@@ -146,7 +146,7 @@ function getInitialSelectedChip() {
 const foundChips = computed(() => {
   if (searchResults.value) {
     const array = searchResults.value.searchSupportedTargets.map(
-      (x: string) => x
+      (x: string) => x,
     );
     array.push("Unknown", "Not Connected");
     return array;

@@ -264,8 +264,12 @@ const {
   }
 );*/
 
-async function fileUpload(file: Array<File>) {
-  code.value.value = await file[0].text();
+async function fileUpload(file: File | Array<File>) {
+  if (Array.isArray(file)) {
+    code.value.value = await file[0].text();
+  } else {
+    code.value.value = await file.text();
+  }
 }
 
 function codeChange(newCode: string) {
@@ -370,7 +374,7 @@ function codeChange(newCode: string) {
             persistent-hint
             hint="Accepted files are Assemblyfiles"
             :disabled="testprogramName === DEFAULT_TESTPROGRAM"
-            @update:model-value="fileUpload"
+            @update:modelValue="fileUpload"
           />
         </v-card-text>
       </v-card>
