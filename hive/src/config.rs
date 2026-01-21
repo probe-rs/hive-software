@@ -28,6 +28,7 @@ impl HiveConfig {
             .write(true)
             .read(true)
             .create(true)
+            .truncate(false)
             .open(config_path)?;
 
         let config: HiveConfig;
@@ -50,6 +51,7 @@ impl HiveConfig {
         let config_file = File::options()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(project_path.config_dir().join("config.json"))?;
 
         serde_json::to_writer_pretty(config_file, self)?;

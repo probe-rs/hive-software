@@ -106,12 +106,12 @@ impl Testprogram {
 
         OpenOptions::new()
             .write(true)
-            .create(true)
+            .create_new(true)
             .open(path.join("arm/main.S"))
             .expect("Failed to create ARM main.S File in testprogram");
         OpenOptions::new()
             .write(true)
-            .create(true)
+            .create_new(true)
             .open(path.join("riscv/main.S"))
             .expect("Failed to create RISCV main.S File in testprogram");
 

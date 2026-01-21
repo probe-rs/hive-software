@@ -59,12 +59,12 @@ fn is_retryable_error(err: &RequestError) -> bool {
 ///
 /// # Unwrapping
 /// As this function already internally retries failed requests the ultimative result should be unwrapped, as the underlying error is likely not recoverable by the application at runtime.
-pub async fn try_request<T: 'static>(
+pub async fn try_request<T>(
     client: Client<T, Body>,
     request: (Request<Body>, Option<Vec<u8>>),
 ) -> Result<IpcMessage, RequestError>
 where
-    T: hyper::client::connect::Connect + Clone + Sync + Send,
+    T: 'static + hyper::client::connect::Connect + Clone + Sync + Send,
 {
     let retry_strategy = FibonacciBackoff::from_millis(10)
         .map(jitter)
@@ -79,12 +79,12 @@ where
 }
 
 /// Internal request handler, which might fail and can be retried, as the request is being cloned on every call
-async fn dispatch_request<T: 'static>(
+async fn dispatch_request<T>(
     client: &Client<T, Body>,
     request: &(Request<Body>, Option<Vec<u8>>),
 ) -> Result<IpcMessage, RequestError>
 where
-    T: hyper::client::connect::Connect + Clone + Sync + Send,
+    T: 'static + hyper::client::connect::Connect + Clone + Sync + Send,
 {
     let response = client
         .clone()

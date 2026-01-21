@@ -51,16 +51,11 @@ pub fn test(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
     let test_results = super::show_progress(&cli_args, |progress| {
         progress.set_message("setting up workspace...");
 
-        workspace::prepare_workspace(&project_path).map_err(|err| {
-            workspace::clean_workspace();
-            err
-        })?;
+        workspace::prepare_workspace(&project_path)
+            .inspect_err(|_| workspace::clean_workspace())?;
 
         progress.set_message("building runner binary...");
-        let runner_bin = workspace::build_runner().map_err(|err| {
-            workspace::clean_workspace();
-            err
-        })?;
+        let runner_bin = workspace::build_runner().inspect_err(|_| workspace::clean_workspace())?;
 
         progress.set_message("Uploading runner binary...");
         let client = get_http_client(cli_args.accept_invalid_certs);

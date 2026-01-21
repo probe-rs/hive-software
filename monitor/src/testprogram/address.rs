@@ -77,18 +77,11 @@ pub fn get_and_init_target_address_ranges(hardware: &HiveHardware) -> BaseAddres
                 tss.set_target_info(idx, new_target_info);
 
                 if target.architecture() == Architecture::Arm {
-                    if !addresses
-                        .arm
-                        .iter()
-                        .any(|address_range| *address_range == new_address)
-                    {
+                    if !addresses.arm.contains(&new_address) {
                         addresses.arm.push(new_address);
                     }
                 } else if target.architecture() == Architecture::Riscv
-                    && !addresses
-                        .riscv
-                        .iter()
-                        .any(|address_range| *address_range == new_address)
+                    && !addresses.riscv.contains(&new_address)
                 {
                     addresses.riscv.push(new_address);
                 }
