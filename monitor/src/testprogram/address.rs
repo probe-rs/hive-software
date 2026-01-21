@@ -236,7 +236,7 @@ mod tests {
         let ram_range = get_ram_address(target).unwrap();
 
         assert_eq!(nvm_range, 0x0..0x01000000);
-        assert_eq!(ram_range, 0x40380000..0x403E0000);
+        assert_eq!(ram_range, 0x3fc80000..0x3fce0000);
     }
 
     #[test]
@@ -249,7 +249,7 @@ mod tests {
         let ram_range = get_ram_address(target).unwrap();
 
         assert_eq!(nvm_range, 0x0..0x30000);
-        assert_eq!(ram_range, 0x20000000..0x20006000);
+        assert_eq!(ram_range, 0x800000..0x806000);
     }
 
     #[test]
