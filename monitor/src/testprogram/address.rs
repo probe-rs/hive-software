@@ -22,7 +22,7 @@ pub fn get_and_init_target_address_ranges(hardware: &HiveHardware) -> BaseAddres
         arm: vec![],
         riscv: vec![],
     };
-    let probe_rs_registry = Registry::default();
+    let probe_rs_registry = Registry::from_builtin_families();
 
     for tss in hardware.tss.iter().filter_map(|tss| tss.as_ref()) {
         let mut tss = tss.lock().unwrap();
