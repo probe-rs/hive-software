@@ -12,11 +12,12 @@
 
 use std::sync::Arc;
 
+use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use comm_types::token::{API_TOKEN_HEADER, DbToken, TokenLifetime};
 use hive_db::{BincodeTransactional, Key};
-use hyper::{Request, StatusCode};
+use hyper::StatusCode;
 use rand::Rng;
 use rand::distributions::Alphanumeric;
 use rand_chacha::ChaChaRng;
@@ -100,9 +101,9 @@ fn check_token(db: &MonitorDb, token: &str) -> Result<(), TokenError> {
 /// Implements custom token based authorisation in [`tower_http`] auth middleware.
 ///
 /// The auth token needs to be supplied in the [`API_TOKEN_HEADER`]
-pub(super) async fn require_api_token<B>(
-    req: Request<B>,
-    next: Next<B>,
+pub(super) async fn require_api_token(
+    req: Request,
+    next: Next,
 ) -> Result<impl IntoResponse, TokenError> {
     let token_header = req
         .headers()
@@ -130,13 +131,13 @@ mod tests {
 
     use axum::Extension;
     use axum::Router;
+    use axum::body::Body;
     use axum::middleware::from_fn;
     use axum::routing::get;
     use comm_types::token::DbToken;
     use comm_types::token::TokenLifetime;
     use hive_db::BincodeDb;
     use hive_db::Key;
-    use hyper::Body;
     use hyper::Method;
     use hyper::Request;
     use hyper::StatusCode;
@@ -194,7 +195,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::OK);
 
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(
             body_text,
             "successfully passed API token verification".as_bytes()
@@ -234,7 +237,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::OK);
 
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(
             body_text,
             "successfully passed API token verification".as_bytes()
@@ -266,7 +271,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
 
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(body_text, TokenError::MissingToken.to_string().as_bytes());
     }
 
@@ -288,7 +295,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
 
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(body_text, TokenError::InvalidToken.to_string().as_bytes());
     }
 
@@ -325,7 +334,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
 
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(body_text, TokenError::InvalidToken.to_string().as_bytes());
 
         // Check if expired token has been deleted from DB

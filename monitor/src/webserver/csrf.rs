@@ -11,11 +11,7 @@
 //!
 //! # Obtaining a csrf token
 //! A csrf token is automatically obtained by visiting routes which have the [`provide_csrf_token`] middleware. The token is renewed once the user sucessfully authenticates by using the [`super::auth::authenticate_user`] function.
-use axum::{
-    http::{Request, StatusCode},
-    middleware::Next,
-    response::IntoResponse,
-};
+use axum::{extract::Request, http::StatusCode, middleware::Next, response::IntoResponse};
 use base64::{Engine, engine::GeneralPurpose};
 use cookie::{SameSite, time::Duration};
 use lazy_static::lazy_static;
@@ -83,7 +79,7 @@ impl IntoResponse for CsrfError {
 /// # Usage
 /// This middleware should only be used on public routes where the csrf token acts as a pre session token to avoid login csrf.
 /// After successful authentication a new csrf token cookie should be set in order to prevent any session fixation attacks.
-pub(super) async fn provide_csrf_token<B>(req: Request<B>, next: Next<B>) -> impl IntoResponse {
+pub(super) async fn provide_csrf_token(req: Request, next: Next) -> impl IntoResponse {
     let req_cookies = req
         .extensions()
         .get::<Cookies>()
@@ -100,9 +96,9 @@ pub(super) async fn provide_csrf_token<B>(req: Request<B>, next: Next<B>) -> imp
 }
 
 /// Middleware function which checks the provided csrf token validity and rejects the request in case it is not valid.
-pub(super) async fn require_csrf_token<B>(
-    req: Request<B>,
-    next: Next<B>,
+pub(super) async fn require_csrf_token(
+    req: Request,
+    next: Next,
 ) -> Result<impl IntoResponse, CsrfError> {
     let csrf_header = req.headers().get(HEADER_CSRF_TOKEN_KEY);
     let req_cookies = req
@@ -143,17 +139,16 @@ pub(super) async fn require_csrf_token<B>(
 
 /// Adds a new csrf cookie (containing a new csrf token) to the provided cookie jar
 pub(super) async fn add_new_csrf_cookie(cookie_jar: &Cookies) {
-    let new_csrf_cookie = Cookie::build(
+    let new_csrf_cookie = Cookie::build((
         COOKIE_CSRF_TOKEN_KEY,
         sign_csrf_token(generate_csrf_token().await),
-    )
+    ))
     .max_age(Duration::seconds(COOKIE_TTL as i64))
     .secure(true)
     .same_site(SameSite::Strict)
-    .path("/")
-    .finish();
+    .path("/");
 
-    cookie_jar.add(new_csrf_cookie);
+    cookie_jar.add(new_csrf_cookie.into());
 }
 
 /// Generates a 32 Byte base64 encoded csrf token, by using [`ChaChaRng`]
@@ -197,6 +192,8 @@ fn verify_csrf_cookie(csrf_cookie: &Cookie) -> Result<String, CsrfError> {
 
 #[cfg(test)]
 mod tests {
+    use std::usize;
+
     use axum::Router;
     use axum::body::Body;
     use axum::http::{Method, Request, StatusCode, header};
@@ -241,9 +238,9 @@ mod tests {
 
         let signed_token = super::sign_csrf_token(csrf_token.clone());
 
-        let signed_cookie = Cookie::build("signed", signed_token).finish();
+        let signed_cookie = Cookie::build(("signed", signed_token));
 
-        let retrieved_token = super::verify_csrf_cookie(&signed_cookie).unwrap();
+        let retrieved_token = super::verify_csrf_cookie(&signed_cookie.into()).unwrap();
 
         assert_eq!(csrf_token, retrieved_token);
     }
@@ -258,9 +255,9 @@ mod tests {
         let parts: Vec<&str> = signed_token.split('.').collect();
 
         let modified_cookie =
-            Cookie::build("signed", format!("{}.{}", csrf_token_modified, parts[1])).finish();
+            Cookie::build(("signed", format!("{}.{}", csrf_token_modified, parts[1])));
 
-        assert!(super::verify_csrf_cookie(&modified_cookie).is_err());
+        assert!(super::verify_csrf_cookie(&modified_cookie.into()).is_err());
     }
 
     #[tokio::test]
@@ -280,7 +277,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(res.status(), StatusCode::FORBIDDEN);
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(
             body_text,
             CsrfError::MissingCsrfCookie.to_string().as_bytes()
@@ -348,7 +347,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(res.status(), StatusCode::FORBIDDEN);
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(
             body_text,
             CsrfError::InvalidCsrfCookie.to_string().as_bytes()
@@ -375,7 +376,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(res.status(), StatusCode::FORBIDDEN);
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(
             body_text,
             CsrfError::InvalidCsrfCookie.to_string().as_bytes()
@@ -415,7 +418,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(res.status(), StatusCode::FORBIDDEN);
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(
             body_text,
             CsrfError::MissingCsrfHeader.to_string().as_bytes()
@@ -476,7 +481,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(res.status(), StatusCode::FORBIDDEN);
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(
             body_text,
             CsrfError::InvalidCsrfToken.to_string().as_bytes()
@@ -521,7 +528,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(res.status(), StatusCode::OK);
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(body_text, "passed csrf check".to_owned().as_bytes());
     }
 }

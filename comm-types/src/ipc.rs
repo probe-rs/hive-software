@@ -17,6 +17,8 @@ use super::test::TestResults;
 
 pub type HiveProbeData = [ProbeState; 4];
 pub type HiveTargetData = [Option<[TargetState; 4]>; 8];
+/// The location of the socketfile used for communication between runner and monitor
+pub const RUNNER_SOCKET_PATH: &str = "./data/runner/ipc.sock";
 
 /// All possible message types that can be sent via Hive IPC
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,5 +1,4 @@
 //! All bincode helpers and trait implementations used for [`axum`]
-use axum::async_trait;
 use axum::body::Body;
 use axum::extract::{FromRequest, FromRequestParts};
 use axum::response::{IntoResponse, Response};
@@ -9,7 +8,6 @@ use http::header::{self, HeaderValue};
 use http::request::{Parts, Request};
 use http_body_util::BodyExt;
 use hyper::StatusCode;
-use hyper::body::Buf;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use thiserror::Error;
@@ -71,7 +69,6 @@ where
     }
 }
 
-#[async_trait]
 impl<T, S> FromRequest<S, Body> for Bincode<T>
 where
     T: DeserializeOwned,
@@ -112,8 +109,10 @@ where
 /// Checks if a request has the correct content type of [`BINCODE_MIME`]
 pub struct CheckContentType;
 
-#[async_trait]
-impl<S> FromRequestParts<S> for CheckContentType {
+impl<S> FromRequestParts<S> for CheckContentType
+where
+    S: Send + Sync,
+{
     type Rejection = ServerParseError;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
@@ -189,12 +188,17 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
-        let res_bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let res_bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(
             res_bytes,
-            hyper::body::to_bytes(ServerParseError::MissingHeader.into_response().into_body())
-                .await
-                .unwrap()
+            axum::body::to_bytes(
+                ServerParseError::MissingHeader.into_response().into_body(),
+                usize::MAX
+            )
+            .await
+            .unwrap()
         );
     }
 
@@ -216,12 +220,17 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
 
-        let res_bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let res_bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(
             res_bytes,
-            hyper::body::to_bytes(ServerParseError::InvalidHeader.into_response().into_body())
-                .await
-                .unwrap()
+            axum::body::to_bytes(
+                ServerParseError::InvalidHeader.into_response().into_body(),
+                usize::MAX
+            )
+            .await
+            .unwrap()
         );
     }
 
@@ -243,12 +252,17 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
-        let res_bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let res_bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(
             res_bytes,
-            hyper::body::to_bytes(ServerParseError::InvalidBincode.into_response().into_body())
-                .await
-                .unwrap()
+            axum::body::to_bytes(
+                ServerParseError::InvalidBincode.into_response().into_body(),
+                usize::MAX
+            )
+            .await
+            .unwrap()
         );
     }
 
@@ -278,7 +292,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::OK);
 
-        let res_bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let res_bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(res_bytes, data_bytes);
     }
 }

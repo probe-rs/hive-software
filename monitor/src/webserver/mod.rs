@@ -13,17 +13,18 @@
 //!
 //! # Rate limit
 //! The webserver has a built in rate limiting webserver with load shedding. The currently chosen values have not been tested extensively and are very conservative.
+use std::fmt::Display;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use axum::error_handling::HandleErrorLayer;
-use axum::extract::Host;
 use axum::handler::HandlerWithoutStateExt;
 use axum::middleware::from_extractor;
 use axum::response::Redirect;
 use axum::routing::{self, post};
 use axum::{BoxError, Extension, Router, middleware};
+use axum_extra::extract::Host;
 use axum_server::tls_rustls::RustlsConfig;
 use hyper::{StatusCode, Uri};
 use tokio::net::TcpListener;
@@ -125,7 +126,7 @@ fn app(db: Arc<MonitorDb>, task_manager: Arc<TaskManager>) -> Router {
         )
 }
 
-async fn handle_serve_dir_error(error: std::io::Error) -> (StatusCode, String) {
+async fn handle_serve_dir_error<E: Display>(error: E) -> (StatusCode, String) {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         format!(
@@ -146,7 +147,7 @@ async fn handle_loadshed_error(err: BoxError) -> (StatusCode, String) {
 async fn redirect_http_to_https_server(
     cli_args: Arc<Args>,
     addr: SocketAddr,
-) -> Result<(), hyper::Error> {
+) -> Result<(), std::io::Error> {
     let http_port: u16 = cli_args.http_port;
     let https_port: u16 = cli_args.https_port;
 

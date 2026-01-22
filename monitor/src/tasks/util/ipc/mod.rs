@@ -1,20 +1,16 @@
 //! IPC between monitor and runner
 //!
 //! IPC is done using HTTP with CBOR payloads
+use std::os::unix::net::SocketAddr as UnixSocketAddr;
 use std::path::Path;
 use std::sync::Arc;
-use std::task;
-use std::task::Poll;
 
-use axum::extract::connect_info;
 use axum::routing::{get, post};
-use axum::{BoxError, Extension, Router, middleware};
+use axum::{Extension, Router, middleware};
 use comm_types::bincode::CheckContentType;
 use comm_types::defines::DefineRegistry;
+use comm_types::ipc::RUNNER_SOCKET_PATH;
 use comm_types::test::{TestOptions, TestResults};
-use futures::ready;
-use tokio::net::unix::UCred;
-use tokio::net::{UnixListener, UnixStream, unix::SocketAddr};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::Sender;
 use tower::ServiceBuilder;
@@ -27,49 +23,14 @@ use crate::testprogram::defines::DEFINE_REGISTRY;
 
 mod handlers;
 
-const SOCKET_PATH: &str = "./data/runner/ipc_sock";
-
-struct IpcStreamListener {
-    listener: UnixListener,
-}
-
-impl Accept for IpcStreamListener {
-    type Conn = UnixStream;
-
-    type Error = BoxError;
-
-    fn poll_accept(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
-    ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let (stream, _) = ready!(self.listener.poll_accept(cx))?;
-        Poll::Ready(Some(Ok(stream)))
-    }
-}
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-struct IpcConnectionInfo {
-    runner_address: Arc<SocketAddr>,
-    runner_credentials: UCred,
-}
-
-impl connect_info::Connected<&UnixStream> for IpcConnectionInfo {
-    fn connect_info(target: &UnixStream) -> Self {
-        IpcConnectionInfo {
-            runner_address: Arc::new(target.peer_addr().unwrap()),
-            runner_credentials: target.peer_cred().unwrap(),
-        }
-    }
-}
-
 /// Starts the IPC server and listens for incoming connections
 pub async fn ipc_server(db: Arc<MonitorDb>, test_result_sender: Sender<TestResults>) {
-    let socket_path = Path::new(SOCKET_PATH);
+    let socket_path = Path::new(RUNNER_SOCKET_PATH);
 
     init_socket_file(socket_path).await;
 
-    let listener = UnixListener::bind(socket_path).expect("TODO");
+    let socket_addr = UnixSocketAddr::from_pathname(socket_path)
+        .expect("Invalid socket path provided. This is a bug, please open an issue.");
 
     // Allow hive group to acces socket (eg. runner user)
     nix::unistd::chown(socket_path, Some(*HIVE_UID), Some(*HIVE_GID)).expect(
@@ -84,10 +45,7 @@ pub async fn ipc_server(db: Arc<MonitorDb>, test_result_sender: Sender<TestResul
             &DEFINE_REGISTRY,
         );
 
-        let server = axum::serve(
-            IpcStreamListener { listener },
-            route.into_make_service_with_connect_info::<IpcConnectionInfo>(),
-        );
+        let server = axum_server::bind(socket_addr).serve(route.into_make_service());
 
         let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
 
@@ -397,7 +355,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::OK);
 
-        let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let (data, _): (IpcMessage, _) = decode_from_slice(&bytes[..], config::standard()).unwrap();
 
         if let IpcMessage::ProbeInitData(data) = data {
@@ -443,7 +403,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::OK);
 
-        let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let (data, _): (IpcMessage, _) = decode_from_slice(&bytes[..], config::standard()).unwrap();
 
         if let IpcMessage::TargetInitData(data) = data {
@@ -500,7 +462,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::OK);
 
-        let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let (data, _): (IpcMessage, _) = decode_from_slice(&bytes[..], config::standard()).unwrap();
 
         if let IpcMessage::Empty = data {
@@ -538,7 +502,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::OK);
 
-        let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let (data, _): (IpcMessage, _) = decode_from_slice(&bytes[..], config::standard()).unwrap();
 
         let define_registry_message =
@@ -577,7 +543,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::OK);
 
-        let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let (data, _): (IpcMessage, _) = decode_from_slice(&bytes[..], config::standard()).unwrap();
 
         let test_options = TEST_OPTIONS.lock().await;

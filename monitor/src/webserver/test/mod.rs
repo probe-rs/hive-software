@@ -259,7 +259,7 @@ mod tests {
                 assert_eq!(res.status(), StatusCode::OK);
 
                 let capabilities = serde_json::from_slice::<Capabilities>(
-                    &hyper::body::to_bytes(res.into_body()).await.unwrap(),
+                    &axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap(),
                 )
                 .unwrap();
 
@@ -370,7 +370,7 @@ mod tests {
                 form.add_text("unknown", "some text");
 
                 let req = form
-                    .set_body_convert::<hyper::Body, MultipartBody>(
+                    .set_body_convert::<MultipartBody, MultipartBody>(
                         HyperRequest::builder()
                             .method(Method::POST)
                             .header(API_TOKEN_HEADER, &API_TOKEN as &str)
@@ -385,7 +385,7 @@ mod tests {
                 assert_eq!(
                     "Found unexpected field name: 'unknown'",
                     String::from_utf8_lossy(
-                        hyper::body::to_bytes(res.into_body())
+                        axum::body::to_bytes(res.into_body(), usize::MAX)
                             .await
                             .unwrap()
                             .as_ref()
@@ -412,7 +412,7 @@ mod tests {
                 form.add_reader_file_with_mime("options", json, "options.json", mime::APPLICATION_JSON);
 
                 let req = form
-                    .set_body_convert::<hyper::Body, MultipartBody>(
+                    .set_body_convert::<MultipartBody, MultipartBody>(
                         HyperRequest::builder().method(Method::POST).header(API_TOKEN_HEADER, &API_TOKEN as &str).uri("/run"),
                     )
                     .unwrap();
@@ -424,7 +424,7 @@ mod tests {
                 assert_eq!(
                     "No runner binary provided to perform the tests on. The field 'runner' is missing.",
                     String::from_utf8_lossy(
-                        hyper::body::to_bytes(res.into_body())
+                        axum::body::to_bytes(res.into_body(), usize::MAX)
                             .await
                             .unwrap()
                             .as_ref()
@@ -455,7 +455,7 @@ mod tests {
                 );
 
                 let req = form
-                    .set_body_convert::<hyper::Body, MultipartBody>(
+                    .set_body_convert::<MultipartBody, MultipartBody>(
                         HyperRequest::builder()
                             .method(Method::POST)
                             .header(API_TOKEN_HEADER, &API_TOKEN as &str)
@@ -470,7 +470,7 @@ mod tests {
                 assert_eq!(
                     "Invalid file format provided for field 'runner'. Expecting binary executable.",
                     String::from_utf8_lossy(
-                        hyper::body::to_bytes(res.into_body())
+                        axum::body::to_bytes(res.into_body(), usize::MAX)
                             .await
                             .unwrap()
                             .as_ref()
@@ -511,7 +511,7 @@ mod tests {
                 );
 
                 let req = form
-                    .set_body_convert::<hyper::Body, MultipartBody>(
+                    .set_body_convert::<MultipartBody, MultipartBody>(
                         HyperRequest::builder()
                             .method(Method::POST)
                             .header(API_TOKEN_HEADER, &API_TOKEN as &str)
@@ -526,7 +526,7 @@ mod tests {
                 assert_eq!(
                     "Invalid file format provided for field 'options'. Expecting json data.",
                     String::from_utf8_lossy(
-                        hyper::body::to_bytes(res.into_body())
+                        axum::body::to_bytes(res.into_body(), usize::MAX)
                             .await
                             .unwrap()
                             .as_ref()
@@ -558,7 +558,7 @@ mod tests {
                 );
 
                 let req = form
-                    .set_body_convert::<hyper::Body, MultipartBody>(
+                    .set_body_convert::<MultipartBody, MultipartBody>(
                         HyperRequest::builder()
                             .method(Method::POST)
                             .header(API_TOKEN_HEADER, &API_TOKEN as &str)
@@ -571,7 +571,7 @@ mod tests {
                 assert_eq!(res.status(), StatusCode::OK);
 
                 let ws_ticket: String = serde_json::from_reader(
-                    hyper::body::to_bytes(res.into_body())
+                    axum::body::to_bytes(res.into_body(), usize::MAX)
                         .await
                         .unwrap()
                         .as_ref(),
@@ -609,7 +609,7 @@ mod tests {
                 );
 
                 let req = form
-                    .set_body_convert::<hyper::Body, MultipartBody>(
+                    .set_body_convert::<MultipartBody, MultipartBody>(
                         HyperRequest::builder()
                             .method(Method::POST)
                             .header(API_TOKEN_HEADER, &API_TOKEN as &str)
@@ -622,7 +622,7 @@ mod tests {
                 assert_eq!(res.status(), StatusCode::OK);
 
                 let ws_ticket: String = serde_json::from_reader(
-                    hyper::body::to_bytes(res.into_body())
+                    axum::body::to_bytes(res.into_body(), usize::MAX)
                         .await
                         .unwrap()
                         .as_ref(),

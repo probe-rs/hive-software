@@ -9,9 +9,9 @@
 //! The JWT is set to expire after [`TOKEN_EXPIRE_TIME_SEC`]
 use std::sync::Arc;
 
+use axum::extract;
 use axum::http::request::Parts;
 use axum::response::{IntoResponse, Response};
-use axum::{async_trait, extract};
 use comm_types::auth::{DbUser, JwtClaims};
 use cookie::time::Duration;
 use cookie::{Cookie, SameSite};
@@ -104,24 +104,22 @@ pub(super) fn refresh_auth_token(user: &DbUser, cookies: &Cookies) {
 /// # Cookie settings
 /// The cookie is `http-only`, `secure` and `same-site strict`. It has a session lifetime and is deleted once the browser closes or the client logs out using [`logout`].
 fn set_auth_cookie(cookies: &Cookies, jwt: String) {
-    let auth_cookie = Cookie::build(AUTH_COOKIE_KEY, jwt)
+    let auth_cookie = Cookie::build((AUTH_COOKIE_KEY, jwt))
         .http_only(true)
         .secure(true)
         .same_site(SameSite::Strict)
-        .path("/")
-        .finish();
+        .path("/");
 
-    cookies.add(auth_cookie);
+    cookies.add(auth_cookie.into());
 }
 
 /// Logs the user out by resetting the jwt auth cookie. This does not invalidate the original jwt in any way. As it is a stateless implementation the jwt is invalidated once its expire time is reached.
 pub(super) fn logout(cookies: &Cookies) {
-    let expire_cookie = Cookie::build(AUTH_COOKIE_KEY, "")
+    let expire_cookie = Cookie::build((AUTH_COOKIE_KEY, ""))
         .max_age(Duration::seconds(0))
         .path("/")
-        .http_only(true)
-        .finish();
-    cookies.add(expire_cookie)
+        .http_only(true);
+    cookies.add(expire_cookie.into())
 }
 
 /// Implements custom jwt authentication in [`tower_http`] auth middleware.
@@ -130,7 +128,6 @@ pub(super) fn logout(cookies: &Cookies) {
 #[derive(Clone, Copy)]
 pub(super) struct HiveAuth;
 
-#[async_trait]
 impl<S> extract::FromRequestParts<S> for HiveAuth
 where
     S: Send + Sync,
@@ -196,6 +193,7 @@ mod tests {
     use std::sync::Arc;
 
     use axum::Router;
+    use axum::body::Body;
     use axum::middleware::from_extractor;
     use axum::routing::get;
     use comm_types::auth::DbUser;
@@ -204,7 +202,6 @@ mod tests {
     use cookie::SameSite;
     use cookie::time::Duration;
     use hive_db::BincodeDb;
-    use hyper::Body;
     use hyper::Method;
     use hyper::Request;
     use hyper::StatusCode;
@@ -339,7 +336,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
 
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(body_text, AuthError::MissingCookie.to_string().as_bytes());
     }
 
@@ -356,7 +355,7 @@ mod tests {
             60,
         );
 
-        let auth_cookie = Cookie::build(AUTH_COOKIE_KEY, jwt.to_ascii_uppercase())
+        let auth_cookie = Cookie::build((AUTH_COOKIE_KEY, jwt.to_ascii_uppercase()))
             .http_only(true)
             .secure(true)
             .same_site(SameSite::Strict)
@@ -376,7 +375,9 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
 
-        let body_text = hyper::body::to_bytes(res.into_body()).await.unwrap();
+        let body_text = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert_eq!(body_text, AuthError::InvalidToken.to_string().as_bytes());
     }
 
@@ -393,7 +394,7 @@ mod tests {
             60,
         );
 
-        let auth_cookie = Cookie::build(AUTH_COOKIE_KEY, jwt).finish();
+        let auth_cookie = Cookie::build((AUTH_COOKIE_KEY, jwt)).finish();
 
         let res = auth_server
             .oneshot(
@@ -443,7 +444,7 @@ mod tests {
             60,
         );
 
-        let auth_cookie = Cookie::build(AUTH_COOKIE_KEY, jwt).finish();
+        let auth_cookie = Cookie::build((AUTH_COOKIE_KEY, jwt)).finish();
         cookie_jar.add(auth_cookie);
 
         super::logout(&cookie_jar);

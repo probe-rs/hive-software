@@ -1,7 +1,7 @@
 //! The websocket server manager which handles all ws connections during testing
 use super::TaskRunnerMessage;
 use axum::Error as AxumError;
-use axum::extract::ws::{Message, WebSocket};
+use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use base64::Engine;
 use base64::alphabet::{self};
 use rand_chacha::{
@@ -19,6 +19,17 @@ use super::test_task::TestTask;
 use tokio::sync::mpsc;
 
 use crate::SHUTDOWN_SIGNAL;
+
+/// Reasons for websocket closure
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum WsCloseReason {
+    /// WS closed by client before test results were received
+    ClientClosed,
+    /// WS closed normally after test results were sent
+    NormalClosure,
+    /// WS closed by server due to shutdown
+    ServerShutdown,
+}
 
 /// A ticket which is used by the client to open a websocket connection for the corresponding [`TestTask`]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
@@ -57,6 +68,7 @@ impl From<String> for WsTicket {
 pub async fn socket_handler(mut socket: WebSocket, mut receiver: MpscReceiver<TaskRunnerMessage>) {
     tokio::spawn(async move {
         let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
+        let mut ws_close_reason = WsCloseReason::NormalClosure;
 
         if send_json(
             &mut socket,
@@ -81,25 +93,52 @@ pub async fn socket_handler(mut socket: WebSocket, mut receiver: MpscReceiver<Ta
                             // Connection closed
                             // Close the receiver to force the running task to fail once it tries to send any message to the websocket
                             receiver.close();
+                            ws_close_reason = WsCloseReason::ClientClosed;
                             break;
                         }
                     } else {
+                        ws_close_reason = WsCloseReason::NormalClosure;
                         break;
                     }
                 }
                 result = shutdown_signal.recv() => {
                     result.expect("Failed to receive global shutdown signal");
+                    ws_close_reason = WsCloseReason::ServerShutdown;
                     break;
                 }
             }
         }
 
-        let _ = socket.close().await;
-    });
+        let _ = match ws_close_reason {
+            WsCloseReason::ClientClosed => {
+                // Do nothing and just drop the WS connection
+                log::info!(
+                    "WebSocket connection closed by client before test results were received. The running test task will be cancelled."
+                );
+                Ok(())
+            }
+            WsCloseReason::NormalClosure => {
+                socket
+                    .send(Message::Close(Some(CloseFrame {
+                        code: axum::extract::ws::close_code::NORMAL,
+                        reason: "Test task finished successfully".into(),
+                    })))
+                    .await
+            }
+            WsCloseReason::ServerShutdown => {
+                socket
+                    .send(Message::Close(Some(CloseFrame {
+                        code: axum::extract::ws::close_code::AWAY,
+                        reason: "Server received shutdown signal".into(),
+                    })))
+                    .await
+            }
+        };
+    }); // Ignore errors as we cannot do anything useful on connection failure
 }
 
 /// Send data as JSON over the websocket
 async fn send_json(socket: &mut WebSocket, message: TaskRunnerMessage) -> Result<(), AxumError> {
     let bytes = serde_json::to_vec(&message).expect("Failed to serialize provided type to JSON");
-    socket.send(Message::Binary(bytes)).await
+    socket.send(Message::Binary(bytes.into())).await
 }
