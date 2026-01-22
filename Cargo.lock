@@ -4531,6 +4531,7 @@ dependencies = [
  "controller",
  "embedded-hal-bus",
  "hive-test",
+ "http-body-util",
  "hurdles",
  "hyper",
  "hyper-util",

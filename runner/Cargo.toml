@@ -21,6 +21,8 @@ tokio = { workspace = true, features = ["rt", "sync", "macros"] }
 axum = { workspace = true }
 tower = { workspace = true }
 hyper = { workspace = true, features = ["client"] }
+http-body-util = "0.1"
+hyperlocal = "0.9"
 hyper-util = { version = "0.1", features = ["client-legacy"] }
 hurdles = "1.0"
 antidote = { workspace = true }

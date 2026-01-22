@@ -1,12 +1,14 @@
 //! Wrappers to make hyper requests retryable
+use axum::body::Bytes;
 use axum::http::Request;
 use comm_types::ipc::{ClientParseError, IpcMessage};
-use hyper::Error as HyperError;
-use hyper::{StatusCode, body::Body, header};
-use hyper_util::client::legacy::{Client, connect::Connect};
+use http_body_util::Full;
+use hyper::{StatusCode, header};
+use hyper_util::client::legacy::Error as ClientError;
 use tokio_retry::RetryIf;
 use tokio_retry::strategy::{FibonacciBackoff, jitter};
-use tokio_retry::strategy::{FibonacciBackoff, jitter};
+
+use crate::comm::{IpcClient, IpcRequest};
 
 /// How many times a request using [`try_request()`] can be retried until failure.
 ///
@@ -18,7 +20,7 @@ const REQ_RETRY_LIMIT: usize = 3;
 pub enum RequestError {
     BadStatus(StatusCode),
     Parse(ClientParseError),
-    Network(HyperError),
+    Network(ClientError),
 }
 
 /// Determines if the provided error should trigger a retry or not.
@@ -30,11 +32,7 @@ fn is_retryable_error(err: &RequestError) -> bool {
             }
         }
         RequestError::Network(err) => {
-            if err.is_incomplete_message()
-                || err.is_parse()
-                || err.is_canceled()
-                || err.is_connect()
-            {
+            if err.is_connect() {
                 return true;
             }
         }
@@ -61,13 +59,10 @@ fn is_retryable_error(err: &RequestError) -> bool {
 ///
 /// # Unwrapping
 /// As this function already internally retries failed requests the ultimative result should be unwrapped, as the underlying error is likely not recoverable by the application at runtime.
-pub async fn try_request<T: 'static, B: Body>(
-    client: Client<T, B>,
-    request: (Request<B>, Option<Vec<u8>>),
-) -> Result<IpcMessage, RequestError>
-where
-    T: Connect + Clone + Sync + Send,
-{
+pub async fn try_request(
+    client: IpcClient,
+    request: (IpcRequest, Option<Vec<u8>>),
+) -> Result<IpcMessage, RequestError> {
     let retry_strategy = FibonacciBackoff::from_millis(10)
         .map(jitter)
         .take(REQ_RETRY_LIMIT);
@@ -81,13 +76,10 @@ where
 }
 
 /// Internal request handler, which might fail and can be retried, as the request is being cloned on every call
-async fn dispatch_request<T: 'static, B: Body>(
-    client: &Client<T, B>,
-    request: &(Request<B>, Option<Vec<u8>>),
-) -> Result<IpcMessage, RequestError>
-where
-    T: Connect + Clone + Sync + Send,
-{
+async fn dispatch_request(
+    client: &IpcClient,
+    request: &(IpcRequest, Option<Vec<u8>>),
+) -> Result<IpcMessage, RequestError> {
     let response = client
         .clone()
         .request(clone_request(&request.0, request.1.as_ref()))
@@ -108,7 +100,7 @@ where
 ///
 /// # Panics
 /// If the provided request does not have the [`header::CONTENT_TYPE`] set.
-fn clone_request<B: Body>(request: &Request<B>, body: Option<&Vec<u8>>) -> Request<B> {
+fn clone_request(request: &IpcRequest, body: Option<&Vec<u8>>) -> IpcRequest {
     Request::builder()
         .method(request.method())
         .header(
@@ -116,14 +108,14 @@ fn clone_request<B: Body>(request: &Request<B>, body: Option<&Vec<u8>>) -> Reque
             request
                 .headers()
                 .get(header::CONTENT_TYPE)
-                .expect("Cannot clone request without a content-type header."),
+                .expect("Cannot clone request without a content-type header. This is a bug, please open an issue."),
         )
         .uri(request.uri().clone())
         .body((|| {
             if let Some(body) = body {
-                return Body::from(body.clone());
+                return Full::from(body.clone());
             }
-            Body::empty()
+            Full::new(Bytes::new())
         })())
         .unwrap()
 }
