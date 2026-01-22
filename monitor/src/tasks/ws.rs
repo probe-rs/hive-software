@@ -68,7 +68,7 @@ impl From<String> for WsTicket {
 pub async fn socket_handler(mut socket: WebSocket, mut receiver: MpscReceiver<TaskRunnerMessage>) {
     tokio::spawn(async move {
         let mut shutdown_signal = SHUTDOWN_SIGNAL.subscribe();
-        let mut ws_close_reason = WsCloseReason::NormalClosure;
+        let ws_close_reason;
 
         if send_json(
             &mut socket,

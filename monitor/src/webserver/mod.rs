@@ -24,7 +24,6 @@ use axum::middleware::from_extractor;
 use axum::response::Redirect;
 use axum::routing::{self, post};
 use axum::{BoxError, Extension, Router, middleware};
-use axum_extra::extract::Host;
 use axum_server::tls_rustls::RustlsConfig;
 use hyper::{StatusCode, Uri};
 use tokio::net::TcpListener;
@@ -151,37 +150,41 @@ async fn redirect_http_to_https_server(
     let http_port: u16 = cli_args.http_port;
     let https_port: u16 = cli_args.https_port;
 
-    fn make_https(
-        host: String,
-        uri: Uri,
-        http_port: u16,
-        https_port: u16,
-    ) -> Result<Uri, BoxError> {
+    fn make_https(uri: Uri, http_port: u16, https_port: u16) -> Result<Uri, BoxError> {
         let mut parts = uri.into_parts();
 
         parts.scheme = Some(axum::http::uri::Scheme::HTTPS);
+
+        if let Some(authority) = parts.authority {
+            let https_authority = authority
+                .as_str()
+                .replace(&http_port.to_string(), &https_port.to_string());
+
+            parts.authority = Some(https_authority.parse()?)
+        } else {
+            return Err("URI authority is missing".into());
+        }
 
         if parts.path_and_query.is_none() {
             parts.path_and_query = Some("/".parse().unwrap());
         }
 
-        let https_host = host.replace(&http_port.to_string(), &https_port.to_string());
-        parts.authority = Some(https_host.parse()?);
-
         Ok(Uri::from_parts(parts)?)
     }
 
-    let redirect = move |Host(host): Host, uri: Uri| async move {
-        match make_https(host, uri, http_port, https_port) {
+    let redirect = move |uri: Uri| async move {
+        match make_https(uri, http_port, https_port) {
             Ok(uri) => Ok(Redirect::permanent(&uri.to_string())),
             Err(err) => Err((StatusCode::BAD_REQUEST, err.to_string())),
         }
     };
 
-    let listener = TcpListener::bind(&addr).await.expect(&format!(
-        "Failed to bind {}. This is likely caused by a system configuration issue.",
-        addr
-    ));
+    let listener = TcpListener::bind(&addr).await.unwrap_or_else(|_| {
+        panic!(
+            "Failed to bind {}. This is likely caused by a system configuration issue.",
+            addr
+        )
+    });
 
     axum::serve(listener, redirect.into_make_service()).await
 }
