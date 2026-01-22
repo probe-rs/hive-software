@@ -7,16 +7,17 @@ use std::{path::Path, sync::Arc};
 
 use anyhow::anyhow;
 use async_graphql::{Context, Object, Result as GrapqlResult};
+use base64::{Engine, alphabet};
 use comm_types::auth::Role;
 use comm_types::token::DbToken;
 use controller::logger::LogEntry;
 use hive_db::{BincodeDb, BincodeIter};
 use log::Level;
-use probe_rs::config::{get_target_by_name, search_chips};
-use probe_rs::{probe::list::Lister, Architecture};
+use probe_rs::config::Registry;
+use probe_rs::{Architecture, probe::list::Lister};
 use rppal::system::DeviceInfo;
 
-use crate::database::{keys, MonitorDb};
+use crate::database::{MonitorDb, keys};
 use crate::testprogram::Testprogram;
 
 use super::model::{
@@ -109,18 +110,22 @@ impl BackendQuery {
 
     /// Search the supported targets by Hive
     async fn search_supported_targets(&self, search: String) -> Vec<String> {
-        tokio::task::spawn_blocking(|| {
+        tokio::task::spawn_blocking(move || {
+            let probe_rs_registry = Registry::from_builtin_families();
+
             // We limit the max amount of returned targets to 30 in order to not send monster responses which could hang the frontend
-            let mut chips = search_chips(search).unwrap();
+            let mut chips = probe_rs_registry.search_chips(&search);
             chips.truncate(30);
 
             chips
                 .into_iter()
-                .filter(|chip_name| match get_target_by_name(chip_name) {
-                    // TODO: Currently Hive does not support Xtensa architecture so we just filter those results out for now
-                    Ok(target) => target.architecture() != Architecture::Xtensa,
-                    Err(_) => false,
-                })
+                .filter(
+                    |chip_name| match probe_rs_registry.get_target_by_name(chip_name) {
+                        // TODO: Currently Hive does not support Xtensa architecture so we just filter those results out for now
+                        Ok(target) => target.architecture() != Architecture::Xtensa,
+                        Err(_) => false,
+                    },
+                )
                 .collect()
         })
         .await
@@ -231,6 +236,11 @@ impl BackendQuery {
     ) -> GrapqlResult<FullTestProgramResponse> {
         let db = ctx.data::<Arc<MonitorDb>>().unwrap();
 
+        let base64_engine = base64::engine::GeneralPurpose::new(
+            &alphabet::URL_SAFE,
+            base64::engine::general_purpose::NO_PAD,
+        );
+
         let testprograms = db
             .config_tree
             .b_get(&keys::config::TESTPROGRAMS)
@@ -243,12 +253,12 @@ impl BackendQuery {
             .ok_or_else(|| anyhow!("Failed to find provided testprogram"))?;
 
         let (code_arm, code_riscv, testprogram) = tokio::task::spawn_blocking(move || {
-            let arm_code = base64::encode(
+            let arm_code = base64_engine.encode(
                 fs::read(testprogram.get_path().join("arm/main.S"))
                     .expect("Failed to open testprogram ARM assembly source code"),
             );
 
-            let riscv_code = base64::encode(
+            let riscv_code = base64_engine.encode(
                 fs::read(testprogram.get_path().join("riscv/main.S"))
                     .expect("Failed to open testprogram ARM assembly source code"),
             );

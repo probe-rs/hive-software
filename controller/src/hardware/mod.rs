@@ -41,9 +41,13 @@ pub type HiveIoExpander =
 
 #[derive(Debug, Error)]
 pub enum InitError {
-    #[error("The probe hardware which was detected by the runner does not match with the data provided by the monitor")]
+    #[error(
+        "The probe hardware which was detected by the runner does not match with the data provided by the monitor"
+    )]
     ProbeInitDesync,
-    #[error("The target hardware which was detected by the runner does not match with the data provided by the monitor")]
+    #[error(
+        "The target hardware which was detected by the runner does not match with the data provided by the monitor"
+    )]
     TargetInitDesync,
 }
 
@@ -128,14 +132,12 @@ impl HiveHardware {
                 if found_probes[found_probes_idx].vendor_id == probe_info.vendor_id
                     && found_probes[found_probes_idx].product_id == probe_info.product_id
                     && found_probes[found_probes_idx].serial_number == probe_info.serial_number
-                    && found_probes[found_probes_idx].hid_interface == probe_info.hid_interface
+                    && found_probes[found_probes_idx].interface == probe_info.hid_interface
                 {
                     let tss = self.testchannels[channel_idx].lock().unwrap();
 
                     let probe_info = found_probes.remove(found_probes_idx);
-                    let probe = probe_info
-                        .open(&probe_lister)
-                        .expect("TODO either skip probe or panic");
+                    let probe = probe_info.open().expect("TODO either skip probe or panic");
 
                     tss.bind_probe(probe, probe_info);
                     found_probe = true;
@@ -154,7 +156,11 @@ impl HiveHardware {
         }
 
         if data_desync {
-            log::warn!("Encountered data desync during probe data initialization.\nData received:\n{:#?}\nProbes detected by the application, which are not found in the received data:\n{:#?}", data, found_probes);
+            log::warn!(
+                "Encountered data desync during probe data initialization.\nData received:\n{:#?}\nProbes detected by the application, which are not found in the received data:\n{:#?}",
+                data,
+                found_probes
+            );
             return Err(InitError::ProbeInitDesync);
         }
 

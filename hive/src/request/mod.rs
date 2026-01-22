@@ -1,16 +1,16 @@
 //! Helper methods to handle requests to the Hive testserver and manage authorization
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use comm_types::token::API_TOKEN_HEADER;
 use reqwest::{
-    blocking::{RequestBuilder, Response},
     StatusCode,
+    blocking::{RequestBuilder, Response},
 };
 
 use crate::{
+    CliArgs,
     config::HiveConfig,
     request::token::{delete_api_token, get_api_token_or_prompt},
-    CliArgs,
 };
 
 pub mod client;

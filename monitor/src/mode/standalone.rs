@@ -7,7 +7,7 @@ use tokio::runtime::Builder;
 use crate::config;
 use crate::database::MonitorDb;
 use crate::tasks::TaskManager;
-use crate::{flash, init, webserver, Args, HARDWARE};
+use crate::{Args, HARDWARE, flash, init, webserver};
 
 pub fn run_standalone_mode(db: Arc<MonitorDb>, cli_args: Arc<Args>) {
     init::check_uninit(db.clone());

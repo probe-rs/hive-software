@@ -6,16 +6,15 @@
 use std::sync::Arc;
 
 use comm_types::auth::{DbUser, Role};
-use dialoguer::{theme::ColorfulTheme, Input, Password};
+use dialoguer::{Input, Password, theme::ColorfulTheme};
 use hive_db::BincodeDb;
 use nix::unistd::{Group, User};
 
 use crate::{
     config::AppConfig,
     database::{
-        hasher,
+        MonitorDb, hasher,
         keys::{self, config::APP_CONFIG},
-        MonitorDb,
     },
 };
 
@@ -49,7 +48,9 @@ pub fn run_init_mode(db: Arc<MonitorDb>) {
         .b_insert(&APP_CONFIG, &new_app_config)
         .expect("Failed to save value to DB");
 
-    println!("Initial Hive setup successful. You can now run the monitor binary in a productive mode: 'monitor standalone' (example)");
+    println!(
+        "Initial Hive setup successful. You can now run the monitor binary in a productive mode: 'monitor standalone' (example)"
+    );
 }
 
 /// Prompts the user to register the inial user
@@ -94,7 +95,10 @@ fn add_first_user_prompt(db: &MonitorDb) {
         .b_insert(&keys::credentials::USERS, &users)
         .unwrap();
 
-    println!("Successfully added user '{}', with admin role.\nYou can now restart the application in a non init-mode.", username_input);
+    println!(
+        "Successfully added user '{}', with admin role.\nYou can now restart the application in a non init-mode.",
+        username_input
+    );
 }
 
 /// Prompts the user for a system user

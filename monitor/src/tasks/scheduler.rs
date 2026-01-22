@@ -2,16 +2,16 @@
 use std::sync::Arc;
 
 use comm_types::test::{TestOptions, TestResults};
-use controller::hardware::{reset_probe_usb, HiveHardware};
+use controller::hardware::{HiveHardware, reset_probe_usb};
 use lazy_static::lazy_static;
 use tokio::runtime::Runtime;
+use tokio::sync::Mutex;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, Receiver as MpscReceiver};
-use tokio::sync::Mutex;
 
 use crate::database::MonitorDb;
 use crate::{
-    flash, init, testprogram, ACTIVE_TESTPROGRAM_CHANGED, HARDWARE_DB_DATA_CHANGED, SHUTDOWN_SIGNAL,
+    ACTIVE_TESTPROGRAM_CHANGED, HARDWARE_DB_DATA_CHANGED, SHUTDOWN_SIGNAL, flash, init, testprogram,
 };
 
 use super::reinit_task::ReinitializationTask;

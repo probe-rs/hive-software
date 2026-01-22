@@ -11,7 +11,7 @@ runs:
   using: "composite"
   steps:
     - name: Install toolchain
-      uses: dtolnay/rust-toolchain@1.75
+      uses: dtolnay/rust-toolchain@1.91
       with:
         targets: ${{ inputs.targets }}
         components: ${{ inputs.components }}
@@ -20,7 +20,7 @@ runs:
       uses: actions/checkout@v3
       with:
         repository: probe-rs/probe-rs
-        ref: v0.22.0
+        ref: v0.31.0
         path: probe-rs-hive-testcandidate
 
     # workaround as actions/checkout cannot clone outside of workspace

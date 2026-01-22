@@ -1,7 +1,7 @@
 //! The connect subcommand
-use anyhow::{bail, Result};
-use dialoguer::theme::ColorfulTheme;
+use anyhow::{Result, bail};
 use dialoguer::Input;
+use dialoguer::theme::ColorfulTheme;
 
 use crate::config::HiveConfig;
 use crate::models::Host;
@@ -51,7 +51,9 @@ pub fn connect(cli_args: CliArgs, mut config: HiveConfig) -> Result<()> {
 
     config.save_config()?;
 
-    println!("Successfully connected to testserver.\nYou can now start testing your project by using 'hive test'");
+    println!(
+        "Successfully connected to testserver.\nYou can now start testing your project by using 'hive test'"
+    );
 
     Ok(())
 }

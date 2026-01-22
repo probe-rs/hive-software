@@ -1,6 +1,6 @@
 //! Handles the running and reporting of the tests
 use std::cell::Cell;
-use std::panic::{self, AssertUnwindSafe, PanicInfo};
+use std::panic::{self, AssertUnwindSafe, PanicHookInfo};
 use std::sync::Arc;
 
 use antidote::Mutex as PoisonFreeMutex;
@@ -8,7 +8,7 @@ use backtrace::Backtrace;
 use comm_types::defines::DefineRegistry;
 use comm_types::hardware::TargetInfo;
 use comm_types::test::{Filter, TestOptions, TestResult, TestStatus};
-use controller::hardware::{reset_probe_usb, try_attach, CombinedTestChannel};
+use controller::hardware::{CombinedTestChannel, reset_probe_usb, try_attach};
 use hive_test::TestChannelHandle;
 use lazy_static::lazy_static;
 use tokio::sync::mpsc::Sender;
@@ -35,7 +35,7 @@ thread_local! {
     /// Stores the last backtrace of an occurred Panic in the thread.
     ///
     /// This is used by the test threads to attach a proper backtrace to each panicked test result
-    static BACKTRACE: Cell<String> = Cell::new(String::new());
+    static BACKTRACE: Cell<String> = const {Cell::new(String::new())};
 }
 
 use crate::comm::Message;
@@ -206,7 +206,7 @@ pub fn run_tests(
 /// Sets a custom panic hook to enable backtrace functionality for testfunctions.
 ///
 /// Returns the previously used panic hook.
-pub fn set_test_fn_panic_hook() -> Box<dyn for<'r, 's> Fn(&'r PanicInfo<'s>) + Send + Sync> {
+pub fn set_test_fn_panic_hook() -> Box<dyn for<'r, 's> Fn(&'r PanicHookInfo<'s>) + Send + Sync> {
     let standard_hook = panic::take_hook();
     panic::set_hook(Box::new(|_| {
         let backtrace = Backtrace::new();

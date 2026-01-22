@@ -9,15 +9,15 @@ use controller::hardware::HiveHardware;
 use thiserror::Error;
 use tokio::sync::mpsc::{self, Sender as MpscSender};
 
+use crate::HARDWARE;
+use crate::HARDWARE_DB_DATA_CHANGED;
 use crate::config::{HIVE_GID, RUNNER_UID};
 use crate::tasks::scheduler::CURRENT_TEST_TASK_OPTIONS;
 use crate::tasks::util::sandbox::Sandbox;
 use crate::tasks::util::subprocess;
-use crate::HARDWARE;
-use crate::HARDWARE_DB_DATA_CHANGED;
 
 use super::scheduler::TaskScheduler;
-use super::{ws::WsTicket, Task};
+use super::{Task, ws::WsTicket};
 
 #[cfg(doc)]
 use super::TaskManager;

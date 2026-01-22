@@ -4,6 +4,6 @@
   "compilerOptions": {
     "module": "CommonJS",
     "preserveValueImports": false,
-    "types": ["node", "cypress/types/cypress"],
-  },
+    "types": ["node", "cypress/types/cypress"]
+  }
 }

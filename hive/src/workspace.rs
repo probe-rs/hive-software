@@ -14,11 +14,11 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use fs_extra::dir::CopyOptions;
-use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::Error as GitError;
 use git2::Repository;
+use git2::build::{CheckoutBuilder, RepoBuilder};
 use ignore::WalkBuilder;
 use thiserror::Error;
 use toml::{Table, Value};
@@ -106,7 +106,7 @@ fn prepare_runner_source(hive_software_path: &Path) -> Result<(), WorkspaceError
 
             RepoBuilder::new()
                 .with_checkout(checkout_builder)
-                .branch(REPO_REFERENCE.split('/').last().unwrap())
+                .branch(REPO_REFERENCE.split('/').next_back().unwrap())
                 .clone(RUNNER_SOURCE_REPO, hive_software_path)?;
         }
     }

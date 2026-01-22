@@ -9,8 +9,9 @@ use http::header::{self, HeaderValue};
 use http::request::{Parts, Request};
 use http_body_util::BodyExt;
 use hyper::StatusCode;
-use serde::de::DeserializeOwned;
+use hyper::body::Buf;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use thiserror::Error;
 
 pub const BINCODE_MIME: &str = "application/bincode";
@@ -131,25 +132,25 @@ impl<S> FromRequestParts<S> for CheckContentType {
 
 #[cfg(test)]
 mod tests {
+    use axum::Router;
     use axum::body::Body;
-    use axum::http::{header, Method, Request, StatusCode};
+    use axum::http::{Method, Request, StatusCode, header};
     use axum::middleware::from_extractor;
     use axum::response::IntoResponse;
     use axum::routing::post;
-    use axum::Router;
     use bincode::config;
     use bincode::serde::encode_to_vec;
 
     use serde::{Deserialize, Serialize};
     use tower::ServiceExt;
 
-    use super::{Bincode, CheckContentType, ServerParseError, BINCODE_MIME};
+    use super::{BINCODE_MIME, Bincode, CheckContentType, ServerParseError};
 
     #[derive(Serialize, Deserialize)]
     enum Animal {
-        ZEBRA,
-        LION,
-        CRAB,
+        Zebra,
+        Lion,
+        Crab,
     }
 
     #[derive(Serialize, Deserialize)]
@@ -257,7 +258,7 @@ mod tests {
 
         let data = MockBincodeData {
             username: "User".to_owned(),
-            favorite_animal: Animal::CRAB,
+            favorite_animal: Animal::Crab,
             favorite_numbers: vec![7, 42, 555],
         };
 

@@ -12,8 +12,15 @@ members = [
     "hive-db",
 ]
 
+[workspace.package]
+rust-version="1.89"
+edition="2024"
+
+[workspace.lints.clippy]
+collapsible_if = "allow" # Currently disabled due to personal preference
+
 [workspace.dependencies]
-probe-rs = { git = "https://github.com/probe-rs/probe-rs.git", rev = "a003183" } # Use master due to hidapi feature collision (https://github.com/probe-rs/probe-rs/pull/1842)
+probe-rs = "0.31" # Use master due to hidapi feature collision (https://github.com/probe-rs/probe-rs/pull/1842)
 log = "0.4"
 lazy_static = "1.5"
 axum = "0.7"
@@ -28,20 +35,20 @@ serde_json = "1.0"
 sled = "0.34"
 thiserror = "2.0"
 anyhow = "1.0"
-bincode = "2.0.0-rc.3"
+bincode = "2.0.0"
 trybuild = "1.0"
 inventory = "0.3"
-embedded-hal-bus = "0.2"
+embedded-hal-bus = "0.3"
 clap = "4.5"
-clap-verbosity-flag = "2.2"
-dialoguer = "0.11"
-colored = "2.1"
-serial_test = "3.1"
+clap-verbosity-flag = "3.0"
+dialoguer = "0.12"
+colored = "3.0"
+serial_test = "3.3"
 pca9535 = "2.0"
 embedded-hal = "1.0"
-rppal = "0.19"
-retry = "2.0"
+rppal = "0.22"
+retry = "2.1"
 antidote = "1.0"
-nix = "0.29"
+nix = "0.30"
 # Testcandidate used in runner crate
 probe-rs-test = { package = "probe-rs", path = "../probe-rs-hive-testcandidate/probe-rs/" }

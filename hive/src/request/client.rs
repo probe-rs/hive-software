@@ -1,7 +1,7 @@
 //! The http and ws clients used to send requests to the testserver
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use comm_types::token::API_TOKEN_HEADER;
 use http::HeaderValue;
 use native_tls::TlsConnector;
@@ -11,10 +11,10 @@ use tungstenite::protocol::WebSocketConfig;
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Connector, WebSocket};
 
+use crate::CliArgs;
 use crate::config::HiveConfig;
 use crate::models::Host;
 use crate::request::get_api_token_or_prompt;
-use crate::CliArgs;
 
 /// Get the http client to issue requests.
 ///

@@ -1,6 +1,6 @@
 //! Various validators used to validate user input
 use validators::models::Host;
-use validators::prelude::{validators_prelude, ValidateString, Validator};
+use validators::prelude::{ToUriAuthorityString, ValidateString, Validator, validators_prelude};
 
 #[derive(Debug, Validator, Clone)]
 #[validator(host(local(Allow), port(Allow), at_least_two_labels(Must)))]

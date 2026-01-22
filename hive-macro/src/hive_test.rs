@@ -1,11 +1,11 @@
 //! Contains the logic for the hive_test macro
 use darling::FromMeta;
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 use proc_macro_error::abort;
+use proc_macro2::Span;
 use quote::quote;
 use syn::{
-    spanned::Spanned, AttributeArgs, FnArg, ItemFn, Pat, PatType, ReturnType, Type, Visibility,
+    AttributeArgs, FnArg, ItemFn, Pat, PatType, ReturnType, Type, Visibility, spanned::Spanned,
 };
 
 /// Arguments for hive_test macro
@@ -19,8 +19,7 @@ struct TestOptions {
 
 const ATTRIBUTE_EXAMPLE: &str = "#[hive_test(order = 1, should_panic = true)]";
 const ATTRIBUTE_KEYS: &str = "'order = usize', 'should_panic = bool'";
-const FUNCTION_EXAMPLE: &str =
-    "fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo, defines: &DefineRegistry);";
+const FUNCTION_EXAMPLE: &str = "fn my_fancy_test(test_channel: &mut dyn TestChannelHandle, session: &mut Session, target_info: &HiveTargetInfo, defines: &DefineRegistry);";
 
 const TESTFUNCTION_ARGUMENT_LENGTH: usize = 4;
 const TESTFUNCTION_ARGUMENT_IDENT: [&str; TESTFUNCTION_ARGUMENT_LENGTH] =

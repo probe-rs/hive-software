@@ -13,12 +13,12 @@ use comm_types::ipc::{HiveProbeData, HiveTargetData, IpcMessage};
 use comm_types::test::{TestOptions, TestResult, TestResults, TestRunStatus};
 use hyper::body::Body;
 use hyper_util::client::legacy::{
-    connect::{Connected, Connection},
     Client,
+    connect::{Connected, Connection},
 };
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::sync::oneshot::Sender;
 use tokio::sync::Notify;
+use tokio::sync::oneshot::Sender;
 use tokio::{net::UnixStream, sync::mpsc::Receiver};
 
 use crate::SHUTDOWN_SIGNAL;

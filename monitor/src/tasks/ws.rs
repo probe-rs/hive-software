@@ -1,10 +1,12 @@
 //! The websocket server manager which handles all ws connections during testing
 use super::TaskRunnerMessage;
-use axum::extract::ws::{Message, WebSocket};
 use axum::Error as AxumError;
+use axum::extract::ws::{Message, WebSocket};
+use base64::Engine;
+use base64::alphabet::{self};
 use rand_chacha::{
-    rand_core::{RngCore, SeedableRng},
     ChaChaRng,
+    rand_core::{RngCore, SeedableRng},
 };
 use serde::Serialize;
 use tokio::sync::mpsc::Receiver as MpscReceiver;
@@ -30,8 +32,12 @@ impl WsTicket {
         rng.fill_bytes(&mut random_bytes);
 
         // As the ticket will later be used in a url query string it should be url safe
-        let base64_config = base64::Config::new(base64::CharacterSet::UrlSafe, true);
-        let ticket = base64::encode_config(random_bytes, base64_config);
+        let base64_engine = base64::engine::GeneralPurpose::new(
+            &alphabet::URL_SAFE,
+            base64::engine::general_purpose::NO_PAD,
+        );
+
+        let ticket = base64_engine.encode(random_bytes);
 
         Self(ticket)
     }

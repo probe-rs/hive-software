@@ -1,5 +1,6 @@
 /target
 /ws-manager
+/data
 deploy.sh
 bubblewrap.sh
 tarpaulin-report.html

@@ -44,10 +44,10 @@ use log::Level;
 use rppal::i2c::I2c;
 use test::TEST_FUNCTIONS;
 use tokio::runtime::Builder;
+use tokio::sync::Notify;
 use tokio::sync::broadcast::{self, Sender as BroadcastSender};
 use tokio::sync::mpsc::{Receiver as MpscReceiver, Sender as MpscSender};
 use tokio::sync::oneshot::{self, Receiver as OneshotReceiver};
-use tokio::sync::Notify;
 use wildmatch::WildMatch;
 
 use crate::comm::Message;
@@ -131,11 +131,10 @@ fn run(
     notify_results_ready: Arc<Notify>,
 ) -> Result<()> {
     // Wait until the init data was received from monitor
-    let (probe_data, target_data, define_data, test_options) = init_data_receiver.blocking_recv().map_err(|err| {
+    let (probe_data, target_data, define_data, test_options) = init_data_receiver.blocking_recv().inspect_err(|_| {
         log::error!(
             "The oneshot sender in the async comm-thread has been dropped, shutting down. This is either caused by a panic in the comm-thread or an error in the code.",
         );
-        err
     })?;
 
     let define_registry = Arc::new(define_data);

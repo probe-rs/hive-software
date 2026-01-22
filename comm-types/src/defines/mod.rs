@@ -7,8 +7,8 @@
 //! Anything that can implement [`HiveDefine`] can be used as a Hive define.
 use std::{any::type_name, collections::HashMap};
 
-use downcast_rs::{impl_downcast, Downcast};
-use dyn_clone::{clone_trait_object, DynClone};
+use downcast_rs::{Downcast, impl_downcast};
+use dyn_clone::{DynClone, clone_trait_object};
 use serde::{Deserialize, Serialize};
 
 mod uid;
@@ -43,7 +43,9 @@ impl DefineRegistry {
             .insert(type_name::<D>().to_owned(), define)
             .is_some()
         {
-            panic!("Failed to register define as it is already present in the registry. You might have registered it twice or you created two different defines with the same keys");
+            panic!(
+                "Failed to register define as it is already present in the registry. You might have registered it twice or you created two different defines with the same keys"
+            );
         }
     }
 

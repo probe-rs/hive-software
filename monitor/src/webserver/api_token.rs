@@ -14,14 +14,14 @@ use std::sync::Arc;
 
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use comm_types::token::{DbToken, TokenLifetime, API_TOKEN_HEADER};
+use comm_types::token::{API_TOKEN_HEADER, DbToken, TokenLifetime};
 use hive_db::{BincodeTransactional, Key};
 use hyper::{Request, StatusCode};
-use rand::distributions::Alphanumeric;
 use rand::Rng;
-use rand_chacha::rand_core::SeedableRng;
+use rand::distributions::Alphanumeric;
 use rand_chacha::ChaChaRng;
-use sled::transaction::{abort, TransactionError};
+use rand_chacha::rand_core::SeedableRng;
+use sled::transaction::{TransactionError, abort};
 use thiserror::Error;
 
 use crate::database::MonitorDb;
@@ -128,10 +128,10 @@ pub(super) async fn require_api_token<B>(
 mod tests {
     use std::sync::Arc;
 
-    use axum::middleware::from_fn;
-    use axum::routing::get;
     use axum::Extension;
     use axum::Router;
+    use axum::middleware::from_fn;
+    use axum::routing::get;
     use comm_types::token::DbToken;
     use comm_types::token::TokenLifetime;
     use hive_db::BincodeDb;
@@ -145,7 +145,7 @@ mod tests {
 
     use crate::database::MonitorDb;
 
-    use super::{require_api_token, TokenError, API_TOKEN_HEADER};
+    use super::{API_TOKEN_HEADER, TokenError, require_api_token};
 
     lazy_static! {
         // We open a temporary test database and initialize it to the test values
@@ -159,7 +159,7 @@ mod tests {
 
         static ref API_TOKEN: &'static str = "secretTokenValue";
 
-        static ref API_TOKEN_KEY: Key<'static, DbToken> = Key::new(&*API_TOKEN);
+        static ref API_TOKEN_KEY: Key<'static, DbToken> = Key::new(*API_TOKEN);
 
         static ref DUMMY_TOKEN_DATA: DbToken = DbToken { name: "my token".to_owned(), description: "some descriptive description".to_owned(), lifetime: TokenLifetime::Permanent };
     }

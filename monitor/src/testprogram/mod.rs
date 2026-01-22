@@ -26,7 +26,7 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use sled::transaction::UnabortableTransactionError;
 
-use crate::database::{keys, MonitorDb};
+use crate::database::{MonitorDb, keys};
 
 use self::build::BuildError;
 
@@ -106,12 +106,12 @@ impl Testprogram {
 
         OpenOptions::new()
             .write(true)
-            .create(true)
+            .create_new(true)
             .open(path.join("arm/main.S"))
             .expect("Failed to create ARM main.S File in testprogram");
         OpenOptions::new()
             .write(true)
-            .create(true)
+            .create_new(true)
             .open(path.join("riscv/main.S"))
             .expect("Failed to create RISCV main.S File in testprogram");
 
@@ -418,7 +418,10 @@ pub fn sync_binaries(db: Arc<MonitorDb>, hardware: &HiveHardware) {
         return;
     }
 
-    log::warn!("Failed to build or link the currently active testprogram '{}', falling back to default testprogram.", active_testprogram.get_name());
+    log::warn!(
+        "Failed to build or link the currently active testprogram '{}', falling back to default testprogram.",
+        active_testprogram.get_name()
+    );
 
     // Set active testprogram to default and retry
     let mut active_testprogram = db.config_tree.transaction::<_, _, UnabortableTransactionError>(|tree|{

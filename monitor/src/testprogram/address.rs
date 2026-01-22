@@ -7,8 +7,8 @@ use std::ops::Range;
 use comm_types::hardware::{Memory, TargetState};
 use controller::hardware::HiveHardware;
 use probe_rs::{
-    config::{self, MemoryRegion},
     Architecture, Target,
+    config::{MemoryRegion, Registry},
 };
 
 pub struct BaseAddressRanges {
@@ -22,6 +22,7 @@ pub fn get_and_init_target_address_ranges(hardware: &HiveHardware) -> BaseAddres
         arm: vec![],
         riscv: vec![],
     };
+    let probe_rs_registry = Registry::from_builtin_families();
 
     for tss in hardware.tss.iter().filter_map(|tss| tss.as_ref()) {
         let mut tss = tss.lock().unwrap();
@@ -35,10 +36,14 @@ pub fn get_and_init_target_address_ranges(hardware: &HiveHardware) -> BaseAddres
 
         for (idx, target) in targets.iter().enumerate() {
             if let TargetState::Known(target_info) = target {
-                let target = match config::get_target_by_name(&target_info.name) {
+                let target = match probe_rs_registry.get_target_by_name(&target_info.name) {
                     Ok(target) => target,
                     Err(err) => {
-                        log::warn!("Could not find target '{}' in the probe-rs registry. Failed to determine flash/ram addresses for this target: {}", target_info.name, err);
+                        log::warn!(
+                            "Could not find target '{}' in the probe-rs registry. Failed to determine flash/ram addresses for this target: {}",
+                            target_info.name,
+                            err
+                        );
                         continue;
                     }
                 };
@@ -76,18 +81,11 @@ pub fn get_and_init_target_address_ranges(hardware: &HiveHardware) -> BaseAddres
                 tss.set_target_info(idx, new_target_info);
 
                 if target.architecture() == Architecture::Arm {
-                    if !addresses
-                        .arm
-                        .iter()
-                        .any(|address_range| *address_range == new_address)
-                    {
+                    if !addresses.arm.contains(&new_address) {
                         addresses.arm.push(new_address);
                     }
                 } else if target.architecture() == Architecture::Riscv
-                    && !addresses
-                        .riscv
-                        .iter()
-                        .any(|address_range| *address_range == new_address)
+                    && !addresses.riscv.contains(&new_address)
                 {
                     addresses.riscv.push(new_address);
                 }
@@ -110,7 +108,7 @@ fn get_nvm_address(target: Target) -> Result<Range<u64>, ()> {
         .iter()
         .filter(|region| {
             if let MemoryRegion::Nvm(nvm) = region {
-                if nvm.is_boot_memory && nvm.cores[0] == cores[0].name {
+                if nvm.is_boot_memory() && nvm.cores[0] == cores[0].name {
                     return true;
                 }
             }
@@ -208,13 +206,15 @@ fn get_ram_address(target: Target) -> Result<Range<u64>, ()> {
 
 #[cfg(test)]
 mod tests {
-    use probe_rs::config;
+    use probe_rs::config::Registry;
 
     use super::{get_nvm_address, get_ram_address};
 
     #[test]
     fn singlecore_ram_nvm_address_single_mem() {
-        let target = config::get_target_by_name("STM32F030C6Tx").unwrap();
+        let target = Registry::from_builtin_families()
+            .get_target_by_name("STM32F030C6Tx")
+            .unwrap();
 
         let nvm_range = get_nvm_address(target.clone()).unwrap();
         let ram_range = get_ram_address(target).unwrap();
@@ -225,29 +225,35 @@ mod tests {
 
     #[test]
     fn singlecore_ram_nvm_address_multi_ram() {
-        let target = config::get_target_by_name("esp32c3").unwrap();
+        let target = Registry::from_builtin_families()
+            .get_target_by_name("esp32c3")
+            .unwrap();
 
         let nvm_range = get_nvm_address(target.clone()).unwrap();
         let ram_range = get_ram_address(target).unwrap();
 
         assert_eq!(nvm_range, 0x0..0x01000000);
-        assert_eq!(ram_range, 0x40380000..0x403E0000);
+        assert_eq!(ram_range, 0x3fc80000..0x3fce0000);
     }
 
     #[test]
     fn singlecore_ram_nvm_address_multi_nvm() {
-        let target = config::get_target_by_name("nRF52805_xxAA").unwrap();
+        let target = Registry::from_builtin_families()
+            .get_target_by_name("nRF52805_xxAA")
+            .unwrap();
 
         let nvm_range = get_nvm_address(target.clone()).unwrap();
         let ram_range = get_ram_address(target).unwrap();
 
         assert_eq!(nvm_range, 0x0..0x30000);
-        assert_eq!(ram_range, 0x20000000..0x20006000);
+        assert_eq!(ram_range, 0x800000..0x806000);
     }
 
     #[test]
     fn multicore_ram_nvm_address_multi_mem() {
-        let target = config::get_target_by_name("nRF5340_xxAA").unwrap();
+        let target = Registry::from_builtin_families()
+            .get_target_by_name("nRF5340_xxAA")
+            .unwrap();
 
         let nvm_range = get_nvm_address(target.clone()).unwrap();
         let ram_range = get_ram_address(target).unwrap();

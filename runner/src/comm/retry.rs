@@ -2,10 +2,11 @@
 use axum::http::Request;
 use comm_types::ipc::{ClientParseError, IpcMessage};
 use hyper::Error as HyperError;
-use hyper::{body::Body, header, StatusCode};
-use hyper_util::client::legacy::{connect::Connect, Client};
-use tokio_retry::strategy::{jitter, FibonacciBackoff};
+use hyper::{StatusCode, body::Body, header};
+use hyper_util::client::legacy::{Client, connect::Connect};
 use tokio_retry::RetryIf;
+use tokio_retry::strategy::{FibonacciBackoff, jitter};
+use tokio_retry::strategy::{FibonacciBackoff, jitter};
 
 /// How many times a request using [`try_request()`] can be retried until failure.
 ///

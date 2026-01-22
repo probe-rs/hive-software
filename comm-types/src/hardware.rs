@@ -20,17 +20,12 @@ pub struct Testrack {
 }
 
 /// Represents the state of a single MCU target on a daughterboard
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub enum TargetState {
     Known(TargetInfo),
+    #[default]
     Unknown,
     NotConnected,
-}
-
-impl Default for TargetState {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 impl From<String> for TargetState {
@@ -51,17 +46,12 @@ impl From<String> for TargetState {
 }
 
 /// Represents the state of a single probe connected to a testchannel
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ProbeState {
     Known(ProbeInfo),
+    #[default]
     Unknown,
     NotConnected,
-}
-
-impl Default for ProbeState {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 /// Provides information on the currently used target in a Hive testfunction

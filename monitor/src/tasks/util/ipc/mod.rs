@@ -8,22 +8,22 @@ use std::task::Poll;
 
 use axum::extract::connect_info;
 use axum::routing::{get, post};
-use axum::{middleware, BoxError, Extension, Router};
+use axum::{BoxError, Extension, Router, middleware};
 use comm_types::bincode::CheckContentType;
 use comm_types::defines::DefineRegistry;
 use comm_types::test::{TestOptions, TestResults};
 use futures::ready;
 use tokio::net::unix::UCred;
-use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
-use tokio::sync::mpsc::Sender;
+use tokio::net::{UnixListener, UnixStream, unix::SocketAddr};
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::Sender;
 use tower::ServiceBuilder;
 
+use crate::SHUTDOWN_SIGNAL;
 use crate::config::{HIVE_GID, HIVE_UID};
 use crate::database::MonitorDb;
 use crate::tasks::scheduler::CURRENT_TEST_TASK_OPTIONS;
 use crate::testprogram::defines::DEFINE_REGISTRY;
-use crate::SHUTDOWN_SIGNAL;
 
 mod handlers;
 
@@ -84,8 +84,6 @@ pub async fn ipc_server(db: Arc<MonitorDb>, test_result_sender: Sender<TestResul
             &DEFINE_REGISTRY,
         );
 
-        listener.
-        
         let server = axum::serve(
             IpcStreamListener { listener },
             route.into_make_service_with_connect_info::<IpcConnectionInfo>(),
@@ -153,7 +151,7 @@ mod tests {
     use std::sync::Arc;
 
     use axum::body::Body;
-    use axum::http::{header, Method, Request, StatusCode};
+    use axum::http::{Method, Request, StatusCode, header};
     use bincode::config;
     use bincode::serde::{decode_from_slice, encode_to_vec};
     use comm_types::bincode::BINCODE_MIME;
@@ -163,11 +161,11 @@ mod tests {
     use comm_types::test::{Filter, TestFilter, TestOptions, TestResults, TestRunStatus};
     use hive_db::BincodeDb;
     use lazy_static::lazy_static;
-    use tokio::sync::mpsc::{Receiver, Sender};
     use tokio::sync::Mutex;
+    use tokio::sync::mpsc::{Receiver, Sender};
     use tower::ServiceExt;
 
-    use crate::database::{keys, MonitorDb};
+    use crate::database::{MonitorDb, keys};
 
     use super::app;
 
@@ -483,7 +481,7 @@ mod tests {
         };
 
         let bytes = encode_to_vec(
-            &IpcMessage::TestResults(Box::new(dummy_test_results)),
+            IpcMessage::TestResults(Box::new(dummy_test_results)),
             config::standard(),
         )
         .unwrap();

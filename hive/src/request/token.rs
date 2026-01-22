@@ -1,9 +1,9 @@
 //! Manages the API tokens used to access the endpoints of the testserver
-use anyhow::{bail, Result};
-use dialoguer::{theme::ColorfulTheme, Input};
+use anyhow::{Result, bail};
+use dialoguer::{Input, theme::ColorfulTheme};
 use keyring::{Entry, Error as KeyringError};
 
-use crate::{config::HiveConfig, CliArgs};
+use crate::{CliArgs, config::HiveConfig};
 
 /// Prompts the user to enter the API token to access the test endpoints if no token has been found in the keyring for the currently connected testserver
 ///
@@ -29,7 +29,9 @@ pub(super) fn get_api_token_or_prompt(config: &HiveConfig, cli_args: &CliArgs) -
     if token.is_none() {
         // Prompt user for token
         if cli_args.no_human {
-            bail!("No API token provided for accessing the test API. Please provide a token using the --token flag.")
+            bail!(
+                "No API token provided for accessing the test API. Please provide a token using the --token flag."
+            )
         }
 
         let token_input = Input::with_theme(&ColorfulTheme::default())
@@ -56,7 +58,7 @@ pub(super) fn get_api_token_or_prompt(config: &HiveConfig, cli_args: &CliArgs) -
 pub fn delete_api_token(config: &HiveConfig) -> Result<()> {
     let keyring_entry = get_entry(config)?;
 
-    if let Err(err) = keyring_entry.delete_password() {
+    if let Err(err) = keyring_entry.delete_credential() {
         match err {
             KeyringError::NoEntry => (), // Entry does not exist, ignore
             err => Err(err)?,
